@@ -1,0 +1,41 @@
+cmake_minimum_required(VERSION 3.1)
+project(reloc_fusion CXX CUDA)
+
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_DISABLE_IN_SOURCE_BUILD ON)
+set(CMAKE_DISABLE_SOURCE_CHANGES  ON)
+
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+
+find_package(OpenGL REQUIRED)
+find_package(PkgConfig REQUIRED)
+find_package(GLEW REQUIRED)
+pkg_search_module(GLFW REQUIRED glfw3)
+find_package(Pangolin REQUIRED)
+
+add_subdirectory(fusion_lib)
+
+add_executable(app "")
+
+target_sources(app
+PRIVATE
+    apps/system.cpp
+    apps/main.cpp
+    apps/window_manager.cpp
+)
+
+target_include_directories(app
+PUBLIC
+    ${GLFW_INCLUDE_DIRS}
+)
+
+target_link_libraries(app
+PRIVATE
+    fusion_lib
+    OpenGL::GL
+    ${GLFW_STATIC_LIBRARIES}
+    ${GLEW_LIBRARIES}
+)
