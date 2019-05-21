@@ -15,12 +15,17 @@ int main(int argc, char **argv)
 
     while (!wm.should_quit())
     {
-        if (camera.get_image() && WindowManager::run_mode == 1)
+        if (camera.get_image())
         {
-            slam.process_images(camera.depth, camera.image);
+            switch (WindowManager::run_mode)
+            {
+            case 1:
+                slam.process_images(camera.depth, camera.image);
+                wm.set_rendered_scene(slam.get_rendered_scene());
+            }
 
-            wm.set_rendered_scene(slam.get_rendered_scene());
-            wm.set_source_image(camera.image);
+            wm.set_source_image(camera.image.clone());
+            wm.set_input_depth(camera.depth.clone());
         }
 
         wm.render_scene();

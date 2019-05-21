@@ -54,37 +54,39 @@ TrackingResult DenseTracking::DenseTrackingImpl::compute_transform(const RgbdIma
       auto last_estimate = estimate.value();
       auto last_icp_error = icp_error;
       auto last_rgb_error = rgb_error;
-      icp_reduce(curr_vmap, curr_nmap, last_vmap, last_nmap, sum_se3_, out_se3_, last_estimate, K, jtj_icp_.data(), jtr_icp_.data(), residual_icp_.data());
-      // rgb_reduce(curr_intensity, last_intensity, last_vmap, curr_vmap, intensity_dx, intensity_dy, sum_se3_, out_se3_, last_estimate, K, jtj_rgb_.data(), jtr_rgb_.data(), residual_rgb_.data());
+      // icp_reduce(curr_vmap, curr_nmap, last_vmap, last_nmap, sum_se3_, out_se3_, last_estimate, K, jtj_icp_.data(), jtr_icp_.data(), residual_icp_.data());
+      rgb_reduce(curr_intensity, last_intensity, last_vmap, curr_vmap, intensity_dx, intensity_dy, sum_se3_, out_se3_, last_estimate, K, jtj_rgb_.data(), jtr_rgb_.data(), residual_rgb_.data());
       // JtJ_ = 1e6 * jtj_icp_ + jtj_rgb_;
       // Jtr_ = 1e6 * jtr_icp_ + jtr_rgb_;
 
+      // compute_rgb_correspondence(curr_intensity, last_intensity, intensity_dx, intensity_dy, last_vmap, last_estimate, K);
+
       // std::cout << jtj_icp_ << std::endl;
       // std::cout << jtj_rgb_ << std::endl;
-      // JtJ_ = jtj_rgb_;
-      // Jtr_ = jtr_rgb_;
-      JtJ_ = jtj_icp_;
-      Jtr_ = jtr_icp_;
+      JtJ_ = jtj_rgb_;
+      Jtr_ = jtr_rgb_;
+      // JtJ_ = jtj_icp_;
+      // Jtr_ = jtr_icp_;
       update_ = JtJ_.cast<double>().ldlt().solve(Jtr_.cast<double>());
 
-      icp_error = sqrt(residual_icp_(0)) / residual_icp_(1);
+      // icp_error = sqrt(residual_icp_(0)) / residual_icp_(1);
 
-      if (icp_error > last_icp_error)
-      {
-        if (count >= 2)
-        {
-          estimate.revert();
-          break;
-        }
+      // if (icp_error > last_icp_error)
+      // {
+      //   if (count >= 2)
+      //   {
+      //     estimate.revert();
+      //     break;
+      //   }
 
-        count++;
-        icp_error = last_icp_error;
-        // std::cout << "errro increases at " << level << "/" << iter << std::endl;
-      }
-      else
-      {
-        count = 0;
-      }
+      //   count++;
+      //   icp_error = last_icp_error;
+      //   // std::cout << "errro increases at " << level << "/" << iter << std::endl;
+      // }
+      // else
+      // {
+      //   count = 0;
+      // }
 
       rgb_error = sqrt(residual_rgb_(0)) / residual_rgb_(1);
 
@@ -98,7 +100,7 @@ TrackingResult DenseTracking::DenseTrackingImpl::compute_transform(const RgbdIma
 
         count++;
         rgb_error = last_rgb_error;
-        std::cout << "rgb errors increases at " << level << "/" << iter << " with error: " << rgb_error << " and num_matches: " << residual_rgb_(1) << " and update: " << update_.transpose() << std::endl;
+        // std::cout << "rgb errors increases at " << level << "/" << iter << " with error: " << rgb_error << " and num_matches: " << residual_rgb_(1) << " and update: " << update_.transpose() << std::endl;
       }
       else
       {
@@ -130,4 +132,4 @@ TrackingResult DenseTracking::compute_transform(const RgbdImagePtr reference, co
   return impl->compute_transform(reference, current, c);
 }
 
-}
+} // namespace fusion

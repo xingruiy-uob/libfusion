@@ -639,20 +639,28 @@ public:
                 array_image[index] = make_float4(last_val, curr_val, dx, dy);
                 array_point[index] = pt;
             }
+
+            error_term[k] = last_val - curr_val;
+            correp_mask[k] = corresp_found ? 1 : 0;
         }
     }
 
 public:
     cv::cuda::PtrStep<float4> last_vmap;
-    cv::cuda::PtrStep<float> last_intensity, curr_intensity;
-    cv::cuda::PtrStep<float> curr_intensity_dx, curr_intensity_dy;
+    cv::cuda::PtrStep<float> last_intensity;
+    cv::cuda::PtrStep<float> curr_intensity;
+    cv::cuda::PtrStep<float> curr_intensity_dx;
+    cv::cuda::PtrStep<float> curr_intensity_dy;
     float fx, fy, cx, cy;
     DeviceMatrix3x4 T_last_curr;
     int N, cols, rows;
 
-    uint *num_corresp;
+    int *num_corresp;
     float4 *array_image;
     float4 *array_point;
+
+    float *error_term;
+    uchar *correp_mask;
 };
 
 class ComputeLeastSquaresRGB
@@ -713,6 +721,11 @@ class ComputeLeastSquaresRGB
     float fx, fy;
 };
 
+__global__ void compute_rgb_corresp_kernel(SelectCorrespRGB delegate)
+{
+    delegate();
+}
+
 void compute_rgb_correspondence(const cv::cuda::GpuMat curr_intensity,
                                 const cv::cuda::GpuMat last_intensity,
                                 const cv::cuda::GpuMat curr_intensity_dx,
@@ -739,9 +752,29 @@ void compute_rgb_correspondence(const cv::cuda::GpuMat curr_intensity,
     rgb_struct.cols = cols;
     rgb_struct.N = rows * cols;
 
-    safe_call(cudaMalloc(&rgb_struct.num_corresp, sizeof(uint)));
-    safe_call(cudaMalloc(&rgb_struct.array_image, sizeof(float4) * cols * rows));
-    safe_call(cudaMalloc(&rgb_struct.array_point, sizeof(float4) * cols * rows));
+    cv::cuda::GpuMat array_point(1, cols * rows, CV_32FC4);
+    cv::cuda::GpuMat array_image(1, cols * rows, CV_32FC4);
+    cv::cuda::GpuMat num_corresp(1, 1, CV_32SC1);
+
+    cv::cuda::GpuMat corresp_mask(1, cols * rows, CV_8UC1);
+    cv::cuda::GpuMat error_term(1, cols * rows, CV_32FC1);
+
+    rgb_struct.correp_mask = corresp_mask.ptr<uchar>();
+    rgb_struct.error_term = error_term.ptr<float>();
+    rgb_struct.num_corresp = num_corresp.ptr<int>();
+    rgb_struct.array_image = array_image.ptr<float4>();
+    rgb_struct.array_point = array_point.ptr<float4>();
+
+    compute_rgb_corresp_kernel<<<96, 224>>>(rgb_struct);
+
+    cv::Mat corresp_count(num_corresp);
+
+    if (corresp_count.at<int>(0, 0) == 0)
+        return;
+
+    auto total = cv::cuda::sum(error_term, corresp_mask);
+
+    std::cout << "total: " << total << " / num_corresp: " << corresp_count << std::endl;
 }
 
-}
+} // namespace fusion

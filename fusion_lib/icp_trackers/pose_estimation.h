@@ -22,6 +22,15 @@ void rgb_reduce(
     float *jtj, float *jtr,
     float *residual);
 
+void compute_rgb_correspondence(
+    const cv::cuda::GpuMat curr_intensity,
+    const cv::cuda::GpuMat last_intensity,
+    const cv::cuda::GpuMat curr_intensity_dx,
+    const cv::cuda::GpuMat curr_intensity_dy,
+    const cv::cuda::GpuMat last_vmap,
+    const Sophus::SE3d pose,
+    const IntrinsicMatrix K);
+
 void icp_reduce(
     const cv::cuda::GpuMat &curr_vmap,
     const cv::cuda::GpuMat &curr_nmap,

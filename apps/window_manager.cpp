@@ -126,6 +126,21 @@ void WindowManager::set_source_image(cv::Mat image_src)
 
 void WindowManager::set_input_depth(cv::Mat depth)
 {
+    depth.convertTo(depth, CV_8UC3);
+    glBindTexture(GL_TEXTURE_2D, textures[1]);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+    glTexImage2D(
+        GL_TEXTURE_2D,
+        0,
+        GL_R8,
+        depth.cols,
+        depth.rows,
+        0,
+        GL_RED,
+        GL_UNSIGNED_BYTE,
+        depth.ptr());
 }
 
 void draw_quads()
@@ -168,6 +183,14 @@ void WindowManager::draw_rendered_scene()
 
 void WindowManager::draw_input_depth()
 {
+    glEnable(GL_TEXTURE_2D);
+    glBindTexture(GL_TEXTURE_2D, textures[1]);
+
+    // Draw a textured quad
+    draw_quads();
+
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glDisable(GL_TEXTURE_2D);
 }
 
 bool WindowManager::should_quit() const
@@ -179,7 +202,7 @@ void WindowManager::render_scene()
 {
 
     glClear(GL_COLOR_BUFFER_BIT);
-    glClearColor(1, 0, 0, 1);
+    glClearColor(120.f / 255.f, 120.f / 255.f, 236.f / 255.f, 255.f);
     glMatrixMode(GL_MODELVIEW);
 
     int separate_x = (int)((float)window_width / 3);
@@ -189,6 +212,9 @@ void WindowManager::render_scene()
 
     glViewport(0, 0, separate_x * 2, window_height);
     draw_rendered_scene();
+
+    glViewport(separate_x * 2, window_height / 2, separate_x, window_height / 2);
+    draw_input_depth();
 
     glfwSwapBuffers(window);
     glfwPollEvents();

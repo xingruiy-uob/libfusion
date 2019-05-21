@@ -28,7 +28,6 @@ IntrinsicMatrixPyramid::IntrinsicMatrixPyramid(const IntrinsicMatrix &base_intri
     for (int i = 0; i < pyramid_.size() - 1; ++i)
     {
         pyramid_[i + 1] = std::make_shared<IntrinsicMatrix>(pyramid_[i]->pyr_down());
-        std::cout << *pyramid_[i + 1] << std::endl;
     }
 }
 

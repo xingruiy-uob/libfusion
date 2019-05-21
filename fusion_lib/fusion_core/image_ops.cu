@@ -5,7 +5,6 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/cudawarping.hpp>
 
-
 namespace fusion
 {
 
@@ -183,7 +182,7 @@ __global__ void image_rendering_phong_shading_kernel(const cv::cuda::PtrStep<flo
     if (isnan(point.x))
     {
         const float3 bgr1 = make_float3(4.f / 255.f, 2.f / 255.f, 2.f / 255.f);
-        const float3 bgr2 = make_float3(236.f / 255.f, 120.f / 255.f, 120.f / 255.f);
+        const float3 bgr2 = make_float3(120.f / 255.f, 120.f / 255.f, 236.f / 255.f);
 
         float w = static_cast<float>(y) / dst.rows;
         color = bgr1 * (1 - w) + bgr2 * w;
