@@ -27,7 +27,9 @@ public:
 
     // system control
     static int run_mode;
+    static int colour_mode;
     static bool should_save_file;
+    static bool should_reset;
 
 private:
     GLuint textures[3]; // scene, depth and source textures

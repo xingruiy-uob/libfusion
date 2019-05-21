@@ -73,6 +73,13 @@ bool DenseOdometry::is_tracking_lost() const
   return tracking_lost_;
 }
 
+void DenseOdometry::restart_tracking()
+{
+  current_keyframe_ = NULL;
+  keyframe_needed_ = false;
+  tracking_lost_ = false;
+}
+
 void DenseOdometry::create_keyframe()
 {
   keyframe_needed_ = false;

@@ -8,12 +8,11 @@
 #define RENDERING_BLOCK_SIZE_Y 16
 #define RENDERING_BLOCK_SUBSAMPLE 8
 
-
 namespace fusion
 {
 namespace cuda
 {
-    
+
 struct RenderingBlockDelegate
 {
     int width, height;
@@ -278,9 +277,9 @@ struct MapRenderingDelegate
 
     __device__ __forceinline__ float read_sdf(const float3 &pt3d, bool &valid)
     {
-        Voxel *voxel = nullptr;
+        Voxel *voxel = NULL;
         map_struct.find_voxel(make_int3(pt3d), voxel);
-        if (voxel != nullptr && voxel->get_weight() != 0)
+        if (voxel && voxel->weight_ != 0)
         {
             valid = true;
             return voxel->get_sdf();
@@ -326,40 +325,6 @@ struct MapRenderingDelegate
         return (1.0f - xyz.z) * result[2] + xyz.z * result[3];
     }
 
-    // __device__ __forceinline__ bool read_normal_approximate(const float3 &pt, float3 &n)
-    // {
-
-    //     bool valid;
-    //     float sdf[6];
-    //     sdf[0] = read_sdf_interped(pt + make_float3(1, 0, 0), valid);
-    //     if (isnan(sdf[0]) || sdf[0] == 1.0f || !valid)
-    //         return false;
-
-    //     sdf[1] = read_sdf_interped(pt + make_float3(-1, 0, 0), valid);
-    //     if (isnan(sdf[1]) || sdf[1] == 1.0f || !valid)
-    //         return false;
-
-    //     sdf[2] = read_sdf_interped(pt + make_float3(0, 1, 0), valid);
-    //     if (isnan(sdf[2]) || sdf[2] == 1.0f || !valid)
-    //         return false;
-
-    //     sdf[3] = read_sdf_interped(pt + make_float3(0, -1, 0), valid);
-    //     if (isnan(sdf[3]) || sdf[3] == 1.0f || !valid)
-    //         return false;
-
-    //     sdf[4] = read_sdf_interped(pt + make_float3(0, 0, 1), valid);
-    //     if (isnan(sdf[4]) || sdf[4] == 1.0f || !valid)
-    //         return false;
-
-    //     sdf[5] = read_sdf_interped(pt + make_float3(0, 0, -1), valid);
-    //     if (isnan(sdf[5]) || sdf[5] == 1.0f || !valid)
-    //         return false;
-
-    //     n = make_float3(sdf[0] - sdf[1], sdf[2] - sdf[3], sdf[4] - sdf[5]);
-    //     n = normalised(inv_pose.rotate(n));
-    //     return true;
-    // }
-
     __device__ __forceinline__ float3 unproject(const int &x, const int &y, const float &z) const
     {
         return make_float3((x - cx) * invfx * z, (y - cy) * invfy * z, z);
@@ -373,26 +338,25 @@ struct MapRenderingDelegate
             return;
 
         vmap.ptr(y)[x] = make_float4(__int_as_float(0x7fffffff));
-        // nmap.ptr(y)[x] = make_float4(__int_as_float(0x7fffffff));
 
-        // int2 local_id;
-        // local_id.x = __float2int_rd((float)x / 8);
-        // local_id.y = __float2int_rd((float)y / 8);
+        int2 local_id;
+        local_id.x = __float2int_rd((float)x / 8);
+        local_id.y = __float2int_rd((float)y / 8);
 
-        // float2 zrange;
-        // zrange.x = zrange_x.ptr(local_id.y)[local_id.x];
-        // zrange.y = zrange_y.ptr(local_id.y)[local_id.x];
-        // if (zrange.y < 1e-3 || zrange.x < 1e-3 || isnan(zrange.x) || isnan(zrange.y))
-        //     return;
+        float2 zrange;
+        zrange.x = zrange_x.ptr(local_id.y)[local_id.x];
+        zrange.y = zrange_y.ptr(local_id.y)[local_id.x];
+        if (zrange.y < 1e-3 || zrange.x < 1e-3 || isnan(zrange.x) || isnan(zrange.y))
+            return;
 
         float sdf = 1.0f;
         float last_sdf;
 
-        float3 pt = unproject(x, y, 0.3);
+        float3 pt = unproject(x, y, zrange.x);
         float dist_s = norm(pt) * param.inverse_voxel_size();
         float3 block_s = pose(pt) * param.inverse_voxel_size();
 
-        pt = unproject(x, y, 1.5);
+        pt = unproject(x, y, zrange.y);
         float dist_e = norm(pt) * param.inverse_voxel_size();
         float3 block_e = pose(pt) * param.inverse_voxel_size();
 
@@ -680,5 +644,5 @@ void raycast_with_colour(MapStruct map_struct,
     raycast_with_colour_kernel<<<block, thread>>>(delegate);
 }
 
-} // namespace map
-}
+} // namespace cuda
+} // namespace fusion

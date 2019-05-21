@@ -8,7 +8,9 @@ int window_height = 0;
 bool full_screen = false;
 GLFWwindow *window = NULL;
 int WindowManager::run_mode = 0;
+int WindowManager::colour_mode = 0;
 bool WindowManager::should_save_file = false;
+bool WindowManager::should_reset = false;
 
 void WindowManager::error_callback(int error, const char *description)
 {
@@ -20,14 +22,20 @@ void WindowManager::key_callback(GLFWwindow *window, int key, int scancode, int 
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
         glfwSetWindowShouldClose(window, GL_TRUE);
 
-    if (key == GLFW_KEY_TAB && action == GLFW_RELEASE)
+    if (key == GLFW_KEY_TAB && action == GLFW_PRESS)
         toggle_full_screen();
 
-    if (key == GLFW_KEY_S && action == GLFW_RELEASE)
+    if (key == GLFW_KEY_ENTER && action == GLFW_PRESS)
         run_mode = (run_mode == 1) ? 0 : 1;
 
-    if (key == GLFW_KEY_O && action == GLFW_PRESS)
+    if (key == GLFW_KEY_S && action == GLFW_PRESS)
         should_save_file = true;
+
+    if (key == GLFW_KEY_R && action == GLFW_PRESS)
+        should_reset = true;
+
+    if (key == GLFW_KEY_C && action == GLFW_PRESS)
+        colour_mode = (colour_mode + 1) % 2;
 }
 
 void WindowManager::window_size_callback(GLFWwindow *window, int width, int height)
@@ -71,7 +79,7 @@ bool WindowManager::initialize_gl_context(const size_t width, const int height)
     if (!glfwInit())
         return false;
 
-    window = glfwCreateWindow(width, height, "RelocFusion", NULL, NULL);
+    window = glfwCreateWindow(width, height, "BasicFusion", NULL, NULL);
 
     if (!window)
     {

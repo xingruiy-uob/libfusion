@@ -16,6 +16,7 @@ public:
   bool keyframe_needed() const;
   bool is_tracking_lost() const;
   void create_keyframe();
+  void restart_tracking();
 
   std::vector<Sophus::SE3d> get_keyframe_poses() const;
   std::vector<Sophus::SE3d> get_camera_trajectory() const;

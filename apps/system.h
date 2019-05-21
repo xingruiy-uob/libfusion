@@ -16,7 +16,9 @@ public:
     System(IntrinsicMatrix base, const int NUM_PYR);
     void process_images(const cv::Mat depth, const cv::Mat image);
 
+    void restart();
     cv::Mat get_rendered_scene() const;
+    cv::Mat get_rendered_scene_textured() const;
     void save_mesh_to_file(const char *str);
 
 private:

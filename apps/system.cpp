@@ -46,6 +46,18 @@ cv::Mat System::get_rendered_scene() const
     return cv::Mat(odometry->get_reference_image()->get_rendered_image());
 }
 
+cv::Mat System::get_rendered_scene_textured() const
+{
+}
+
+void System::restart()
+{
+    mapping->restart_mapping();
+    odometry->restart_tracking();
+    processed_frame_count = 0;
+    keyframe = NULL;
+}
+
 void System::save_mesh_to_file(const char *str)
 {
     mapping->create_scene_mesh();

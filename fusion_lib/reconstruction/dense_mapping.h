@@ -14,6 +14,7 @@ public:
   void update(RgbdImagePtr image);
   void raycast(RgbdImagePtr image);
   void create_scene_mesh();
+  void restart_mapping();
   void write_mesh_to_file(const char* file_name);
 
 private:

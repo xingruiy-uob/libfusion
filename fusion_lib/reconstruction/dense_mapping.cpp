@@ -30,11 +30,6 @@ public:
   cv::cuda::GpuMat pos_array;
   const int integration_level_ = 0;
 
-  // for mesh generation
-  // cv::cuda::GpuMat block_list;
-  // cv::cuda::GpuMat block_count;
-  // cv::cuda::GpuMat triangle_count;
-  // cv::cuda::GpuMat triangles;
   int3 *block_list;
   uint *block_count;
   uint *triangle_count;
@@ -51,10 +46,6 @@ DenseMapping::DenseMappingImpl::DenseMappingImpl(const IntrinsicMatrixPyramidPtr
   zrange_x_.create(intrinsic_matrix_.height / 8, intrinsic_matrix_.width / 8, CV_32FC1);
   zrange_y_.create(intrinsic_matrix_.height / 8, intrinsic_matrix_.width / 8, CV_32FC1);
 
-  // block_list.create(1, state.num_total_hash_entries_, CV_32SC3);
-  // triangles.create(1, state.num_total_mesh_vertices(), CV_32FC3);
-  // block_count.create(1, 1, CV_32SC1);
-  // triangle_count.create(1, 1, CV_32SC1);
   std::cout << state.num_total_hash_entries_ << std::endl;
   safe_call(cudaMalloc(&block_count, sizeof(uint)));
   safe_call(cudaMalloc(&block_list, sizeof(int3) * state.num_total_hash_entries_));
@@ -132,6 +123,11 @@ void DenseMapping::raycast(RgbdImagePtr image)
 void DenseMapping::create_scene_mesh()
 {
   impl->create_scene_mesh();
+}
+
+void DenseMapping::restart_mapping()
+{
+  impl->map_struct_->reset_map_struct();
 }
 
 void DenseMapping::write_mesh_to_file(const char *file_name)

@@ -17,11 +17,29 @@ int main(int argc, char **argv)
     {
         if (camera.get_image())
         {
+            if (WindowManager::should_reset)
+            {
+                slam.restart();
+                WindowManager::should_reset = false;
+            }
+
             switch (WindowManager::run_mode)
             {
             case 1:
+            {
                 slam.process_images(camera.depth, camera.image);
-                wm.set_rendered_scene(slam.get_rendered_scene());
+                switch (WindowManager::colour_mode)
+                {
+                case 0:
+                    wm.set_rendered_scene(slam.get_rendered_scene());
+                    break;
+
+                case 1:
+                    wm.set_rendered_scene(slam.get_rendered_scene_textured());
+                    break;
+                }
+                break;
+            }
             }
 
             if (WindowManager::should_save_file)
