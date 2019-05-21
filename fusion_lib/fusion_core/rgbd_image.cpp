@@ -1,5 +1,5 @@
 #include "rgbd_image.h"
-#include "image_ops.h"
+#include "cuda_imgproc.h"
 
 namespace fusion
 {
@@ -52,7 +52,7 @@ void RgbdImage::RgbdImageImpl::resize_pyramid(const int &max_level)
 
 void RgbdImage::RgbdImageImpl::render_synthetic_view()
 {
-    image_rendering_phong_shading(point_cloud_[0], normal_[0], rendered_image_);
+    render_scene(point_cloud_[0], normal_[0], rendered_image_);
 }
 
 cv::cuda::GpuMat RgbdImage::get_vmap(const int &level) const
@@ -118,15 +118,6 @@ void RgbdImage::RgbdImageImpl::upload(const RgbdFramePtr frame, const IntrinsicM
     build_intensity_derivative_pyramid(intensity_, intensity_dx_, intensity_dy_);
     build_point_cloud_pyramid(depth_, point_cloud_, intrinsics_pyr);
     build_normal_pyramid(point_cloud_, normal_);
-    // build_semi_dense_pyramid(intensity_, intensity_dx_, intensity_dy_, semi_dense_, 1, 1);
-
-    // for (int i = 0; i < 5; ++i)
-    // {
-    //     cv::Mat img(semi_dense_[i]);
-    //     img.convertTo(img, CV_8UC1);
-    //     cv::imshow("semi", img);
-    //     cv::waitKey(0);
-    // }
 
     reference_frame_ = frame;
 }

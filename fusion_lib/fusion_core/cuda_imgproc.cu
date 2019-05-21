@@ -1,4 +1,4 @@
-#include "image_ops.h"
+#include "cuda_imgproc.h"
 #include "cuda_utils.h"
 #include "vector_math.h"
 #include "intrinsic_matrix.h"
@@ -7,14 +7,6 @@
 
 namespace fusion
 {
-
-void imshow(const char *name, const cv::cuda::GpuMat image)
-{
-    cv::Mat image_cpu;
-    image.download(image_cpu);
-    cv::imshow(name, image_cpu);
-    cv::waitKey(0);
-}
 
 void build_depth_pyramid(const cv::cuda::GpuMat &base_depth, std::vector<cv::cuda::GpuMat> &pyramid, const int &max_level)
 {
@@ -170,7 +162,7 @@ void resize_device_map(std::vector<cv::cuda::GpuMat> &map_pyr)
     }
 }
 
-__global__ void image_rendering_phong_shading_kernel(const cv::cuda::PtrStep<float4> vmap, const cv::cuda::PtrStep<float4> nmap, const float3 light_pos, cv::cuda::PtrStepSz<uchar4> dst)
+__global__ void render_scene_kernel(const cv::cuda::PtrStep<float4> vmap, const cv::cuda::PtrStep<float4> nmap, const float3 light_pos, cv::cuda::PtrStepSz<uchar4> dst)
 {
     const int x = threadIdx.x + blockIdx.x * blockDim.x;
     const int y = threadIdx.y + blockIdx.y * blockDim.y;
@@ -223,7 +215,7 @@ dim3 create_grid(dim3 block, int cols, int rows)
     return dim3(div_up(cols, block.x), div_up(rows, block.y));
 }
 
-void image_rendering_phong_shading(const cv::cuda::GpuMat vmap, const cv::cuda::GpuMat nmap, cv::cuda::GpuMat &image)
+void render_scene(const cv::cuda::GpuMat vmap, const cv::cuda::GpuMat nmap, cv::cuda::GpuMat &image)
 {
     dim3 thread(8, 4);
     dim3 block(div_up(vmap.cols, thread.x), div_up(vmap.rows, thread.y));
@@ -231,7 +223,7 @@ void image_rendering_phong_shading(const cv::cuda::GpuMat vmap, const cv::cuda::
     if (image.empty())
         image.create(vmap.rows, vmap.cols, CV_8UC4);
 
-    image_rendering_phong_shading_kernel<<<block, thread>>>(vmap, nmap, make_float3(5, 5, 5), image);
+    render_scene_kernel<<<block, thread>>>(vmap, nmap, make_float3(5, 5, 5), image);
 }
 
 __global__ void render_scene_textured_kernel(const cv::cuda::PtrStep<float4> vmap,

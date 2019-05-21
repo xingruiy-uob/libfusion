@@ -13,7 +13,7 @@ PRIVATE
     # Core module
     fusion_core/rgbd_image.cpp
     fusion_core/intrinsic_matrix.cpp
-    fusion_core/image_ops.cu
+    fusion_core/cuda_imgproc.cu
 
     # Basic IO module
     basic_io/rgbd_camera.cpp

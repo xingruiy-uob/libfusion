@@ -9,8 +9,8 @@ class Revertable
 {
 public:
   Revertable() = default;
-  Revertable(T other);
-  void update(T other);
+  Revertable(const T &);
+  void update(const T &);
   void revert();
   T value() const;
 
@@ -20,16 +20,16 @@ private:
 };
 
 template <class T>
-Revertable<T>::Revertable(T other)
+Revertable<T>::Revertable(const T &val)
 {
-  current = other;
+  current = val;
 }
 
 template <class T>
-void Revertable<T>::update(T other)
+void Revertable<T>::update(const T &val)
 {
   last = current;
-  current = other;
+  current = val;
 }
 
 template <class T>

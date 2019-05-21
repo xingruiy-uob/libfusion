@@ -103,8 +103,8 @@ bool WindowManager::initialize_gl_context(const size_t width, const int height)
 void WindowManager::set_rendered_scene(cv::Mat scene)
 {
     glBindTexture(GL_TEXTURE_2D, textures[0]);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
     glTexImage2D(
         GL_TEXTURE_2D,
@@ -121,8 +121,8 @@ void WindowManager::set_rendered_scene(cv::Mat scene)
 void WindowManager::set_source_image(cv::Mat image_src)
 {
     glBindTexture(GL_TEXTURE_2D, textures[2]);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
     glTexImage2D(
         GL_TEXTURE_2D,
@@ -138,25 +138,25 @@ void WindowManager::set_source_image(cv::Mat image_src)
 
 void WindowManager::set_input_depth(cv::Mat depth)
 {
-    depth.convertTo(depth, CV_8UC3);
     glBindTexture(GL_TEXTURE_2D, textures[1]);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
     glTexImage2D(
         GL_TEXTURE_2D,
         0,
-        GL_R8,
+        GL_LUMINANCE16,
         depth.cols,
         depth.rows,
         0,
-        GL_RED,
-        GL_UNSIGNED_BYTE,
+        GL_LUMINANCE,
+        GL_UNSIGNED_SHORT,
         depth.ptr());
 }
 
 void draw_quads()
 {
+    glColor3f(1.0f, 1.0f, 1.0f);
     glBegin(GL_QUADS);
     glTexCoord2f(0, 0);
     glVertex3f(-1, 1, 0);

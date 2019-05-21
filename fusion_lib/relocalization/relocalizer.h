@@ -7,6 +7,8 @@ namespace fusion
 class Relocalizer
 {
 public:
+    Relocalizer();
+
 private:
 };
 

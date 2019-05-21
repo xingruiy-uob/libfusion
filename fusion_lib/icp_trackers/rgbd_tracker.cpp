@@ -1,6 +1,6 @@
 #include "rgbd_tracker.h"
 #include "rgbd_image.h"
-#include "revertable.h"
+#include "revertable_var.h"
 #include "pose_estimation.h"
 
 namespace fusion
