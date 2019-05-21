@@ -10,10 +10,15 @@ class WindowManager
 public:
     WindowManager();
     ~WindowManager();
+
+    // init opengl context and create a window
+    // OPTIONAL: compile glsl shader programs
     bool initialize_gl_context(const size_t width, const int height);
-    void initialize_textures(const size_t width, const int height);
+
+    // if window is closed
     bool should_quit() const;
-    void update_texures();
+
+    // Main loop
     void render_scene();
 
     void set_rendered_scene(cv::Mat scene);
@@ -22,11 +27,12 @@ public:
 
     // system control
     static int run_mode;
+    static bool should_save_file;
 
 private:
     GLuint textures[3]; // scene, depth and source textures
     GLuint shaders[3];  // vertex, geometry and fragment shaders
-    GLuint program;
+    GLuint program[2];  // glsl programs
 
     // drawing functions
     void draw_source_image();

@@ -8,6 +8,7 @@ int window_height = 0;
 bool full_screen = false;
 GLFWwindow *window = NULL;
 int WindowManager::run_mode = 0;
+bool WindowManager::should_save_file = false;
 
 void WindowManager::error_callback(int error, const char *description)
 {
@@ -24,6 +25,9 @@ void WindowManager::key_callback(GLFWwindow *window, int key, int scancode, int 
 
     if (key == GLFW_KEY_S && action == GLFW_RELEASE)
         run_mode = (run_mode == 1) ? 0 : 1;
+
+    if (key == GLFW_KEY_O && action == GLFW_PRESS)
+        should_save_file = true;
 }
 
 void WindowManager::window_size_callback(GLFWwindow *window, int width, int height)

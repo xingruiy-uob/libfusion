@@ -4,15 +4,15 @@
 #include <iostream>
 #include <cuda_runtime_api.h>
 
-template <int thread_block>
-__device__ __inline__ int exclusive_scan(uint element, uint *sum)
+template <int thread_block, class T>
+__device__ __inline__ int exclusive_scan(T element, T *sum)
 {
 
-    __shared__ uint buffer[thread_block];
-    __shared__ uint block_offset;
+    __shared__ T buffer[thread_block];
+    __shared__ T block_offset;
 
     if (threadIdx.x == 0)
-        memset(buffer, 0, sizeof(uint) * 16 * 16);
+        memset(buffer, 0, sizeof(T) * 16 * 16);
 
     __syncthreads();
 

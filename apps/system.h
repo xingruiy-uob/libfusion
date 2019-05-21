@@ -17,6 +17,7 @@ public:
     void process_images(const cv::Mat depth, const cv::Mat image);
 
     cv::Mat get_rendered_scene() const;
+    void save_mesh_to_file(const char *str);
 
 private:
     RgbdFramePtr current;

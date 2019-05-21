@@ -4,12 +4,10 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/cudaarithm.hpp>
 
-
 namespace fusion
 {
-    namespace cuda
+namespace cuda
 {
-
 
 __device__ bool is_vertex_visible(float3 pt, DeviceMatrix3x4 inv_pose,
                                   int cols, int rows, float fx,
@@ -335,10 +333,8 @@ __global__ void update_map_with_colour_kernel(MapStruct map_struct,
         voxel.set_weight(w_curr);
 
         // fuse colour
-        // unsigned char colour_w = min(255, colour_w_p + 1);
         colour_p = make_uchar3((colour_p * (float)weight_p + colour_new * 1.0f) / ((float)weight_p + 1));
         voxel.rgb_ = colour_p;
-        // voxel.rgb_w_ = colour_w;
     }
 }
 
@@ -388,5 +384,5 @@ void update(MapStruct map_struct,
     safe_call(cudaDeviceSynchronize());
 }
 
-} // namespace map
-}
+} // namespace cuda
+} // namespace fusion

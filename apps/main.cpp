@@ -24,6 +24,12 @@ int main(int argc, char **argv)
                 wm.set_rendered_scene(slam.get_rendered_scene());
             }
 
+            if (WindowManager::should_save_file)
+            {
+                WindowManager::should_save_file = false;
+                slam.save_mesh_to_file("mesh.stl");
+            }
+
             wm.set_source_image(camera.image.clone());
             wm.set_input_depth(camera.depth.clone());
         }

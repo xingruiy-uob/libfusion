@@ -46,4 +46,10 @@ cv::Mat System::get_rendered_scene() const
     return cv::Mat(odometry->get_reference_image()->get_rendered_image());
 }
 
+void System::save_mesh_to_file(const char *str)
+{
+    mapping->create_scene_mesh();
+    mapping->write_mesh_to_file(str);
+}
+
 } // namespace fusion

@@ -43,7 +43,7 @@ __global__ void compute_intensity_derivative_kernel(cv::cuda::PtrStepSz<float> i
 {
     const int x = threadIdx.x + blockDim.x * blockIdx.x;
     const int y = threadIdx.y + blockDim.y * blockIdx.y;
-    if (x > intensity.cols - 1 || y > intensity.rows - 1)
+    if (x >= intensity.cols - 1 || y >= intensity.rows - 1)
         return;
 
     int x10 = max(x - 1, 0);
@@ -125,7 +125,7 @@ __global__ void compute_nmap_kernel(cv::cuda::PtrStepSz<float4> vmap, cv::cuda::
 {
     const int x = threadIdx.x + blockDim.x * blockIdx.x;
     const int y = threadIdx.y + blockDim.y * blockIdx.y;
-    if (x > vmap.cols - 1 || y > vmap.rows - 1)
+    if (x >= vmap.cols - 1 || y >= vmap.rows - 1)
         return;
 
     int x10 = max(x - 1, 0);

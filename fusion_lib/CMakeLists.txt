@@ -28,6 +28,7 @@ PRIVATE
     reconstruction/map_struct.cu
     reconstruction/depth_fusion.cu
     reconstruction/ray_tracing.cu
+    reconstruction/scene_mesh.cu
 
     # Relocalization module
     relocalization/relocalizer.cpp
