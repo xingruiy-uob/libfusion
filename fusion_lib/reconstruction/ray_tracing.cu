@@ -400,28 +400,21 @@ struct MapRenderingDelegate
             step = sdf * param.raycast_step_scale();
             result += step * dir;
 
-            // sdf = read_sdf_interped(result, valid_sdf);
-            // if (valid_sdf && sdf < 0.05f && sdf > -0.05f)
             if (valid_sdf)
                 found_pt = true;
         }
 
         if (found_pt)
         {
-            // float3 normal;
-            // if (read_normal_approximate(result, normal))
-            // {
             result = inv_pose(result * param.voxel_size_);
             vmap.ptr(y)[x] = make_float4(result, 1.0);
-            //     nmap.ptr(y)[x] = make_float4(normal, 1.0);
-            // }
         }
     }
     __device__ __forceinline__ uchar3 read_colour(float3 pt3d, bool &valid)
     {
         Voxel *voxel = NULL;
         map_struct.find_voxel(make_int3(pt3d), voxel);
-        if (voxel && voxel->get_weight() != 0)
+        if (voxel && voxel->weight_ != 0)
         {
             valid = true;
             return voxel->rgb_;

@@ -205,10 +205,6 @@ __device__ bool HashEntry::operator==(const HashEntry &other) const
     return other.pos_ == pos_;
 }
 
-__device__ Voxel::Voxel() : sdf_(0), weight_(0)
-{
-}
-
 __device__ float unpack_float(short val)
 {
     return val / (float)32767;
@@ -221,22 +217,12 @@ __device__ short pack_float(float val)
 
 __device__ float Voxel::get_sdf() const
 {
-    return unpack_float(sdf_);
-}
-
-__device__ unsigned char Voxel::get_weight() const
-{
-    return weight_;
+    return unpack_float(sdf);
 }
 
 __device__ void Voxel::set_sdf(float val)
 {
-    sdf_ = pack_float(val);
-}
-
-__device__ void Voxel::set_weight(unsigned char val)
-{
-    weight_ = val;
+    sdf = pack_float(val);
 }
 
 __device__ bool MapStruct::lock_bucket(int *mutex)

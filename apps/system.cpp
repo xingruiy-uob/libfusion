@@ -6,9 +6,9 @@ namespace fusion
 System::System(IntrinsicMatrix base, const int NUM_PYR)
     : processed_frame_count(0), keyframe(NULL)
 {
-    cam_param = std::make_shared<IntrinsicMatrixPyramid>(base, NUM_PYR);
-    mapping = std::make_shared<DenseMapping>(cam_param);
-    odometry = std::make_shared<DenseOdometry>(cam_param);
+    mapping = std::make_shared<DenseMapping>(base);
+    odometry = std::make_shared<DenseOdometry>(base, NUM_PYR);
+    relocalizer = std::shared_ptr<Relocalizer>();
 }
 
 void System::process_images(const cv::Mat depth, const cv::Mat image)

@@ -5,6 +5,7 @@
 #include "intrinsic_matrix.h"
 #include "dense_mapping.h"
 #include "dense_odometry.h"
+#include "relocalizer.h"
 #include <opencv2/opencv.hpp>
 
 namespace fusion
@@ -32,6 +33,7 @@ private:
     // system module
     std::shared_ptr<DenseMapping> mapping;
     std::shared_ptr<DenseOdometry> odometry;
+    std::shared_ptr<Relocalizer> relocalizer;
 };
 
 } // namespace fusion

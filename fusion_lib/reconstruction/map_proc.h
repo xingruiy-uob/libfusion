@@ -16,7 +16,6 @@ void update(
     MapStruct map_struct,
     const cv::cuda::GpuMat depth,
     const cv::cuda::GpuMat image,
-    const cv::cuda::GpuMat normal,
     const Sophus::SE3d &frame_pose,
     const IntrinsicMatrix K,
     cv::cuda::GpuMat &cv_flag,

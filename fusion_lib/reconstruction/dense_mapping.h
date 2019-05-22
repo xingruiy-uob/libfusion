@@ -10,12 +10,12 @@ namespace fusion
 class DenseMapping
 {
 public:
-  DenseMapping(const IntrinsicMatrixPyramidPtr &intrinsics_pyr);
+  DenseMapping(IntrinsicMatrix cam_param);
   void update(RgbdImagePtr image);
   void raycast(RgbdImagePtr image);
   void create_scene_mesh();
   void restart_mapping();
-  void write_mesh_to_file(const char* file_name);
+  void write_mesh_to_file(const char *file_name);
 
 private:
   class DenseMappingImpl;

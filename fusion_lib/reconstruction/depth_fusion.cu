@@ -250,24 +250,24 @@ __global__ void update_map_kernel(MapStruct map_struct,
         if (sdf < -dist_thresh)
             continue;
 
-        sdf = min(1.0f, sdf * inv_dist_thresh);
+        sdf = fmin(1.0f, sdf * inv_dist_thresh);
         const int local_idx = map_struct.local_pos_to_local_idx(local_pos);
         Voxel &voxel = map_struct.voxels_[current.ptr_ + local_idx];
 
         auto sdf_p = voxel.get_sdf();
-        int weight_p = voxel.get_weight();
+        int weight_p = voxel.weight_;
 
         if (weight_p == 0)
         {
             voxel.set_sdf(sdf);
-            voxel.set_weight(1);
+            voxel.weight_ = 1;
             continue;
         }
 
         unsigned char w_curr = min(255, weight_p + 1);
         sdf_p = (sdf_p * weight_p + sdf) / (weight_p + 1);
         voxel.set_sdf(sdf_p);
-        voxel.set_weight(w_curr);
+        voxel.weight_ = w_curr;
     }
 }
 
@@ -306,12 +306,12 @@ __global__ void update_map_with_colour_kernel(MapStruct map_struct,
         if (sdf < -dist_thresh)
             continue;
 
-        sdf = min(1.0f, sdf * inv_dist_thresh);
+        sdf = fmin(1.0f, sdf * inv_dist_thresh);
         const int local_idx = map_struct.local_pos_to_local_idx(local_pos);
         Voxel &voxel = map_struct.voxels_[current.ptr_ + local_idx];
 
         auto sdf_p = voxel.get_sdf();
-        int weight_p = voxel.get_weight();
+        int weight_p = voxel.weight_;
 
         // update colour
         auto colour_new = image.ptr(v)[u];
@@ -320,7 +320,7 @@ __global__ void update_map_with_colour_kernel(MapStruct map_struct,
         if (weight_p == 0)
         {
             voxel.set_sdf(sdf);
-            voxel.set_weight(1);
+            voxel.weight_ = 1;
             // voxel.rgb_w_ = 1;
             voxel.rgb_ = colour_new;
             continue;
@@ -330,7 +330,7 @@ __global__ void update_map_with_colour_kernel(MapStruct map_struct,
         unsigned char w_curr = min(255, weight_p + 1);
         sdf_p = (sdf_p * weight_p + sdf) / (weight_p + 1);
         voxel.set_sdf(sdf_p);
-        voxel.set_weight(w_curr);
+        voxel.weight_ = w_curr;
 
         // fuse colour
         colour_p = make_uchar3((colour_p * (float)weight_p + colour_new * 1.0f) / ((float)weight_p + 1));
@@ -341,7 +341,6 @@ __global__ void update_map_with_colour_kernel(MapStruct map_struct,
 void update(MapStruct map_struct,
             const cv::cuda::GpuMat depth,
             const cv::cuda::GpuMat image,
-            const cv::cuda::GpuMat normal,
             const Sophus::SE3d &frame_pose,
             const IntrinsicMatrix K,
             cv::cuda::GpuMat &cv_flag,
@@ -381,7 +380,6 @@ void update(MapStruct map_struct,
 
     // update_map_kernel<<<block, thread>>>(map_struct, depth, frame_pose.inverse(), K.fx, K.fy, K.cx, K.cy);
     update_map_with_colour_kernel<<<block, thread>>>(map_struct, depth, image, frame_pose.inverse(), K.fx, K.fy, K.cx, K.cy);
-    safe_call(cudaDeviceSynchronize());
 }
 
 } // namespace cuda

@@ -9,7 +9,7 @@ namespace fusion
 class DenseMapping::DenseMappingImpl
 {
 public:
-  DenseMappingImpl(const IntrinsicMatrixPyramidPtr &intrinsics_pyr);
+  DenseMappingImpl(IntrinsicMatrix cam_param);
   ~DenseMappingImpl();
   void update(RgbdImagePtr current_image);
   void raycast(RgbdImagePtr current_image);
@@ -36,17 +36,16 @@ public:
   float3 *triangles;
 };
 
-DenseMapping::DenseMappingImpl::DenseMappingImpl(const IntrinsicMatrixPyramidPtr &intrinsics_pyr)
+DenseMapping::DenseMappingImpl::DenseMappingImpl(IntrinsicMatrix cam_param)
+    : intrinsic_matrix_(cam_param)
 {
-  map_struct_ = std::make_shared<MapStruct>(300000, 450000, 100000, 0.004f);
+  map_struct_ = std::make_shared<MapStruct>(300000, 450000, 100000, 0.005f);
   map_struct_->allocate_device_memory();
   map_struct_->reset_map_struct();
 
-  intrinsic_matrix_ = intrinsics_pyr->get_intrinsic_matrix_at(integration_level_);
   zrange_x_.create(intrinsic_matrix_.height / 8, intrinsic_matrix_.width / 8, CV_32FC1);
   zrange_y_.create(intrinsic_matrix_.height / 8, intrinsic_matrix_.width / 8, CV_32FC1);
 
-  std::cout << state.num_total_hash_entries_ << std::endl;
   safe_call(cudaMalloc(&block_count, sizeof(uint)));
   safe_call(cudaMalloc(&block_list, sizeof(int3) * state.num_total_hash_entries_));
   safe_call(cudaMalloc(&triangle_count, sizeof(uint)));
@@ -71,11 +70,17 @@ void DenseMapping::DenseMappingImpl::update(RgbdImagePtr current_image)
     return;
 
   cv::cuda::GpuMat depth = current_image->get_raw_depth();
-  cv::cuda::GpuMat image = current_image->get_image(integration_level_);
-  cv::cuda::GpuMat normal = current_image->get_nmap(integration_level_);
+  cv::cuda::GpuMat image = current_image->get_image();
   Sophus::SE3d pose = current_frame->get_pose();
   uint visible_block_count = 0;
-  cuda::update(*map_struct_, depth, image, normal, pose, intrinsic_matrix_, flag, pos_array, visible_block_count);
+
+  cuda::update(
+      *map_struct_,
+      depth, image,
+      pose,
+      intrinsic_matrix_,
+      flag, pos_array,
+      visible_block_count);
 }
 
 void DenseMapping::DenseMappingImpl::raycast(RgbdImagePtr current_image)
@@ -93,11 +98,33 @@ void DenseMapping::DenseMappingImpl::raycast(RgbdImagePtr current_image)
   map_struct_->get_rendering_block_count(rendering_block_count);
   if (rendering_block_count != 0)
   {
-    cast_vmap_ = current_image->get_vmap(integration_level_);
-    cast_nmap_ = current_image->get_nmap(integration_level_);
+    cast_vmap_ = current_image->get_vmap();
+    cast_nmap_ = current_image->get_nmap();
     cast_image_ = current_image->get_image();
-    // cuda::raycast_with_colour(*map_struct_, cast_vmap_, cast_nmap_, cast_image_, zrange_x_, zrange_y_, pose, intrinsic_matrix_);
-    cuda::raycast(*map_struct_, cast_vmap_, cast_nmap_, zrange_x_, zrange_y_, pose, intrinsic_matrix_);
+
+    cuda::raycast_with_colour(
+        *map_struct_,
+        cast_vmap_,
+        cast_nmap_,
+        cast_image_,
+        zrange_x_,
+        zrange_y_,
+        pose,
+        intrinsic_matrix_);
+
+    // cuda::raycast(
+    //     *map_struct_,
+    //     cast_vmap_,
+    //     cast_nmap_,
+    //     zrange_x_,
+    //     zrange_y_,
+    //     pose,
+    //     intrinsic_matrix_);
+
+    // cv::Mat img(cast_image_);
+    // cv::resize(img, img, cv::Size2i(0, 0), 2, 2);
+    // cv::imshow("img", img);
+    // cv::waitKey(1);
   }
 }
 
@@ -106,7 +133,7 @@ void DenseMapping::DenseMappingImpl::create_scene_mesh()
   cuda::create_scene_mesh(*map_struct_, block_count, block_list, triangle_count, triangles);
 }
 
-DenseMapping::DenseMapping(const IntrinsicMatrixPyramidPtr &intrinsics_pyr) : impl(new DenseMappingImpl(intrinsics_pyr))
+DenseMapping::DenseMapping(IntrinsicMatrix cam_param) : impl(new DenseMappingImpl(cam_param))
 {
 }
 
@@ -130,6 +157,7 @@ void DenseMapping::restart_mapping()
   impl->map_struct_->reset_map_struct();
 }
 
+// Write mesh to a stl file
 void DenseMapping::write_mesh_to_file(const char *file_name)
 {
   uint host_triangle_count;

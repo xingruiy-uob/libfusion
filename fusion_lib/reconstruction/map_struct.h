@@ -5,11 +5,15 @@
 #include <cuda_runtime.h>
 #include <iostream>
 
+// Voxel block dimensionality: 8x8x8
 #define BLOCK_SIZE 8
 #define BLOCK_SIZE_SUB_1 7
+// Total voxels in the block
 #define BLOCK_SIZE3 512
+// Max allowed thread in CUDA
 #define MAX_THREAD 1024
 
+// Map info
 struct MapState
 {
     int num_total_buckets_;
@@ -41,31 +45,14 @@ struct RenderingBlock
     float2 zrange;
 };
 
-// struct Voxel
-// {
-//     short sdf_;
-//     short weight_;
-//     uchar3 rgb_;
-
-//     __device__ Voxel();
-//     __device__ float get_sdf() const;
-//     __device__ unsigned char get_weight() const;
-//     __device__ void set_sdf(float val);
-//     __device__ void set_weight(unsigned char val);
-// };
-
 struct Voxel
 {
-    short sdf_;
+    short sdf;
     unsigned char weight_;
     uchar3 rgb_;
-    unsigned char rgb_w_;
 
-    __device__ Voxel();
     __device__ float get_sdf() const;
-    __device__ unsigned char get_weight() const;
     __device__ void set_sdf(float val);
-    __device__ void set_weight(unsigned char val);
 };
 
 struct HashEntry

@@ -42,4 +42,19 @@ __device__ __forceinline__ void BlockReduce(T *val)
         WarpReduce<T, size>(val);
 }
 
+template <int rows, int cols>
+void inline create_jtjjtr(cv::Mat &host_data, float *host_a, float *host_b)
+{
+    int shift = 0;
+    for (int i = 0; i < rows; ++i)
+        for (int j = i; j < cols; ++j)
+        {
+            float value = host_data.ptr<float>(0)[shift++];
+            if (j == rows)
+                host_b[i] = value;
+            else
+                host_a[j * rows + i] = host_a[i * rows + j] = value;
+        }
+}
+
 #endif

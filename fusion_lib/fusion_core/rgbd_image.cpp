@@ -53,6 +53,7 @@ void RgbdImage::RgbdImageImpl::resize_pyramid(const int &max_level)
 void RgbdImage::RgbdImageImpl::render_synthetic_view()
 {
     render_scene(point_cloud_[0], normal_[0], rendered_image_);
+    // render_scene_textured(point_cloud_[0], normal_[0], image_, rendered_image_);
 }
 
 cv::cuda::GpuMat RgbdImage::get_vmap(const int &level) const

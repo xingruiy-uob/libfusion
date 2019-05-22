@@ -11,7 +11,7 @@ namespace fusion
 class DenseOdometry
 {
 public:
-  DenseOdometry(const IntrinsicMatrixPyramidPtr intrinsics_pyr);
+  DenseOdometry(IntrinsicMatrix base, int NUM_PYR);
   void track_frame(RgbdFramePtr current_frame);
   bool keyframe_needed() const;
   bool is_tracking_lost() const;

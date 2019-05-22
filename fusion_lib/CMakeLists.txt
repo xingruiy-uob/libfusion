@@ -21,7 +21,8 @@ PRIVATE
     # Tracking module
     icp_trackers/rgbd_tracker.cpp
     icp_trackers/dense_odometry.cpp
-    icp_trackers/pose_estimation.cu
+    icp_trackers/pose_estimator.cu
+    icp_trackers/robust_estimator.cu
 
     # Reconstruction module
     reconstruction/dense_mapping.cpp

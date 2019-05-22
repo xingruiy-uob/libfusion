@@ -1,32 +1,23 @@
 #include "rgbd_tracker.h"
 #include "rgbd_image.h"
+#include "cuda_utils.h"
 #include "revertable_var.h"
-#include "pose_estimation.h"
+#include "pose_estimator.h"
 
 namespace fusion
 {
 
-class DenseTracking::DenseTrackingImpl
+DenseTracking::DenseTracking()
 {
-public:
-  DenseTrackingImpl();
-  TrackingResult compute_transform(const RgbdImagePtr reference, const RgbdImagePtr current, const TrackingContext &c);
-
-  Eigen::Matrix<float, 6, 6> jtj_icp_, jtj_rgb_, JtJ_;
-  Eigen::Matrix<float, 6, 1> jtr_icp_, jtr_rgb_, Jtr_;
-  Eigen::Matrix<double, 6, 1> update_;
-  Eigen::Matrix<float, 2, 1> residual_icp_, residual_rgb_;
-
-  cv::cuda::GpuMat sum_se3_, out_se3_;
-};
-
-DenseTracking::DenseTrackingImpl::DenseTrackingImpl()
-{
-  sum_se3_.create(96, 29, CV_32FC1);
-  out_se3_.create(1, 29, CV_32FC1);
+  sum_se3.create(96, 29, CV_32FC1);
+  out_se3.create(1, 29, CV_32FC1);
+  safe_call(cudaMalloc(&transformed_points, sizeof(float4) * 640 * 480));
+  safe_call(cudaMalloc(&image_corresp_data, sizeof(float4) * 640 * 480));
+  safe_call(cudaMalloc(&error_term_array, sizeof(float) * 640 * 480));
+  safe_call(cudaMalloc(&variance_term_array, sizeof(float) * 640 * 480));
 }
 
-TrackingResult DenseTracking::DenseTrackingImpl::compute_transform(const RgbdImagePtr reference, const RgbdImagePtr current, const TrackingContext &c)
+TrackingResult DenseTracking::compute_transform(const RgbdImagePtr reference, const RgbdImagePtr current, const TrackingContext &c)
 {
   Revertable<Sophus::SE3d> estimate = Revertable<Sophus::SE3d>(Sophus::SE3d());
 
@@ -55,32 +46,79 @@ TrackingResult DenseTracking::DenseTrackingImpl::compute_transform(const RgbdIma
       auto last_icp_error = icp_error;
       auto last_rgb_error = rgb_error;
 
-      icp_reduce(
-          curr_vmap,
-          curr_nmap,
+      // icp_reduce(
+      //     curr_vmap,
+      //     curr_nmap,
+      //     last_vmap,
+      //     last_nmap,
+      //     sum_se3,
+      //     out_se3,
+      //     last_estimate,
+      //     K,
+      //     icp_hessian.data(),
+      //     icp_residual.data(),
+      //     residual_icp_.data());
+      // joint_hessian = icp_hessian;
+      // joint_residual = icp_residual;
+
+      // rgb_reduce(
+      //     curr_intensity,
+      //     last_intensity,
+      //     last_vmap,
+      //     curr_vmap,
+      //     intensity_dx,
+      //     intensity_dy,
+      //     sum_se3,
+      //     out_se3,
+      //     last_estimate,
+      //     K,
+      //     rgb_hessian.data(),
+      //     rgb_residual.data(),
+      //     residual_rgb_.data());
+      // joint_hessian = rgb_hessian;
+      // joint_residual = rgb_residual;
+
+      uint num_corresp;
+      float mean_estimated;
+      float stdev_estimated;
+
+      compute_rgb_corresp(
           last_vmap,
-          last_nmap,
-          sum_se3_,
-          out_se3_,
+          last_intensity,
+          curr_intensity,
+          intensity_dx,
+          intensity_dy,
           last_estimate,
           K,
-          jtj_icp_.data(),
-          jtr_icp_.data(),
-          residual_icp_.data());
+          transformed_points,
+          image_corresp_data,
+          error_term_array,
+          variance_term_array,
+          mean_estimated,
+          stdev_estimated,
+          num_corresp);
 
-      // rgb_reduce(curr_intensity, last_intensity, last_vmap, curr_vmap, intensity_dx, intensity_dy, sum_se3_, out_se3_, last_estimate, K, jtj_rgb_.data(), jtr_rgb_.data(), residual_rgb_.data());
-      // JtJ_ = 1e6 * jtj_icp_ + jtj_rgb_;
-      // Jtr_ = 1e6 * jtr_icp_ + jtr_rgb_;
+      compute_least_square_RGB(
+          num_corresp,
+          transformed_points,
+          image_corresp_data,
+          mean_estimated,
+          stdev_estimated,
+          K,
+          sum_se3,
+          out_se3,
+          rgb_hessian.data(),
+          rgb_residual.data(),
+          residual_rgb_.data());
+      joint_hessian = rgb_hessian;
+      joint_residual = rgb_residual;
 
       // compute_rgb_correspondence(curr_intensity, last_intensity, intensity_dx, intensity_dy, last_vmap, last_estimate, K);
 
-      // std::cout << jtj_icp_ << std::endl;
-      // std::cout << jtj_rgb_ << std::endl;
-      // JtJ_ = jtj_rgb_;
-      // Jtr_ = jtr_rgb_;
-      JtJ_ = jtj_icp_;
-      Jtr_ = jtr_icp_;
-      update_ = JtJ_.cast<double>().ldlt().solve(Jtr_.cast<double>());
+      // joint_hessian = 1e6 * icp_hessian + rgb_hessian;
+      // joint_residual = 1e6 * icp_residual + rgb_residual;
+
+      update = joint_hessian.cast<double>().ldlt().solve(joint_residual.cast<double>());
 
       icp_error = sqrt(residual_icp_(0)) / residual_icp_(1);
 
@@ -120,7 +158,7 @@ TrackingResult DenseTracking::DenseTrackingImpl::compute_transform(const RgbdIma
         count = 0;
       }
 
-      estimate.update(Sophus::SE3d::exp(update_) * last_estimate);
+      estimate.update(Sophus::SE3d::exp(update) * last_estimate);
     }
   }
 
@@ -134,15 +172,6 @@ TrackingResult DenseTracking::DenseTrackingImpl::compute_transform(const RgbdIma
   result.sucess = true;
   result.update = estimate.value().inverse();
   return result;
-}
-
-DenseTracking::DenseTracking() : impl(new DenseTrackingImpl())
-{
-}
-
-TrackingResult DenseTracking::compute_transform(const RgbdImagePtr reference, const RgbdImagePtr current, const TrackingContext &c)
-{
-  return impl->compute_transform(reference, current, c);
 }
 
 } // namespace fusion
