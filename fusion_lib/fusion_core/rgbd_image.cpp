@@ -14,6 +14,10 @@ public:
     void upload(const RgbdFramePtr frame, const IntrinsicMatrixPyramidPtr intrinsics_pyr);
     void render_synthetic_view();
 
+    void pyramidize_vmap();
+    void pyramidize_nmap();
+    void pyramidize_depth();
+
     RgbdFramePtr reference_frame_;
 
     cv::cuda::GpuMat image_;

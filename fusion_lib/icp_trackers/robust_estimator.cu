@@ -9,9 +9,8 @@ namespace fusion
 
 // TODO : Robust RGB Estimation
 
-class RGBSelection
+struct RGBSelection
 {
-public:
     __device__ inline bool find_corresp(
         const int &x,
         const int &y,
@@ -21,9 +20,6 @@ public:
         float &dy,
         float4 &pt) const
     {
-        if (x >= cols || y >= rows)
-            return false;
-
         // reference point
         pt = last_vmap.ptr(y)[x];
         if (isnan(pt.x) || pt.w < 0)
@@ -83,12 +79,11 @@ public:
                 uint index = atomicAdd(num_corresp, 1);
                 array_image[index] = make_float4(last_val, curr_val, dx, dy);
                 array_point[index] = pt;
-                error_term[index] = last_val - curr_val;
+                error_term[index] = pow(curr_val - last_val, 2);
             }
         }
     }
 
-public:
     cv::cuda::PtrStep<float4> last_vmap;
     cv::cuda::PtrStep<float> last_intensity;
     cv::cuda::PtrStep<float> curr_intensity;
@@ -132,7 +127,7 @@ void compute_rgb_corresp(
     float *error_term_array,
     float *variance_term_array,
     float &mean_estimate,
-    float &variance_estimate,
+    float &stdev_estimated,
     uint &num_corresp)
 {
     auto cols = last_vmap.cols;
@@ -170,16 +165,17 @@ void compute_rgb_corresp(
     thrust::device_ptr<float> variance_term(variance_term_array);
 
     float sum_error = thrust::reduce(error_term, error_term + num_corresp);
-    mean_estimate = 0; // sum_error / num_corresp;
+    mean_estimate = 0;
+    stdev_estimated = std::sqrt(sum_error / (num_corresp - 6));
 
-    dim3 thread(MAX_THREAD);
-    dim3 block(div_up(num_corresp, thread.x));
+    // dim3 thread(MAX_THREAD);
+    // dim3 block(div_up(num_corresp, thread.x));
 
-    compute_variance_kernel<<<block, thread>>>(error_term_array, variance_term_array, mean_estimate, num_corresp);
-    float sum_variance = thrust::reduce(variance_term, variance_term + num_corresp);
-    variance_estimate = sqrt(sum_variance / (num_corresp - 1));
+    // compute_variance_kernel<<<block, thread>>>(error_term_array, variance_term_array, mean_estimate, num_corresp);
+    // float sum_variance = thrust::reduce(variance_term, variance_term + num_corresp);
+    // stdev_estimated = sqrt(sum_variance / (num_corresp - 1));
 
-    std::cout << "mean : " << mean_estimate << " variance : " << variance_estimate << " num_corresp : " << num_corresp << std::endl;
+    std::cout << "mean : " << mean_estimate << " stddev : " << stdev_estimated << " num_corresp : " << num_corresp << std::endl;
 
     safe_call(cudaFree(delegate.num_corresp));
 }
@@ -199,7 +195,7 @@ struct RGBLeastSquares
     __device__ void compute_jacobian(const int &k, float *sum)
     {
         float row[7] = {0, 0, 0, 0, 0, 0, 0};
-
+        float weight = 0;
         if (k < num_corresp)
         {
             float3 p_transformed = make_float3(transformed_points[k]);
@@ -211,23 +207,19 @@ struct RGBLeastSquares
             left.y = image.w * fy * z_inv;
             left.z = -(left.x * p_transformed.x + left.y * p_transformed.y) * z_inv;
 
-            float residual = image.x - image.y; // last_val - curr_val
-            float res_normalized = (residual - mean_estimated) / stdev_estimated;
+            float residual = image.y - image.x; // curr_val - last_val
+            float res_normalized = residual / stdev_estimated;
             float threshold_huber = 1.345 * stdev_estimated;
-            float weight = 0;
 
             if (fabs(res_normalized) < threshold_huber)
                 weight = 1;
             else
                 weight = threshold_huber / fabs(res_normalized);
 
-            if (weight < 10e-3 || res_normalized < 10e-4)
-                weight = 1;
-
-            row[6] = weight * res_normalized;
+            row[6] = (-residual);
             // printf("%f, %f\n", res_normalized, threshold_huber);
-            *(float3 *)&row[0] = weight * left;
-            *(float3 *)&row[3] = weight * cross(p_transformed, left);
+            *(float3 *)&row[0] = left;
+            *(float3 *)&row[3] = cross(p_transformed, left);
         }
 
         int count = 0;
@@ -268,7 +260,7 @@ struct RGBLeastSquares
                 out.ptr(blockIdx.x)[i] = sum[i];
         }
     }
-};
+}; // struct RGBLeastSquares
 
 __global__ void compute_least_square_RGB_kernel(RGBLeastSquares delegate)
 {
@@ -308,7 +300,184 @@ void compute_least_square_RGB(
     residual[0] = host_data.ptr<float>()[27];
     residual[1] = num_corresp;
 
-    std::cout << residual[0] << " : " << residual[1] << std::endl;
+    // std::cout << residual[0] << " : " << residual[1] << std::endl;
+} // compute_least_square_RGB
+
+struct RgbReduction2
+{
+    __device__ bool find_corresp(int &x, int &y)
+    {
+        float4 pt = last_vmap.ptr(y)[x];
+        if (pt.w < 0 || isnan(pt.x))
+            return false;
+
+        i_l = last_image.ptr(y)[x];
+        if (!isfinite(i_l))
+            return false;
+
+        p_transformed = pose(make_float3(pt));
+        u0 = p_transformed.x / p_transformed.z * fx + cx;
+        v0 = p_transformed.y / p_transformed.z * fy + cy;
+        if (u0 >= 2 && u0 < cols - 2 && v0 >= 2 && v0 < rows - 2)
+        {
+            i_c = interp2(curr_image, u0, v0);
+            dx = interp2(dIdx, u0, v0);
+            dy = interp2(dIdy, u0, v0);
+
+            return (dx > 2 || dy > 2) && isfinite(i_c) && isfinite(dx) && isfinite(dy);
+        }
+
+        return false;
+    }
+
+    __device__ float interp2(cv::cuda::PtrStep<float> image, float &x, float &y)
+    {
+        int u = floor(x), v = floor(y);
+        float coeff_x = x - u, coeff_y = y - v;
+        return (image.ptr(v)[u] * (1 - coeff_x) + image.ptr(v)[u + 1] * coeff_x) * (1 - coeff_y) +
+               (image.ptr(v + 1)[u] * (1 - coeff_x) + image.ptr(v + 1)[u + 1] * coeff_x) * coeff_y;
+    }
+
+    __device__ void compute_jacobian(int &k, float *sum)
+    {
+        int y = k / cols;
+        int x = k - y * cols;
+
+        bool corresp_found = find_corresp(x, y);
+        float row[7] = {0, 0, 0, 0, 0, 0, 0};
+
+        if (corresp_found)
+        {
+            float3 left;
+            float z_inv = 1.0 / p_transformed.z;
+            left.x = dx * fx * z_inv;
+            left.y = dy * fy * z_inv;
+            left.z = -(left.x * p_transformed.x + left.y * p_transformed.y) * z_inv;
+
+            float residual = i_c - i_l;
+            // float res_normalized = residual / stddev;
+
+            float huber_th = 1.345 * stddev;
+
+            float weight = 1;
+
+            if (fabs(residual) > huber_th && stddev > 10e-6)
+            {
+                weight = huber_th / fabs(residual);
+            }
+
+            row[6] = weight * (-residual);
+            *(float3 *)&row[0] = weight * left;
+            *(float3 *)&row[3] = weight * cross(p_transformed, left);
+        }
+
+        int count = 0;
+#pragma unroll
+        for (int i = 0; i < 7; ++i)
+#pragma unroll
+            for (int j = i; j < 7; ++j)
+                sum[count++] = row[i] * row[j];
+
+        sum[count] = (float)corresp_found;
+    }
+
+    __device__ __forceinline__ void operator()()
+    {
+        float sum[29] = {0, 0, 0, 0, 0, 0, 0, 0,
+                         0, 0, 0, 0, 0, 0, 0, 0,
+                         0, 0, 0, 0, 0, 0, 0, 0,
+                         0, 0, 0, 0, 0};
+
+        float val[29];
+        for (int i = blockIdx.x * blockDim.x + threadIdx.x; i < N; i += blockDim.x * gridDim.x)
+        {
+            compute_jacobian(i, val);
+#pragma unroll
+            for (int j = 0; j < 29; ++j)
+                sum[j] += val[j];
+        }
+
+        BlockReduce<float, 29>(sum);
+
+        if (threadIdx.x == 0)
+#pragma unroll
+            for (int i = 0; i < 29; ++i)
+                out.ptr(blockIdx.x)[i] = sum[i];
+    }
+
+    int cols, rows, N;
+    float u0, v0;
+    DeviceMatrix3x4 pose;
+    float fx, fy, cx, cy, invfx, invfy;
+    cv::cuda::PtrStep<float4> point_cloud, last_vmap;
+    cv::cuda::PtrStep<float> last_image, curr_image;
+    cv::cuda::PtrStep<float> dIdx, dIdy;
+    cv::cuda::PtrStep<float> out;
+    float3 p_transformed, p_last;
+    float stddev;
+
+private:
+    float i_c, i_l, dx, dy;
+};
+
+__global__ void rgb_reduce_kernel2(RgbReduction2 rr)
+{
+    rr();
 }
 
+void rgb_step(const cv::cuda::GpuMat &curr_intensity,
+              const cv::cuda::GpuMat &last_intensity,
+              const cv::cuda::GpuMat &last_vmap,
+              const cv::cuda::GpuMat &curr_vmap,
+              const cv::cuda::GpuMat &intensity_dx,
+              const cv::cuda::GpuMat &intensity_dy,
+              cv::cuda::GpuMat &sum,
+              cv::cuda::GpuMat &out,
+              const float stddev_estimate,
+              const Sophus::SE3d &pose,
+              const IntrinsicMatrix K,
+              float *jtj, float *jtr,
+              float *residual)
+{
+    int cols = curr_intensity.cols;
+    int rows = curr_intensity.rows;
+
+    RgbReduction2 rr;
+    rr.cols = cols;
+    rr.rows = rows;
+    rr.N = cols * rows;
+    rr.last_image = last_intensity;
+    rr.curr_image = curr_intensity;
+    rr.point_cloud = curr_vmap;
+    rr.last_vmap = last_vmap;
+    rr.dIdx = intensity_dx;
+    rr.dIdy = intensity_dy;
+    rr.pose = pose;
+    rr.stddev = stddev_estimate;
+    rr.fx = K.fx;
+    rr.fy = K.fy;
+    rr.cx = K.cx;
+    rr.cy = K.cy;
+    rr.invfx = K.invfx;
+    rr.invfy = K.invfy;
+    rr.out = sum;
+
+    rgb_reduce_kernel2<<<96, 224>>>(rr);
+    safe_call(cudaDeviceSynchronize());
+    safe_call(cudaGetLastError());
+
+    cv::cuda::reduce(sum, out, 0, cv::REDUCE_SUM);
+
+    safe_call(cudaDeviceSynchronize());
+    safe_call(cudaGetLastError());
+
+    cv::Mat host_data;
+    out.download(host_data);
+    create_jtjjtr<6, 7>(host_data, jtj, jtr);
+    residual[0] = host_data.ptr<float>()[27];
+    residual[1] = host_data.ptr<float>()[28];
+
+    std::cout << stddev_estimate << std::endl;
 }
+
+} // namespace fusion

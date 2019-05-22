@@ -39,6 +39,7 @@ TrackingResult DenseTracking::compute_transform(const RgbdImagePtr reference, co
     float rgb_error = std::numeric_limits<float>::max();
     float total_error = std::numeric_limits<float>::max();
     int count = 0;
+    float stddev_estimated = 0;
 
     for (int iter = 0; iter < c.max_iterations_[level]; ++iter)
     {
@@ -78,38 +79,55 @@ TrackingResult DenseTracking::compute_transform(const RgbdImagePtr reference, co
       // joint_hessian = rgb_hessian;
       // joint_residual = rgb_residual;
 
-      uint num_corresp;
-      float mean_estimated;
-      float stdev_estimated;
+      // uint num_corresp;
+      // float mean_estimated;
+      // float stdev_estimated;
 
-      compute_rgb_corresp(
-          last_vmap,
-          last_intensity,
+      // compute_rgb_corresp(
+      //     last_vmap,
+      //     last_intensity,
+      //     curr_intensity,
+      //     intensity_dx,
+      //     intensity_dy,
+      //     last_estimate,
+      //     K,
+      //     transformed_points,
+      //     image_corresp_data,
+      //     error_term_array,
+      //     variance_term_array,
+      //     mean_estimated,
+      //     stdev_estimated,
+      //     num_corresp);
+
+      rgb_step(
           curr_intensity,
+          last_intensity,
+          last_vmap,
+          curr_vmap,
           intensity_dx,
           intensity_dy,
-          last_estimate,
-          K,
-          transformed_points,
-          image_corresp_data,
-          error_term_array,
-          variance_term_array,
-          mean_estimated,
-          stdev_estimated,
-          num_corresp);
-
-      compute_least_square_RGB(
-          num_corresp,
-          transformed_points,
-          image_corresp_data,
-          mean_estimated,
-          stdev_estimated,
-          K,
           sum_se3,
           out_se3,
+          stddev_estimated,
+          last_estimate,
+          K,
           rgb_hessian.data(),
           rgb_residual.data(),
           residual_rgb_.data());
+
+      stddev_estimated = sqrt(residual_rgb_[0] / (residual_rgb_[1] - 6));
+      // compute_least_square_RGB(
+      //     num_corresp,
+      //     transformed_points,
+      //     image_corresp_data,
+      //     mean_estimated,
+      //     stdev_estimated,
+      //     K,
+      //     sum_se3,
+      //     out_se3,
+      //     rgb_hessian.data(),
+      //     rgb_residual.data(),
+      //     residual_rgb_.data());
       joint_hessian = rgb_hessian;
       joint_residual = rgb_residual;
 
@@ -139,7 +157,7 @@ TrackingResult DenseTracking::compute_transform(const RgbdImagePtr reference, co
         count = 0;
       }
 
-      // rgb_error = sqrt(residual_rgb_(0)) / residual_rgb_(1);
+      rgb_error = sqrt(residual_rgb_(0)) / residual_rgb_(1);
 
       if (rgb_error > last_rgb_error)
       {
@@ -158,7 +176,7 @@ TrackingResult DenseTracking::compute_transform(const RgbdImagePtr reference, co
         count = 0;
       }
 
-      estimate.update(Sophus::SE3d::exp(update) * last_estimate);
+      estimate = Sophus::SE3d::exp(update) * last_estimate;
     }
   }
 
