@@ -19,23 +19,54 @@ void WindowManager::error_callback(int error, const char *description)
 
 void WindowManager::key_callback(GLFWwindow *window, int key, int scancode, int action, int mods)
 {
+    WindowManager *wm;
+    fusion::System *sys;
+    void *data = glfwGetWindowUserPointer(window);
+    if (data != NULL)
+    {
+        wm = static_cast<WindowManager *>(data);
+        sys = wm->system;
+    }
+
+    // Quit
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
         glfwSetWindowShouldClose(window, GL_TRUE);
 
+    if (sys == NULL)
+        return;
+
+    // Toggle full screen mode
     if (key == GLFW_KEY_TAB && action == GLFW_PRESS)
-        toggle_full_screen();
+        wm->toggle_full_screen();
 
+    // Start and pause the sytem
     if (key == GLFW_KEY_ENTER && action == GLFW_PRESS)
-        run_mode = (run_mode == 1) ? 0 : 1;
+        wm->run_mode = (wm->run_mode == 1) ? 0 : 1;
 
+    // Download mesh to disk
     if (key == GLFW_KEY_S && action == GLFW_PRESS)
-        should_save_file = true;
+        wm->should_save_file = true;
 
+    // Restart the system
     if (key == GLFW_KEY_R && action == GLFW_PRESS)
-        should_reset = true;
+        wm->should_reset = true;
 
+    // Switch colour
     if (key == GLFW_KEY_C && action == GLFW_PRESS)
-        colour_mode = (colour_mode + 1) % 2;
+        wm->colour_mode = (wm->colour_mode + 1) % 2;
+}
+
+static void cursor_position_callback(GLFWwindow *window, double xpos, double ypos)
+{
+}
+
+void mouse_button_callback(GLFWwindow *window, int button, int action, int mods)
+{
+    double xpos, ypos;
+    glfwGetCursorPos(window, &xpos, &ypos);
+
+    if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS)
+        std::cout << "cursor pos: X " << xpos << " Y " << ypos << std::endl;
 }
 
 void WindowManager::window_size_callback(GLFWwindow *window, int width, int height)
@@ -87,8 +118,11 @@ bool WindowManager::initialize_gl_context(const size_t width, const int height)
         return false;
     }
 
+    glfwSetWindowUserPointer(window, this);
     glfwMakeContextCurrent(window);
     glfwSetKeyCallback(window, key_callback);
+    glfwSetMouseButtonCallback(window, mouse_button_callback);
+    // glfwSetCursorPosCallback(window, cursor_position_callback);
     glfwSetWindowSizeCallback(window, window_size_callback);
 
     // initialize textures
@@ -156,7 +190,7 @@ void WindowManager::set_input_depth(cv::Mat depth)
 
 void draw_quads()
 {
-    glColor3f(1.0f, 1.0f, 1.0f);
+    // glColor3f(0.0f, 0.0f, 0.0f);
     glBegin(GL_QUADS);
     glTexCoord2f(0, 0);
     glVertex3f(-1, 1, 0);
@@ -205,6 +239,11 @@ void WindowManager::draw_input_depth()
     glDisable(GL_TEXTURE_2D);
 }
 
+void WindowManager::set_system(fusion::System *system)
+{
+    this->system = system;
+}
+
 bool WindowManager::should_quit() const
 {
     return glfwWindowShouldClose(window);
@@ -212,9 +251,8 @@ bool WindowManager::should_quit() const
 
 void WindowManager::render_scene()
 {
-
     glClear(GL_COLOR_BUFFER_BIT);
-    glClearColor(120.f / 255.f, 120.f / 255.f, 236.f / 255.f, 255.f);
+    glClearColor(0, 0, 0, 1);
     glMatrixMode(GL_MODELVIEW);
 
     int separate_x = (int)((float)window_width / 3);
@@ -223,7 +261,8 @@ void WindowManager::render_scene()
     draw_source_image();
 
     glViewport(0, 0, separate_x * 2, window_height);
-    draw_rendered_scene();
+    if (run_mode == 1)
+        draw_rendered_scene();
 
     glViewport(separate_x * 2, window_height / 2, separate_x, window_height / 2);
     draw_input_depth();

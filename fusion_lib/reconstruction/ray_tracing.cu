@@ -410,6 +410,7 @@ struct MapRenderingDelegate
             vmap.ptr(y)[x] = make_float4(result, 1.0);
         }
     }
+    
     __device__ __forceinline__ uchar3 read_colour(float3 pt3d, bool &valid)
     {
         Voxel *voxel = NULL;
@@ -470,26 +471,25 @@ struct MapRenderingDelegate
 
         vmap.ptr(y)[x] = make_float4(__int_as_float(0x7fffffff));
         image.ptr(y)[x] = make_uchar3(255);
-        // nmap.ptr(y)[x] = make_float4(__int_as_float(0x7fffffff));
 
-        // int2 local_id;
-        // local_id.x = __float2int_rd((float)x / 8);
-        // local_id.y = __float2int_rd((float)y / 8);
+        int2 local_id;
+        local_id.x = __float2int_rd((float)x / 8);
+        local_id.y = __float2int_rd((float)y / 8);
 
-        // float2 zrange;
-        // zrange.x = zrange_x.ptr(local_id.y)[local_id.x];
-        // zrange.y = zrange_y.ptr(local_id.y)[local_id.x];
-        // if (zrange.y < 1e-3 || zrange.x < 1e-3 || isnan(zrange.x) || isnan(zrange.y))
-        //     return;
+        float2 zrange;
+        zrange.x = zrange_x.ptr(local_id.y)[local_id.x];
+        zrange.y = zrange_y.ptr(local_id.y)[local_id.x];
+        if (zrange.y < 1e-3 || zrange.x < 1e-3 || isnan(zrange.x) || isnan(zrange.y))
+            return;
 
         float sdf = 1.0f;
         float last_sdf;
 
-        float3 pt = unproject(x, y, 0.3);
+        float3 pt = unproject(x, y, zrange.x);
         float dist_s = norm(pt) * param.inverse_voxel_size();
         float3 block_s = pose(pt) * param.inverse_voxel_size();
 
-        pt = unproject(x, y, 1.5);
+        pt = unproject(x, y, zrange.y);
         float dist_e = norm(pt) * param.inverse_voxel_size();
         float3 block_e = pose(pt) * param.inverse_voxel_size();
 
@@ -533,18 +533,12 @@ struct MapRenderingDelegate
             step = sdf * param.raycast_step_scale();
             result += step * dir;
 
-            // sdf = read_sdf_interped(result, valid_sdf);
-            // if (valid_sdf && sdf < 0.05f && sdf > -0.05f)
             if (valid_sdf)
                 found_pt = true;
         }
 
         if (found_pt)
         {
-            // float3 normal;
-            // if (read_normal_approximate(result, normal))
-            // {
-
             // auto rgb = read_colour_interpolated(result, valid_sdf);
             auto rgb = read_colour(result, valid_sdf);
             if (!valid_sdf)
@@ -553,8 +547,6 @@ struct MapRenderingDelegate
             result = inv_pose(result * param.voxel_size_);
             vmap.ptr(y)[x] = make_float4(result, 1.0);
             image.ptr(y)[x] = rgb;
-            //     nmap.ptr(y)[x] = make_float4(normal, 1.0);
-            // }
         }
     }
 };

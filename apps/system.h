@@ -8,6 +8,13 @@
 #include "relocalizer.h"
 #include <opencv2/opencv.hpp>
 
+#define RUN_MODE_PAUSE 0
+#define RUN_MODE_CONTINUOUS 1
+#define RUN_MODE_SINGLESHOT 2
+#define INTEGRATION_ON 0
+#define INTEGRATION_HOLD 1
+#define COLOUR_MODE_DEPTH 0
+
 namespace fusion
 {
 
@@ -26,6 +33,7 @@ private:
     RgbdFramePtr current;
     RgbdFramePtr keyframe;
 
+    bool system_initialized;
     size_t processed_frame_count;
 
     IntrinsicMatrixPyramidPtr cam_param;

@@ -46,22 +46,47 @@ private:
 class RgbdFrame
 {
 public:
-  RgbdFrame() = delete;
   ~RgbdFrame();
-  RgbdFrame(const RgbdFrame &other) = delete;
-  RgbdFrame(const cv::Mat &image, const cv::Mat &depth_float, size_t id, double time_stamp);
 
+  // delete default and copy constructors
+  RgbdFrame() = delete;
+  RgbdFrame(const RgbdFrame &) = delete;
+  RgbdFrame &operator=(const RgbdFrame &) = delete;
+
+  // create new rgbd frame
+  RgbdFrame(const cv::Mat &depth, const cv::Mat &image, size_t id, double ts);
+
+  // get frame id
   size_t get_id() const;
+
+  // get source image : CV_8UC3
   cv::Mat get_image() const;
+
+  // get source depth : CV_32FC1
   cv::Mat get_depth() const;
+
+  // get current pose in SE3d
   Sophus::SE3d get_pose() const;
-  void set_pose(const Sophus::SE3d &pose);
+
+  // get reference frame
   RgbdFramePtr get_reference_frame() const;
+
+  // set current pose
+  void set_pose(const Sophus::SE3d &pose);
+
+  // set reference frame
   void set_reference_frame(RgbdFramePtr reference);
 
 private:
-  class RgbdFrameImpl;
-  std::shared_ptr<RgbdFrameImpl> impl;
+  cv::Mat source_image;
+  cv::Mat source_depth;
+  cv::Mat vmap;
+  cv::Mat nmap;
+
+  size_t frame_id;
+  double time_stamp;
+  Sophus::SE3d pose;
+  RgbdFramePtr reference;
 };
 
 } // namespace fusion

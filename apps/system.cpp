@@ -4,7 +4,7 @@ namespace fusion
 {
 
 System::System(IntrinsicMatrix base, const int NUM_PYR)
-    : processed_frame_count(0), keyframe(NULL)
+    : processed_frame_count(0), keyframe(NULL), system_initialized(false)
 {
     mapping = std::make_shared<DenseMapping>(base);
     odometry = std::make_shared<DenseOdometry>(base, NUM_PYR);
@@ -16,12 +16,15 @@ void System::process_images(const cv::Mat depth, const cv::Mat image)
     cv::Mat depth_float;
     depth.convertTo(depth_float, CV_32FC1, 1 / 1000.f);
 
-    current = std::make_shared<RgbdFrame>(image, depth_float, processed_frame_count, 0);
+    current = std::make_shared<RgbdFrame>(depth_float, image, processed_frame_count, 0);
 
     // needs initialization
-    if (keyframe == NULL && processed_frame_count == 0)
+    if (system_initialized)
     {
         keyframe = current;
+
+        // break the loop
+        system_initialized = true;
     }
 
     odometry->track_frame(current);
@@ -33,12 +36,12 @@ void System::process_images(const cv::Mat depth, const cv::Mat image)
         mapping->update(reference_image);
         mapping->raycast(reference_image);
         reference_image->resize_device_map();
+
+        processed_frame_count += 1;
     }
 
     if (odometry->keyframe_needed())
         odometry->create_keyframe();
-
-    processed_frame_count += 1;
 }
 
 cv::Mat System::get_rendered_scene() const
@@ -54,8 +57,8 @@ void System::restart()
 {
     mapping->restart_mapping();
     odometry->restart_tracking();
+    system_initialized = false;
     processed_frame_count = 0;
-    keyframe = NULL;
 }
 
 void System::save_mesh_to_file(const char *str)

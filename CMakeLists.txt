@@ -14,7 +14,6 @@ find_package(OpenGL REQUIRED)
 find_package(PkgConfig REQUIRED)
 find_package(GLEW REQUIRED)
 pkg_search_module(GLFW REQUIRED glfw3)
-find_package(Pangolin REQUIRED)
 
 add_subdirectory(fusion_lib)
 

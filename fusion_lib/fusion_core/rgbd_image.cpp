@@ -178,67 +178,48 @@ RgbdFramePtr RgbdImage::get_reference_frame() const
     return impl->reference_frame_;
 }
 
-class RgbdFrame::RgbdFrameImpl
-{
-public:
-    RgbdFrameImpl(const cv::Mat &image, const cv::Mat &depth_float, size_t id, double time_stamp);
-
-    cv::Mat image_;
-    cv::Mat depth_;
-    unsigned long id_;
-    double time_stamp_;
-    Sophus::SE3d pose_;
-    RgbdFramePtr reference_frame_;
-    IntrinsicMatrixPyramidPtr intrinsics_pyr_;
-};
-
-RgbdFrame::RgbdFrameImpl::RgbdFrameImpl(const cv::Mat &image, const cv::Mat &depth_float, size_t id, double time_stamp)
-    : image_(image.clone()), depth_(depth_float.clone()), id_(id), time_stamp_(time_stamp)
-{
-}
-
-RgbdFrame::RgbdFrame(const cv::Mat &image, const cv::Mat &depth_float, size_t id, double time_stamp) : impl(new RgbdFrameImpl(image, depth_float, id, time_stamp))
+RgbdFrame::RgbdFrame(const cv::Mat &depth, const cv::Mat &image, size_t id, double ts)
+    : frame_id(id), time_stamp(ts), pose(Sophus::SE3d())
 {
 }
 
 RgbdFrame::~RgbdFrame()
 {
-    // std::cout << "frame id: " << impl->id_ << " is released!" << std::endl;
 }
 
 size_t RgbdFrame::get_id() const
 {
-    return impl->id_;
+    return frame_id;
 }
 
 cv::Mat RgbdFrame::get_image() const
 {
-    return impl->image_;
+    return source_image;
 }
 
 cv::Mat RgbdFrame::get_depth() const
 {
-    return impl->depth_;
+    return source_depth;
 }
 
 Sophus::SE3d RgbdFrame::get_pose() const
 {
-    return impl->pose_;
+    return pose;
 }
 
 void RgbdFrame::set_pose(const Sophus::SE3d &pose)
 {
-    impl->pose_ = pose;
+    this->pose = pose;
 }
 
 RgbdFramePtr RgbdFrame::get_reference_frame() const
 {
-    return impl->reference_frame_;
+    reference;
 }
 
 void RgbdFrame::set_reference_frame(RgbdFramePtr reference)
 {
-    impl->reference_frame_ = reference;
+    this->reference = reference;
 }
 
 } // namespace fusion

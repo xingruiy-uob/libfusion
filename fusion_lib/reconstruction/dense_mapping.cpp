@@ -202,6 +202,8 @@ void DenseMapping::write_mesh_to_file(const char *file_name)
 
     fclose(f);
   }
+
+  delete host_triangles;
 }
 
 } // namespace fusion

@@ -8,7 +8,7 @@ namespace fusion
 {
 
 // TODO : Robust RGB Estimation
-
+// STATUS: On halt
 struct RGBSelection
 {
     __device__ inline bool find_corresp(
@@ -180,6 +180,8 @@ void compute_rgb_corresp(
     safe_call(cudaFree(delegate.num_corresp));
 }
 
+// TODO : Robust RGB Estimation
+// STATUS: On halt
 struct RGBLeastSquares
 {
     cv::cuda::PtrStep<float> out;
@@ -267,6 +269,8 @@ __global__ void compute_least_square_RGB_kernel(RGBLeastSquares delegate)
     delegate();
 }
 
+// TODO : Robust RGB Estimation
+// STATUS: On halt
 void compute_least_square_RGB(
     const uint num_corresp,
     float4 *transformed_points,
@@ -301,7 +305,7 @@ void compute_least_square_RGB(
     residual[1] = num_corresp;
 
     // std::cout << residual[0] << " : " << residual[1] << std::endl;
-} // compute_least_square_RGB
+}
 
 struct RgbReduction2
 {
@@ -355,7 +359,9 @@ struct RgbReduction2
             left.z = -(left.x * p_transformed.x + left.y * p_transformed.y) * z_inv;
 
             float residual = i_c - i_l;
-            // float res_normalized = residual / stddev;
+
+            if (stddev > 10e-5)
+                residual /= stddev;
 
             float huber_th = 1.345 * stddev;
 
