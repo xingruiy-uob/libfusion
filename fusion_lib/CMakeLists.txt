@@ -11,9 +11,10 @@ add_library(fusion_lib STATIC "")
 target_sources(fusion_lib 
 PRIVATE
     # Core module
-    fusion_core/rgbd_image.cpp
+    fusion_core/rgbd_frame.cpp
     fusion_core/intrinsic_matrix.cpp
     fusion_core/cuda_imgproc.cu
+    fusion_core/device_image.cpp
 
     # Basic IO module
     basic_io/rgbd_camera.cpp

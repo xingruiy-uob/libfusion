@@ -1,7 +1,7 @@
 #ifndef __SYSTEM__
 #define __SYSTEM__
 
-#include "rgbd_image.h"
+#include "rgbd_frame.h"
 #include "intrinsic_matrix.h"
 #include "dense_mapping.h"
 #include "dense_odometry.h"

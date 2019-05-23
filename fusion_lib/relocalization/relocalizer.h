@@ -1,7 +1,7 @@
 #ifndef __RELOCALIZER__
 #define __RELOCALIZER__
 
-#include "rgbd_image.h"
+#include "rgbd_frame.h"
 #include <opencv2/features2d.hpp>
 #include <opencv2/xfeatures2d.hpp>
 

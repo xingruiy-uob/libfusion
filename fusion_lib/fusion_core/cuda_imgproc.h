@@ -8,6 +8,8 @@
 namespace fusion
 {
 
+void bilateral_filter_depth(const cv::cuda::GpuMat src, cv::cuda::GpuMat &dst);
+
 void build_depth_pyramid(const cv::cuda::GpuMat &base_depth, std::vector<cv::cuda::GpuMat> &pyramid, const int &max_level);
 
 void build_intensity_pyramid(const cv::cuda::GpuMat &base_intensity, std::vector<cv::cuda::GpuMat> &pyramid, const int &max_level);

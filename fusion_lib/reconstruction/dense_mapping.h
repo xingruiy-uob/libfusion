@@ -2,7 +2,8 @@
 #define __DENSE_MAPPING__
 
 #include <memory>
-#include "rgbd_image.h"
+#include "rgbd_frame.h"
+#include "device_image.h"
 
 namespace fusion
 {

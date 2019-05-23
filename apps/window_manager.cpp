@@ -267,6 +267,16 @@ void WindowManager::render_scene()
     glViewport(separate_x * 2, window_height / 2, separate_x, window_height / 2);
     draw_input_depth();
 
+    // glViewport(0, 0, window_width, window_height);
+    // glColor3f(1, 0, 1);
+    // glLineWidth(30);
+    // glBegin(GL_POLYGON);
+    // glVertex2f(-0.1, 0.1);
+    // glVertex2f(-0.1, -0.1);
+    // glVertex2f(0.1, -0.1);
+    // glVertex2f(0.1, 0.1);
+    // glEnd();
+
     glfwSwapBuffers(window);
     glfwPollEvents();
 }

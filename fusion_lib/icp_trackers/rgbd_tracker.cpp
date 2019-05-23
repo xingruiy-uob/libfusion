@@ -1,5 +1,6 @@
 #include "rgbd_tracker.h"
-#include "rgbd_image.h"
+#include "rgbd_frame.h"
+#include "device_image.h"
 #include "cuda_utils.h"
 #include "revertable_var.h"
 #include "pose_estimator.h"

@@ -8,6 +8,11 @@
 namespace fusion
 {
 
+void bilateral_filter_depth(const cv::cuda::GpuMat src, cv::cuda::GpuMat &dst)
+{
+    cv::cuda::bilateralFilter(src, dst, 5, 1, 1);
+}
+
 void build_depth_pyramid(const cv::cuda::GpuMat &base_depth, std::vector<cv::cuda::GpuMat> &pyramid, const int &max_level)
 {
     assert(max_level == pyramid.size());
@@ -175,7 +180,7 @@ __global__ void render_scene_kernel(const cv::cuda::PtrStep<float4> vmap, const 
     {
         const float3 bgr1 = make_float3(4.f / 255.f, 2.f / 255.f, 2.f / 255.f);
         // const float3 bgr2 = make_float3(120.f / 255.f, 120.f / 255.f, 236.f / 255.f);
-        const float3 bgr2 = make_float3(0,0,0);
+        const float3 bgr2 = make_float3(0, 0, 0);
         float w = static_cast<float>(y) / dst.rows;
         color = bgr1 * (1 - w) + bgr2 * w;
     }

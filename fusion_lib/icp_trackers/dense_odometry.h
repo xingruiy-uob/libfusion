@@ -1,7 +1,8 @@
 #ifndef __DENSE_ODOMETRY__
 #define __DENSE_ODOMETRY__
 
-#include "rgbd_image.h"
+#include "rgbd_frame.h"
+#include "device_image.h"
 #include "rgbd_tracker.h"
 #include <memory>
 

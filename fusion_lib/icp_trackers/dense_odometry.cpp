@@ -5,8 +5,8 @@ namespace fusion
 {
 
 DenseOdometry::DenseOdometry(IntrinsicMatrix base, int NUM_PYR)
-    : tracker_(new DenseTracking()), current_image_(new RgbdImage()),
-      reference_image_(new RgbdImage()), current_keyframe_(NULL),
+    : tracker_(new DenseTracking()), current_image_(new DeviceImage()),
+      reference_image_(new DeviceImage()), current_keyframe_(NULL),
       last_frame_(NULL), keyframe_needed_(false), tracking_lost_(false)
 {
   intrinsics_pyr_ = std::make_shared<IntrinsicMatrixPyramid>(base, NUM_PYR);
