@@ -28,8 +28,7 @@ public:
   RgbdFramePtr get_current_keyframe() const;
 
 private:
-  RgbdFramePtr current_keyframe_;
-  RgbdFramePtr last_frame_;
+  RgbdFramePtr reference_frame;
 
   RgbdImagePtr current_image_;
   RgbdImagePtr reference_image_;
@@ -40,8 +39,10 @@ private:
   bool keyframe_needed_;
   bool tracking_lost_;
 
-  TrackingResult result_;
-  TrackingContext context_;
+  TrackingResult result;
+  TrackingContext context;
+
+  bool initialized;
 };
 
 } // namespace fusion

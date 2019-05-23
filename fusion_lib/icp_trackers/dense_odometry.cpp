@@ -5,10 +5,11 @@ namespace fusion
 {
 
 DenseOdometry::DenseOdometry(IntrinsicMatrix base, int NUM_PYR)
-    : tracker_(new DenseTracking()), current_image_(new DeviceImage()),
-      reference_image_(new DeviceImage()), current_keyframe_(NULL),
-      last_frame_(NULL), keyframe_needed_(false), tracking_lost_(false)
+    : tracker_(new DenseTracking()), reference_frame(NULL),
+      tracking_lost_(false), initialized(false)
 {
+  current_image_ = std::make_shared<DeviceImage>();
+  reference_image_ = std::make_shared<DeviceImage>();
   intrinsics_pyr_ = std::make_shared<IntrinsicMatrixPyramid>(base, NUM_PYR);
 }
 
@@ -16,30 +17,29 @@ void DenseOdometry::track_frame(RgbdFramePtr current_frame)
 {
   current_image_->upload(current_frame, intrinsics_pyr_);
 
-  if (current_keyframe_ != nullptr)
+  if (!initialized)
   {
-    context_.use_initial_guess_ = true;
-    context_.initial_estimate_ = Sophus::SE3d();
-    context_.intrinsics_pyr_ = intrinsics_pyr_;
-    context_.max_iterations_ = {10, 5, 3, 3, 3};
-
-    result_ = tracker_->compute_transform(reference_image_, current_image_, context_);
-  }
-  else
-  {
-    last_frame_ = current_frame;
-    keyframe_needed_ = true;
+    reference_frame = current_frame;
     current_image_.swap(reference_image_);
+    initialized = true;
     return;
   }
 
-  if (result_.sucess)
+  context.use_initial_guess_ = true;
+  context.initial_estimate_ = Sophus::SE3d();
+  context.intrinsics_pyr_ = intrinsics_pyr_;
+  context.max_iterations_ = {10, 5, 3, 3, 3};
+
+  result = tracker_->compute_transform(reference_image_, current_image_, context);
+
+  if (result.sucess)
   {
-    auto pose = last_frame_->get_pose() * result_.update;
-    current_frame->set_reference_frame(current_keyframe_);
+    auto pose = reference_frame->get_pose() * result.update;
+
+    current_frame->set_reference_frame(reference_frame);
     current_frame->set_pose(pose);
 
-    last_frame_ = current_frame;
+    reference_frame = current_frame;
     current_image_.swap(reference_image_);
   }
   else
@@ -60,7 +60,7 @@ RgbdImagePtr DenseOdometry::get_reference_image() const
 
 RgbdFramePtr DenseOdometry::get_current_keyframe() const
 {
-  return current_keyframe_;
+  return NULL;
 }
 
 bool DenseOdometry::keyframe_needed() const
@@ -75,15 +75,9 @@ bool DenseOdometry::is_tracking_lost() const
 
 void DenseOdometry::restart_tracking()
 {
-  current_keyframe_ = NULL;
-  keyframe_needed_ = false;
+  reference_frame = NULL;
+  initialized = false;
   tracking_lost_ = false;
-}
-
-void DenseOdometry::create_keyframe()
-{
-  keyframe_needed_ = false;
-  current_keyframe_ = last_frame_;
 }
 
 } // namespace fusion

@@ -48,20 +48,20 @@ TrackingResult DenseTracking::compute_transform(const RgbdImagePtr reference, co
       auto last_icp_error = icp_error;
       auto last_rgb_error = rgb_error;
 
-      // icp_reduce(
-      //     curr_vmap,
-      //     curr_nmap,
-      //     last_vmap,
-      //     last_nmap,
-      //     sum_se3,
-      //     out_se3,
-      //     last_estimate,
-      //     K,
-      //     icp_hessian.data(),
-      //     icp_residual.data(),
-      //     residual_icp_.data());
-      // joint_hessian = icp_hessian;
-      // joint_residual = icp_residual;
+      icp_reduce(
+          curr_vmap,
+          curr_nmap,
+          last_vmap,
+          last_nmap,
+          sum_se3,
+          out_se3,
+          last_estimate,
+          K,
+          icp_hessian.data(),
+          icp_residual.data(),
+          residual_icp_.data());
+      joint_hessian = icp_hessian;
+      joint_residual = icp_residual;
 
       // rgb_reduce(
       //     curr_intensity,
@@ -100,23 +100,23 @@ TrackingResult DenseTracking::compute_transform(const RgbdImagePtr reference, co
       //     stdev_estimated,
       //     num_corresp);
 
-      rgb_step(
-          curr_intensity,
-          last_intensity,
-          last_vmap,
-          curr_vmap,
-          intensity_dx,
-          intensity_dy,
-          sum_se3,
-          out_se3,
-          stddev_estimated,
-          last_estimate,
-          K,
-          rgb_hessian.data(),
-          rgb_residual.data(),
-          residual_rgb_.data());
+      // rgb_step(
+      //     curr_intensity,
+      //     last_intensity,
+      //     last_vmap,
+      //     curr_vmap,
+      //     intensity_dx,
+      //     intensity_dy,
+      //     sum_se3,
+      //     out_se3,
+      //     stddev_estimated,
+      //     last_estimate,
+      //     K,
+      //     rgb_hessian.data(),
+      //     rgb_residual.data(),
+      //     residual_rgb_.data());
 
-      stddev_estimated = sqrt(residual_rgb_[0] / (residual_rgb_[1] - 6));
+      // stddev_estimated = sqrt(residual_rgb_[0] / (residual_rgb_[1] - 6));
       // compute_least_square_RGB(
       //     num_corresp,
       //     transformed_points,
@@ -129,8 +129,8 @@ TrackingResult DenseTracking::compute_transform(const RgbdImagePtr reference, co
       //     rgb_hessian.data(),
       //     rgb_residual.data(),
       //     residual_rgb_.data());
-      joint_hessian = rgb_hessian;
-      joint_residual = rgb_residual;
+      // joint_hessian = rgb_hessian;
+      // joint_residual = rgb_residual;
 
       // compute_rgb_correspondence(curr_intensity, last_intensity, intensity_dx, intensity_dy, last_vmap, last_estimate, K);
 

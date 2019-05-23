@@ -32,6 +32,8 @@ struct RenderingBlockDelegate
         return make_float2(fx * pt.x / pt.z + cx, fy * pt.y / pt.z + cy);
     }
 
+    // compare val with the old value stored in *add
+    // and write the bigger one to *add
     __device__ __forceinline__ void atomic_max(float *add, float val) const
     {
         int *address_as_i = (int *)add;
@@ -43,6 +45,8 @@ struct RenderingBlockDelegate
         } while (assumed != old);
     }
 
+    // compare val with the old value stored in *add
+    // and write the smaller one to *add
     __device__ __forceinline__ void atomic_min(float *add, float val) const
     {
         int *address_as_i = (int *)add;
@@ -410,7 +414,7 @@ struct MapRenderingDelegate
             vmap.ptr(y)[x] = make_float4(result, 1.0);
         }
     }
-    
+
     __device__ __forceinline__ uchar3 read_colour(float3 pt3d, bool &valid)
     {
         Voxel *voxel = NULL;

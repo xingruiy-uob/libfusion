@@ -1,4 +1,5 @@
 #include "system.h"
+#include "cuda_imgproc.h"
 
 namespace fusion
 {
@@ -33,15 +34,36 @@ void System::process_images(const cv::Mat depth, const cv::Mat image)
     {
         auto reference_image = odometry->get_reference_image();
 
+        // if (processed_frame_count == 0)
+        // {
+        //     cv::Mat render(reference_image->get_rendered_image());
+        //     cv::imwrite("depth.png", render);
+        // }
+
+        // if (processed_frame_count == 100)
+        // {
+        //     cv::Mat render(reference_image->get_rendered_image());
+        //     cv::imwrite("depth2.png", render);
+        // }
+
         mapping->update(reference_image);
         mapping->raycast(reference_image);
         reference_image->resize_device_map();
 
+        // if (processed_frame_count == 0)
+        // {
+        //     cv::Mat render(reference_image->get_rendered_image());
+        //     cv::imwrite("render.png", render);
+        // }
+
+        // if (processed_frame_count == 100)
+        // {
+        //     cv::Mat render(reference_image->get_rendered_image());
+        //     cv::imwrite("render2.png", render);
+        // }
+
         processed_frame_count += 1;
     }
-
-    if (odometry->keyframe_needed())
-        odometry->create_keyframe();
 }
 
 cv::Mat System::get_rendered_scene() const

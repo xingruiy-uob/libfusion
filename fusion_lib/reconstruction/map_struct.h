@@ -16,8 +16,19 @@
 // Map info
 struct MapState
 {
+    // The total number of buckets in the map
+    // NOTE: buckets are allocated for each main entry
+    // It dose not cover the excess entries
     int num_total_buckets_;
+
+    // The total number of voxel blocks in the map
+    // also determins the size of the heap memory
+    // which is used for storing block addresses
     int num_total_voxel_blocks_;
+
+    // The total number of hash entres in the map
+    // This is a combination of main entries and
+    // the excess entries
     int num_total_hash_entries_;
 
     int num_max_mesh_triangles_;

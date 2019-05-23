@@ -39,6 +39,7 @@ private:
   Matrix6x6f icp_hessian;
   Matrix6x6f rgb_hessian;
   Matrix6x6f joint_hessian;
+
   Matrix6x1f icp_residual;
   Matrix6x1f rgb_residual;
   Matrix6x1f joint_residual;
