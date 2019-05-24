@@ -1,5 +1,5 @@
-#ifndef __WINDOW_MANAGER__
-#define __WINDOW_MANAGER__
+#ifndef WINDOW_MANAGER_H
+#define WINDOW_MANAGER_H
 
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
@@ -34,10 +34,10 @@ public:
     static bool should_save_file;
     static bool should_reset;
 
-private:
+public:
     GLuint textures[3]; // scene, depth and source textures
-    GLuint shaders[3];  // vertex, geometry and fragment shaders
-    GLuint program[2];  // glsl programs
+    GLuint shading_program[3];
+    GLuint array_buffers[3];
 
     // drawing functions
     void draw_source_image();
@@ -48,11 +48,6 @@ private:
 
     // window control
     static void toggle_full_screen();
-
-    // callbacks
-    static void error_callback(int error, const char *description);
-    static void window_size_callback(GLFWwindow *window, int width, int height);
-    static void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods);
 };
 
 #endif

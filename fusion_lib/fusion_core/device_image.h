@@ -18,10 +18,11 @@ typedef std::shared_ptr<DeviceImage> RgbdImagePtr;
 class DeviceImage
 {
 public:
+    // A deep copy is required
     DeviceImage(const DeviceImage &) = delete;
     DeviceImage &operator=(const DeviceImage &) = delete;
 
-    DeviceImage();
+    DeviceImage() = default;
     DeviceImage(const int &max_level);
 
     void resize_pyramid(const int &max_level);
@@ -44,8 +45,8 @@ public:
     // TODO: move functions here
     void create_depth_pyramid(const int max_level, const bool use_filter = true);
     void create_intensity_pyramid(const int max_level);
-    void create_vmap_pyramid(const int max_level);
-    void create_nmap_pyramid(const int max_level);
+    void create_vmap_pyramid(const int max_level); // TODO
+    void create_nmap_pyramid(const int max_level); // TODO
 
 private:
     RgbdFramePtr reference_frame;

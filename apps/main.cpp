@@ -1,8 +1,8 @@
 #include <iostream>
 #include "system.h"
+#include "window.h"
 #include "rgbd_camera.h"
 #include "intrinsic_matrix.h"
-#include "window_manager.h"
 
 int main(int argc, char **argv)
 {
@@ -12,6 +12,7 @@ int main(int argc, char **argv)
 
     WindowManager wm;
     wm.initialize_gl_context(1920, 960);
+    wm.set_system(&slam);
 
     while (!wm.should_quit())
     {

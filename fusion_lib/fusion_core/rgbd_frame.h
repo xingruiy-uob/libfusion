@@ -17,8 +17,6 @@ typedef std::shared_ptr<RgbdFrame> RgbdFramePtr;
 class RgbdFrame
 {
 public:
-  ~RgbdFrame();
-
   // delete default and copy constructors
   RgbdFrame() = delete;
   RgbdFrame(const RgbdFrame &) = delete;
@@ -26,6 +24,9 @@ public:
 
   // create new rgbd frame
   RgbdFrame(const cv::Mat &depth, const cv::Mat &image, size_t id, double ts);
+
+  // if the frame contains map projections
+  bool has_scene_data() const;
 
   // get frame id
   size_t get_id() const;
@@ -35,6 +36,10 @@ public:
 
   // get source depth : CV_32FC1
   cv::Mat get_depth() const;
+
+  cv::Mat get_vmap() const;
+
+  cv::Mat get_nmap() const;
 
   // get current pose in SE3d
   Sophus::SE3d get_pose() const;

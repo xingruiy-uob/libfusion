@@ -1,4 +1,4 @@
-#include "window_manager.h"
+#include "window.h"
 #include <iostream>
 #include <thread>
 #include <chrono>
@@ -12,12 +12,12 @@ int WindowManager::colour_mode = 0;
 bool WindowManager::should_save_file = false;
 bool WindowManager::should_reset = false;
 
-void WindowManager::error_callback(int error, const char *description)
+void error_callback(int error, const char *description)
 {
     std::cerr << description << std::endl;
 }
 
-void WindowManager::key_callback(GLFWwindow *window, int key, int scancode, int action, int mods)
+void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods)
 {
     WindowManager *wm;
     fusion::System *sys;
@@ -69,7 +69,11 @@ void mouse_button_callback(GLFWwindow *window, int button, int action, int mods)
         std::cout << "cursor pos: X " << xpos << " Y " << ypos << std::endl;
 }
 
-void WindowManager::window_size_callback(GLFWwindow *window, int width, int height)
+void scroll_callback(GLFWwindow *window, double xoffset, double yoffset)
+{
+}
+
+void window_size_callback(GLFWwindow *window, int width, int height)
 {
     window_width = width;
     window_height = height;
@@ -120,11 +124,22 @@ bool WindowManager::initialize_gl_context(const size_t width, const int height)
 
     glfwSetWindowUserPointer(window, this);
     glfwMakeContextCurrent(window);
+
+    // must be after setting opengl context
+    GLenum err = glewInit();
+    if (GLEW_OK != err)
+    {
+        fprintf(stderr, "Error: %s\n", glewGetErrorString(err));
+    }
+
     glfwSetKeyCallback(window, key_callback);
     glfwSetMouseButtonCallback(window, mouse_button_callback);
     // glfwSetCursorPosCallback(window, cursor_position_callback);
     glfwSetWindowSizeCallback(window, window_size_callback);
+    glfwSetScrollCallback(window, scroll_callback);
+    glfwSwapInterval(1);
 
+ 
     // initialize textures
     glGenTextures(3, &textures[0]);
 
@@ -251,8 +266,8 @@ bool WindowManager::should_quit() const
 
 void WindowManager::render_scene()
 {
-    glClear(GL_COLOR_BUFFER_BIT);
-    glClearColor(0, 0, 0, 1);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glClearColor(1, 1, 1, 1);
     glMatrixMode(GL_MODELVIEW);
 
     int separate_x = (int)((float)window_width / 3);
