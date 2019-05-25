@@ -7,6 +7,9 @@
 #include <opencv2/opencv.hpp>
 #include <cuda_gl_interop.h>
 #include <cuda_runtime_api.h>
+#include <glm/mat4x4.hpp>
+#include <glm/matrix.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 #include "system.h"
 
 class WindowManager
@@ -61,6 +64,12 @@ public:
     // shaders temporary variables
     GLuint shaders[4];
 
+    GLfloat position[3];
+    GLfloat lookat[3];
+
+    double prev_mouse_pos[2];
+    glm::mat4 model_matrix;
+
     // drawing functions
     void draw_source_image();
     void draw_rendered_scene();
@@ -70,6 +79,8 @@ public:
 
     // window control
     static void toggle_full_screen();
+
+    glm::mat4 get_view_projection_matrix(Eigen::Matrix4f eigen_view_matrix);
 };
 
 #endif
