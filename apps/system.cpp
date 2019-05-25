@@ -9,7 +9,7 @@ System::System(IntrinsicMatrix base, const int NUM_PYR)
 {
     mapping = std::make_shared<DenseMapping>(base);
     odometry = std::make_shared<DenseOdometry>(base, NUM_PYR);
-    relocalizer = std::shared_ptr<Relocalizer>();
+    relocalizer = std::make_shared<Relocalizer>(base);
 }
 
 void System::process_images(const cv::Mat depth, const cv::Mat image)
@@ -37,7 +37,10 @@ void System::process_images(const cv::Mat depth, const cv::Mat image)
         // if (processed_frame_count == 0)
         // {
         //     cv::Mat render(reference_image->get_rendered_image());
+        //     cv::Mat img2;
+        //     cv::cvtColor(image, img2, cv::COLOR_RGB2BGR);
         //     cv::imwrite("depth.png", render);
+        //     cv::imwrite("image.png", img2);
         // }
 
         // if (processed_frame_count == 100)
@@ -87,6 +90,16 @@ void System::save_mesh_to_file(const char *str)
 {
     mapping->create_scene_mesh();
     mapping->write_mesh_to_file(str);
+}
+
+void System::create_mesh_gl(float3 *data, uint &max_size)
+{
+    mapping->create_scene_mesh(data, max_size);
+}
+
+Eigen::Matrix4f System::get_current_camera_pose() const
+{
+    return odometry->get_current_pose_matrix();
 }
 
 } // namespace fusion

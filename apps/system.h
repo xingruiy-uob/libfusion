@@ -6,6 +6,7 @@
 #include "dense_mapping.h"
 #include "dense_odometry.h"
 #include "relocalizer.h"
+#include <eigen3/Eigen/Core>
 #include <opencv2/opencv.hpp>
 
 #define RUN_MODE_PAUSE 0
@@ -30,6 +31,12 @@ public:
     // create a mesh from the map
     // and save it to a named file
     void save_mesh_to_file(const char *str);
+
+    // create mesh and store in the address
+    void create_mesh_gl(float3 *data, uint &max_size);
+
+    // retrieve current camera pose
+    Eigen::Matrix4f get_current_camera_pose() const;
 
 private:
     RgbdFramePtr current;

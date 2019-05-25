@@ -519,40 +519,41 @@ __global__ void generate_vertex_array_kernel(BuildVertexArray bva)
 
 void create_scene_mesh(
     MapStruct map_struct,
-    uint *block_count,
+    uint &block_count,
     int3 *block_list,
-    uint *triangle_count,
-    float3 *vertex_mesh)
+    uint &triangle_count,
+    float3 *vertex_data)
 {
-    safe_call(cudaMemset(block_count, 0, sizeof(uint)));
-    safe_call(cudaMemset(triangle_count, 0, sizeof(uint)));
+    uint *cuda_block_count;
+    uint *cuda_triangle_count;
+    safe_call(cudaMalloc(&cuda_block_count, sizeof(uint)));
+    safe_call(cudaMalloc(&cuda_triangle_count, sizeof(uint)));
+    safe_call(cudaMemset(cuda_block_count, 0, sizeof(uint)));
+    safe_call(cudaMemset(cuda_triangle_count, 0, sizeof(uint)));
 
     BuildVertexArray bva;
     bva.map_struct = map_struct;
     bva.block_array = block_list;
-    bva.block_count = block_count;
-    bva.triangle_count = triangle_count;
-    bva.triangles = vertex_mesh;
+    bva.block_count = cuda_block_count;
+    bva.triangle_count = cuda_triangle_count;
+    bva.triangles = vertex_data;
 
     dim3 thread(1024);
     dim3 block = dim3(div_up(state.num_total_hash_entries_, thread.x));
 
     select_blocks_kernel<<<block, thread>>>(bva);
 
-    uint host_block_count = 0;
-    safe_call(cudaMemcpy(&host_block_count, block_count, sizeof(uint), cudaMemcpyDeviceToHost));
-
-    if (host_block_count == 0)
+    safe_call(cudaMemcpy(&block_count, cuda_block_count, sizeof(uint), cudaMemcpyDeviceToHost));
+    if (block_count == 0)
         return;
 
     thread = dim3(8, 8);
-    block = dim3(div_up(host_block_count, 16), 16);
+    block = dim3(div_up(block_count, 16), 16);
 
     generate_vertex_array_kernel<<<block, thread>>>(bva);
 
-    uint host_triangle_count;
-    safe_call(cudaMemcpy(&host_triangle_count, triangle_count, sizeof(uint), cudaMemcpyDeviceToHost));
-    host_triangle_count = std::min(host_triangle_count, (uint)state.num_max_mesh_triangles_);
+    safe_call(cudaMemcpy(&triangle_count, cuda_triangle_count, sizeof(uint), cudaMemcpyDeviceToHost));
+    triangle_count = std::min(triangle_count, (uint)state.num_max_mesh_triangles_);
 }
 
 } // namespace cuda

@@ -23,8 +23,9 @@ RgbdFrame::RgbdFrame(const cv::Mat &depth, const cv::Mat &image, size_t id, doub
     source_depth = depth.clone();
 }
 
-RgbdFrame::~RgbdFrame()
+bool RgbdFrame::has_scene_data() const
 {
+    return !vmap.empty();
 }
 
 size_t RgbdFrame::get_id() const
@@ -42,19 +43,29 @@ cv::Mat RgbdFrame::get_depth() const
     return source_depth;
 }
 
+cv::Mat RgbdFrame::get_vmap() const
+{
+    return vmap;
+}
+
+cv::Mat RgbdFrame::get_nmap() const
+{
+    return nmap;
+}
+
 Sophus::SE3d RgbdFrame::get_pose() const
 {
     return pose;
 }
 
-void RgbdFrame::set_pose(const Sophus::SE3d &pose)
-{
-    this->pose = pose;
-}
-
 RgbdFramePtr RgbdFrame::get_reference_frame() const
 {
     reference;
+}
+
+void RgbdFrame::set_pose(const Sophus::SE3d &pose)
+{
+    this->pose = pose;
 }
 
 void RgbdFrame::set_reference_frame(RgbdFramePtr reference)

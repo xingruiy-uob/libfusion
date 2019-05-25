@@ -22,6 +22,7 @@ public:
   std::vector<Sophus::SE3d> get_keyframe_poses() const;
   std::vector<Sophus::SE3d> get_camera_trajectory() const;
 
+  Eigen::Matrix4f get_current_pose_matrix() const;
   RgbdImagePtr get_current_image() const;
   RgbdImagePtr get_reference_image() const;
   RgbdFramePtr get_current_frame() const;

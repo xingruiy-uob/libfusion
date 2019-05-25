@@ -1,9 +1,12 @@
-#ifndef __WINDOW_MANAGER__
-#define __WINDOW_MANAGER__
+#ifndef WINDOW_MANAGER_H
+#define WINDOW_MANAGER_H
 
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
+#include <eigen3/Eigen/Core>
 #include <opencv2/opencv.hpp>
+#include <cuda_gl_interop.h>
+#include <cuda_runtime_api.h>
 #include "system.h"
 
 class WindowManager
@@ -28,16 +31,35 @@ public:
     void set_source_image(cv::Mat image_src);
     void set_input_depth(cv::Mat depth);
 
+    // get mapped resources
+    float3 *get_cuda_mapped_ptr_vertex(int id);
+    void cuda_unmap_resources(int id);
+
     // system control
     static int run_mode;
     static int colour_mode;
     static bool should_save_file;
     static bool should_reset;
 
-private:
-    GLuint textures[3]; // scene, depth and source textures
-    GLuint shaders[3];  // vertex, geometry and fragment shaders
-    GLuint program[2];  // glsl programs
+    uint num_mesh_triangles;
+    Eigen::Matrix4f view_matrix;
+
+public:
+    // textures used in our code
+    // scene, depth, colour respectively
+    GLuint textures[3];
+
+    // glsl programs
+    // phong shading, normal map, colour map
+    GLuint program[3];
+
+    // vertex buffer, normal buffer and colour buffer
+    GLuint buffers[3];
+    GLuint gl_array[3];
+    cudaGraphicsResource_t buffer_res[3];
+
+    // shaders temporary variables
+    GLuint shaders[4];
 
     // drawing functions
     void draw_source_image();
@@ -48,11 +70,6 @@ private:
 
     // window control
     static void toggle_full_screen();
-
-    // callbacks
-    static void error_callback(int error, const char *description);
-    static void window_size_callback(GLFWwindow *window, int width, int height);
-    static void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods);
 };
 
 #endif

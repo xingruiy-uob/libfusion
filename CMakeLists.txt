@@ -23,7 +23,7 @@ target_sources(app
 PRIVATE
     apps/system.cpp
     apps/main.cpp
-    apps/window_manager.cpp
+    apps/window.cpp
 )
 
 target_include_directories(app
@@ -38,3 +38,22 @@ PRIVATE
     ${GLFW_STATIC_LIBRARIES}
     ${GLEW_LIBRARIES}
 )
+
+file (GLOB_RECURSE resources "shaders/*.*")
+foreach(resource ${resources})
+    get_filename_component(filename ${resource} NAME)
+
+    set(output "${CMAKE_BINARY_DIR}/shaders/${filename}")
+ 
+    add_custom_command(
+        COMMENT "Moving updated resource-file '${filename}'"
+        OUTPUT ${output}
+        DEPENDS ${resource}
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${resource}
+        ${output}
+    )
+ 
+    add_custom_target(${filename} ALL DEPENDS ${resource} ${output})
+ 
+endforeach()

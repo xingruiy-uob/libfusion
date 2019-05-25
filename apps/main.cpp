@@ -1,8 +1,8 @@
 #include <iostream>
 #include "system.h"
+#include "window.h"
 #include "rgbd_camera.h"
 #include "intrinsic_matrix.h"
-#include "window_manager.h"
 
 int main(int argc, char **argv)
 {
@@ -12,6 +12,7 @@ int main(int argc, char **argv)
 
     WindowManager wm;
     wm.initialize_gl_context(1920, 960);
+    wm.set_system(&slam);
 
     while (!wm.should_quit())
     {
@@ -27,7 +28,9 @@ int main(int argc, char **argv)
             {
             case 1:
             {
+                // processing current images
                 slam.process_images(camera.depth, camera.image);
+
                 switch (WindowManager::colour_mode)
                 {
                 case 0:
@@ -40,6 +43,12 @@ int main(int argc, char **argv)
                 }
                 break;
             }
+            default:
+                // TODO: only update when tracking was succeeded.
+                float3 *ptr = wm.get_cuda_mapped_ptr_vertex(0);
+                slam.create_mesh_gl(ptr, wm.num_mesh_triangles);
+                wm.cuda_unmap_resources(0);
+                wm.view_matrix = slam.get_current_camera_pose();
             }
 
             if (WindowManager::should_save_file)

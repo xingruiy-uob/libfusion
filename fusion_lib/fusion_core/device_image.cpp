@@ -124,10 +124,6 @@ void DeviceImage::upload(const RgbdFramePtr frame, const IntrinsicMatrixPyramidP
     reference_frame = frame;
 }
 
-DeviceImage::DeviceImage()
-{
-}
-
 DeviceImage::DeviceImage(const int &max_level)
 {
     resize_pyramid(max_level);
