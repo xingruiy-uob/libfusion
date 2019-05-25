@@ -1,7 +1,11 @@
 #include "window.h"
+#include "cuda_utils.h"
 #include <iostream>
 #include <thread>
 #include <chrono>
+#include <glm/mat4x4.hpp>
+#include <glm/matrix.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 
 int window_width = 0;
 int window_height = 0;
@@ -104,10 +108,74 @@ void WindowManager::toggle_full_screen()
     }
 }
 
+GLuint load_shader_from_file(const char *file_name, int type)
+{
+    std::ifstream file(file_name, std::ifstream::in);
+
+    if (file.is_open())
+    {
+        GLuint shader = glCreateShader(type);
+
+        std::stringstream buffer;
+        buffer << file.rdbuf();
+        std::string source_str = buffer.str();
+        const GLchar *source = source_str.c_str();
+        GLint source_size = source_str.size();
+
+        glShaderSource(shader, 1, &source, &source_size);
+        glCompileShader(shader);
+
+        // error handling
+        GLint code;
+        glGetShaderiv(shader, GL_COMPILE_STATUS, &code);
+        if (code == GL_TRUE)
+            return shader;
+        else
+        {
+            GLint log_size;
+            glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &log_size);
+            GLchar *log = new GLchar[log_size];
+            glGetShaderInfoLog(shader, log_size, NULL, log);
+            std::cout << "shaders failed loading with message: \n"
+                      << log << std::endl;
+        }
+    }
+
+    return 0;
+}
+
+GLuint create_program_from_shaders(GLuint *shaders, GLint size)
+{
+    GLuint program = glCreateProgram();
+    for (int i = 0; i < size; ++i)
+        glAttachShader(program, shaders[i]);
+    glLinkProgram(program);
+
+    GLint code = GL_TRUE;
+    glGetProgramiv(program, GL_LINK_STATUS, &code);
+    if (code == GL_TRUE)
+    {
+        std::cout << "program linked!" << std::endl;
+        return program;
+    }
+    else
+    {
+        GLint log_size = 0;
+        glGetProgramiv(program, GL_INFO_LOG_LENGTH, &log_size);
+        GLchar *log = new GLchar[log_size];
+        glGetProgramInfoLog(program, log_size, NULL, log);
+        std::cout << "link program failed with error: \n"
+                  << log << std::endl;
+        return 0;
+    }
+}
+
 bool WindowManager::initialize_gl_context(const size_t width, const int height)
 {
     window_width = width;
     window_height = height;
+    num_mesh_triangles = 0;
+    view_matrix = Eigen::Matrix4f::Identity();
 
     glfwSetErrorCallback(error_callback);
 
@@ -139,9 +207,33 @@ bool WindowManager::initialize_gl_context(const size_t width, const int height)
     glfwSetScrollCallback(window, scroll_callback);
     glfwSwapInterval(1);
 
- 
     // initialize textures
     glGenTextures(3, &textures[0]);
+
+    shaders[0] = load_shader_from_file("./shaders/phong_vertex.shader", GL_VERTEX_SHADER);
+    shaders[1] = load_shader_from_file("./shaders/phong_fragment.shader", GL_FRAGMENT_SHADER);
+    program[0] = create_program_from_shaders(&shaders[0], 2);
+
+    // create array object
+    glGenVertexArrays(1, &gl_array[0]);
+    glBindVertexArray(gl_array[0]);
+
+    // create buffer object
+    glGenBuffers(1, &buffers[0]);
+    glBindBuffer(GL_ARRAY_BUFFER, buffers[0]);
+    GLuint size = sizeof(GLfloat) * 50000000 * 3;
+    glBufferData(GL_ARRAY_BUFFER, size, NULL, GL_STATIC_DRAW);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+    glEnableVertexAttribArray(0);
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
+
+    // bind buffer object to CUDA
+    safe_call(cudaGraphicsGLRegisterBuffer(&buffer_res[0], buffers[0], cudaGraphicsMapFlagsWriteDiscard));
+
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LESS);
 
     if (glGetError() != GLEW_OK)
         return false;
@@ -201,6 +293,20 @@ void WindowManager::set_input_depth(cv::Mat depth)
         GL_LUMINANCE,
         GL_UNSIGNED_SHORT,
         depth.ptr());
+}
+
+float3 *WindowManager::get_cuda_mapped_ptr_vertex(int id)
+{
+    float3 *dev_ptr;
+    safe_call(cudaGraphicsMapResources(1, &buffer_res[0]));
+    size_t num_bytes;
+    cudaGraphicsResourceGetMappedPointer((void **)&dev_ptr, &num_bytes, buffer_res[0]);
+    return dev_ptr;
+}
+
+void WindowManager::cuda_unmap_resources(int id)
+{
+    safe_call(cudaGraphicsUnmapResources(1, &buffer_res[0]));
 }
 
 void draw_quads()
@@ -264,20 +370,47 @@ bool WindowManager::should_quit() const
     return glfwWindowShouldClose(window);
 }
 
+glm::mat4 get_view_projection_matrix(Eigen::Matrix4f eigen_view_matrix)
+{
+    // glm::mat4 view_matrix;
+    // for (int row = 0; row < 4; ++row)
+    //     for (int col = 0; col < 4; ++col)
+    //         view_matrix[col][row] = eigen_view_matrix(row, col);
+    glm::mat4 view_matrix = glm::lookAt(
+        glm::vec3(eigen_view_matrix(0, 3), eigen_view_matrix(1, 3), -eigen_view_matrix(2, 3)), // Camera is at (4,3,3), in World Space
+        glm::vec3(eigen_view_matrix(0, 2), eigen_view_matrix(1, 2), eigen_view_matrix(2, 2)),  // and looks at the origin
+        glm::vec3(0, -1, 0)                                                                    // Head is up (set to 0,-1,0 to look upside-down)
+    );
+
+    glm::mat4 projection_matrix = glm::perspective(glm::radians(45.f), 4.0f / 3.0f, 0.1f, 1000.f);
+    return projection_matrix * view_matrix;
+}
+
 void WindowManager::render_scene()
 {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glClearColor(1, 1, 1, 1);
-    glMatrixMode(GL_MODELVIEW);
+    glClearColor(1.f, 0.f, 0.f, 1.f);
+    // glMatrixMode(GL_MODELVIEW);
+    // glOrtho(0, 640, 480, 0, -1, 1);
 
     int separate_x = (int)((float)window_width / 3);
-
     glViewport(separate_x * 2, 0, separate_x, window_height / 2);
     draw_source_image();
 
     glViewport(0, 0, separate_x * 2, window_height);
     if (run_mode == 1)
         draw_rendered_scene();
+    else if (num_mesh_triangles != 0)
+    {
+        glUseProgram(program[0]);
+        glBindVertexArray(gl_array[0]);
+        glm::mat4 mvp_mat = get_view_projection_matrix(view_matrix);
+
+        GLint loc = glGetUniformLocation(program[0], "mvp_matrix");
+        glUniformMatrix4fv(loc, 1, GL_FALSE, &mvp_mat[0][0]);
+        glDrawArrays(GL_TRIANGLES, 0, num_mesh_triangles * 3);
+        glUseProgram(0);
+    }
 
     glViewport(separate_x * 2, window_height / 2, separate_x, window_height / 2);
     draw_input_depth();

@@ -26,8 +26,9 @@ MapStruct::MapStruct(const int &n_buckets, const int &n_entries, const int &n_bl
     state.zmax_update_ = 3.0f;
     state.zmin_raycast_ = 0.1f;
     state.zmin_update_ = 0.1f;
-    state.num_max_rendering_blocks_ = 260000;
-    state.num_max_mesh_triangles_ = 20000000;
+
+    state.num_max_rendering_blocks_ = 200000; // negligible
+    state.num_max_mesh_triangles_ = 50000000; // approxi. 0.55 GB
 
     update_device_map_state();
 }
@@ -52,6 +53,7 @@ void MapStruct::allocate_device_memory()
     count += sizeof(HashEntry) * state.num_total_hash_entries_;
     count += sizeof(Voxel) * state.num_total_voxels();
     count += sizeof(RenderingBlock) * state.num_max_rendering_blocks_;
+
     std::cout << "Memory Allocated with " << count / (1024 * 1024 * 1024.f) << " GB" << std::endl;
 }
 

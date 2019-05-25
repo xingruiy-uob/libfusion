@@ -58,6 +58,16 @@ RgbdImagePtr DenseOdometry::get_reference_image() const
   return reference_image_;
 }
 
+Eigen::Matrix4f DenseOdometry::get_current_pose_matrix() const
+{
+  if (current_image_ && current_image_->get_reference_frame())
+  {
+    return current_image_->get_reference_frame()->get_pose().matrix().cast<float>();
+  }
+  else
+    return Eigen::Matrix4f::Identity();
+}
+
 RgbdFramePtr DenseOdometry::get_current_keyframe() const
 {
   return NULL;

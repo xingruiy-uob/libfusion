@@ -3,7 +3,10 @@
 
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
+#include <eigen3/Eigen/Core>
 #include <opencv2/opencv.hpp>
+#include <cuda_gl_interop.h>
+#include <cuda_runtime_api.h>
 #include "system.h"
 
 class WindowManager
@@ -28,16 +31,35 @@ public:
     void set_source_image(cv::Mat image_src);
     void set_input_depth(cv::Mat depth);
 
+    // get mapped resources
+    float3 *get_cuda_mapped_ptr_vertex(int id);
+    void cuda_unmap_resources(int id);
+
     // system control
     static int run_mode;
     static int colour_mode;
     static bool should_save_file;
     static bool should_reset;
 
+    uint num_mesh_triangles;
+    Eigen::Matrix4f view_matrix;
+
 public:
-    GLuint textures[3]; // scene, depth and source textures
-    GLuint shading_program[3];
-    GLuint array_buffers[3];
+    // textures used in our code
+    // scene, depth, colour respectively
+    GLuint textures[3];
+
+    // glsl programs
+    // phong shading, normal map, colour map
+    GLuint program[3];
+
+    // vertex buffer, normal buffer and colour buffer
+    GLuint buffers[3];
+    GLuint gl_array[3];
+    cudaGraphicsResource_t buffer_res[3];
+
+    // shaders temporary variables
+    GLuint shaders[4];
 
     // drawing functions
     void draw_source_image();

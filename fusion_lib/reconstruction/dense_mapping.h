@@ -2,6 +2,7 @@
 #define __DENSE_MAPPING__
 
 #include <memory>
+#include <cuda_runtime.h>
 #include "rgbd_frame.h"
 #include "device_image.h"
 
@@ -18,6 +19,7 @@ public:
   void raycast(cv::cuda::GpuMat &vmap, cv::cuda::GpuMat &colour);
 
   void create_scene_mesh();
+  void create_scene_mesh(float3 *data, uint &max_size);
   void restart_mapping();
   void write_mesh_to_file(const char *file_name);
 

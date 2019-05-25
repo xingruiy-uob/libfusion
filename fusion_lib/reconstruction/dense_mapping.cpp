@@ -14,6 +14,7 @@ public:
   void update(RgbdImagePtr current_image);
   void raycast(RgbdImagePtr current_image);
   void create_scene_mesh();
+  void create_scene_mesh(float3 *data, uint &max_size);
 
   IntrinsicMatrix intrinsic_matrix_;
   std::shared_ptr<MapStruct> map_struct_;
@@ -24,15 +25,16 @@ public:
   cv::cuda::GpuMat cast_image_;
   cv::cuda::GpuMat zrange_x_;
   cv::cuda::GpuMat zrange_y_;
+  uint *rendering_block_count;
+  RenderingBlock *rendering_block_array;
 
   // for map udate
   cv::cuda::GpuMat flag;
   cv::cuda::GpuMat pos_array;
-  const int integration_level_ = 0;
 
+  uint block_count;
+  uint triangle_count;
   int3 *block_list;
-  uint *block_count;
-  uint *triangle_count;
   float3 *triangles;
 };
 
@@ -46,9 +48,7 @@ DenseMapping::DenseMappingImpl::DenseMappingImpl(IntrinsicMatrix cam_param)
   zrange_x_.create(intrinsic_matrix_.height / 8, intrinsic_matrix_.width / 8, CV_32FC1);
   zrange_y_.create(intrinsic_matrix_.height / 8, intrinsic_matrix_.width / 8, CV_32FC1);
 
-  safe_call(cudaMalloc(&block_count, sizeof(uint)));
   safe_call(cudaMalloc(&block_list, sizeof(int3) * state.num_total_hash_entries_));
-  safe_call(cudaMalloc(&triangle_count, sizeof(uint)));
   safe_call(cudaMalloc(&triangles, sizeof(float3) * state.num_total_mesh_vertices()));
 }
 
@@ -57,9 +57,7 @@ DenseMapping::DenseMappingImpl::~DenseMappingImpl()
   if (map_struct_)
     map_struct_->release_device_memory();
 
-  safe_call(cudaFree(block_count));
   safe_call(cudaFree(block_list));
-  safe_call(cudaFree(triangle_count));
   safe_call(cudaFree(triangles));
 }
 
@@ -96,6 +94,7 @@ void DenseMapping::DenseMappingImpl::raycast(RgbdImagePtr current_image)
 
   uint rendering_block_count = 0;
   map_struct_->get_rendering_block_count(rendering_block_count);
+
   if (rendering_block_count != 0)
   {
     cast_vmap_ = current_image->get_vmap();
@@ -133,6 +132,11 @@ void DenseMapping::DenseMappingImpl::create_scene_mesh()
   cuda::create_scene_mesh(*map_struct_, block_count, block_list, triangle_count, triangles);
 }
 
+void DenseMapping::DenseMappingImpl::create_scene_mesh(float3 *data, uint &max_size)
+{
+  cuda::create_scene_mesh(*map_struct_, block_count, block_list, max_size, data);
+}
+
 DenseMapping::DenseMapping(IntrinsicMatrix cam_param) : impl(new DenseMappingImpl(cam_param))
 {
 }
@@ -152,6 +156,11 @@ void DenseMapping::create_scene_mesh()
   impl->create_scene_mesh();
 }
 
+void DenseMapping::create_scene_mesh(float3 *data, uint &max_size)
+{
+  impl->create_scene_mesh(data, max_size);
+}
+
 void DenseMapping::restart_mapping()
 {
   impl->map_struct_->reset_map_struct();
@@ -160,8 +169,7 @@ void DenseMapping::restart_mapping()
 // Write mesh to a stl file
 void DenseMapping::write_mesh_to_file(const char *file_name)
 {
-  uint host_triangle_count;
-  safe_call(cudaMemcpy(&host_triangle_count, impl->triangle_count, sizeof(uint), cudaMemcpyDeviceToHost));
+  uint host_triangle_count = impl->triangle_count;
   if (host_triangle_count == 0)
     return;
 

@@ -39,7 +39,7 @@ PRIVATE
     ${GLEW_LIBRARIES}
 )
 
-file (GLOB_RECURSE resources "shaders_glsl/*.*")
+file (GLOB_RECURSE resources "shaders/*.*")
 foreach(resource ${resources})
     get_filename_component(filename ${resource} NAME)
 

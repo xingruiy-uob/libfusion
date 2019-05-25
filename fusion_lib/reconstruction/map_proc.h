@@ -50,10 +50,10 @@ void raycast_with_colour(
 
 void create_scene_mesh(
     MapStruct map_struct,
-    uint *block_count,
+    uint &block_count,
     int3 *block_list,
-    uint *triangle_count,
-    float3 *vertex_mesh);
+    uint &triangle_count,
+    float3 *vertex_data);
 
 } // namespace cuda
 } // namespace fusion

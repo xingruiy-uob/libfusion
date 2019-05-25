@@ -92,4 +92,14 @@ void System::save_mesh_to_file(const char *str)
     mapping->write_mesh_to_file(str);
 }
 
+void System::create_mesh_gl(float3 *data, uint &max_size)
+{
+    mapping->create_scene_mesh(data, max_size);
+}
+
+Eigen::Matrix4f System::get_current_camera_pose() const
+{
+    return odometry->get_current_pose_matrix();
+}
+
 } // namespace fusion
