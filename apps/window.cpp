@@ -3,9 +3,6 @@
 #include <iostream>
 #include <thread>
 #include <chrono>
-#include <glm/mat4x4.hpp>
-#include <glm/matrix.hpp>
-#include <glm/gtc/matrix_transform.hpp>
 
 int window_width = 0;
 int window_height = 0;
@@ -62,19 +59,93 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
 
 static void cursor_position_callback(GLFWwindow *window, double xpos, double ypos)
 {
+    bool left_pressed = (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) != GLFW_RELEASE);
+    bool right_pressed = (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) != GLFW_RELEASE);
+
+    if (!left_pressed && !right_pressed)
+    {
+        return;
+    }
+
+    void *data = glfwGetWindowUserPointer(window);
+    WindowManager *wm = static_cast<WindowManager *>(data);
+
+    // handle translation
+    if (right_pressed && xpos - wm->prev_mouse_pos[0] < -5)
+    {
+        wm->position[0] += 0.01f;
+        wm->lookat[0] += 0.01f;
+    }
+
+    if (right_pressed && xpos - wm->prev_mouse_pos[0] > 5)
+    {
+        wm->position[0] -= 0.01f;
+        wm->lookat[0] -= 0.01f;
+    }
+
+    if (right_pressed && ypos - wm->prev_mouse_pos[1] < -5)
+    {
+        wm->position[1] += 0.01f;
+        wm->lookat[1] += 0.01f;
+    }
+
+    if (right_pressed && ypos - wm->prev_mouse_pos[1] > 5)
+    {
+        wm->position[1] -= 0.01f;
+        wm->lookat[1] -= 0.01f;
+    }
+
+    // handle rotation
+    if (left_pressed && xpos - wm->prev_mouse_pos[0] < -5)
+    {
+        wm->model_matrix = glm::rotate(wm->model_matrix, glm::radians(3.f), glm::vec3(0, 1, 0));
+    }
+
+    if (left_pressed && xpos - wm->prev_mouse_pos[0] > 5)
+    {
+        wm->model_matrix = glm::rotate(wm->model_matrix, glm::radians(3.f), glm::vec3(0, -1, 0));
+    }
+
+    if (left_pressed && ypos - wm->prev_mouse_pos[1] < -5)
+    {
+        wm->model_matrix = glm::rotate(wm->model_matrix, glm::radians(3.f), glm::vec3(1, 0, 0));
+    }
+
+    if (left_pressed && ypos - wm->prev_mouse_pos[1] > 5)
+    {
+        wm->model_matrix = glm::rotate(wm->model_matrix, glm::radians(3.f), glm::vec3(-1, 0, 0));
+    }
+
+    wm->prev_mouse_pos[0] = xpos;
+    wm->prev_mouse_pos[1] = ypos;
 }
 
 void mouse_button_callback(GLFWwindow *window, int button, int action, int mods)
 {
-    double xpos, ypos;
-    glfwGetCursorPos(window, &xpos, &ypos);
+    void *data = glfwGetWindowUserPointer(window);
+    WindowManager *wm = static_cast<WindowManager *>(data);
 
-    if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS)
-        std::cout << "cursor pos: X " << xpos << " Y " << ypos << std::endl;
+    if ((button == GLFW_MOUSE_BUTTON_LEFT || button == GLFW_MOUSE_BUTTON_RIGHT) && action == GLFW_PRESS)
+    {
+        glfwGetCursorPos(window, &wm->prev_mouse_pos[0], &wm->prev_mouse_pos[1]);
+    }
 }
 
 void scroll_callback(GLFWwindow *window, double xoffset, double yoffset)
 {
+    void *data = glfwGetWindowUserPointer(window);
+    WindowManager *wm = static_cast<WindowManager *>(data);
+
+    if (yoffset > 0)
+    {
+        wm->position[2] += 0.1f;
+        wm->lookat[2] += 0.f;
+    }
+    else
+    {
+        wm->position[2] += -0.1f;
+        wm->lookat[2] += -0.f;
+    }
 }
 
 void window_size_callback(GLFWwindow *window, int width, int height)
@@ -176,6 +247,13 @@ bool WindowManager::initialize_gl_context(const size_t width, const int height)
     window_height = height;
     num_mesh_triangles = 0;
     view_matrix = Eigen::Matrix4f::Identity();
+    model_matrix = glm::mat4(1.f); // default to identity matrix
+    position[0] = 0;
+    position[1] = 0;
+    position[2] = -1;
+    lookat[0] = 0;
+    lookat[1] = 0;
+    lookat[2] = 0;
 
     glfwSetErrorCallback(error_callback);
 
@@ -202,7 +280,7 @@ bool WindowManager::initialize_gl_context(const size_t width, const int height)
 
     glfwSetKeyCallback(window, key_callback);
     glfwSetMouseButtonCallback(window, mouse_button_callback);
-    // glfwSetCursorPosCallback(window, cursor_position_callback);
+    glfwSetCursorPosCallback(window, cursor_position_callback);
     glfwSetWindowSizeCallback(window, window_size_callback);
     glfwSetScrollCallback(window, scroll_callback);
     glfwSwapInterval(1);
@@ -370,28 +448,21 @@ bool WindowManager::should_quit() const
     return glfwWindowShouldClose(window);
 }
 
-glm::mat4 get_view_projection_matrix(Eigen::Matrix4f eigen_view_matrix)
+glm::mat4 WindowManager::get_view_projection_matrix(Eigen::Matrix4f eigen_view_matrix)
 {
-    // glm::mat4 view_matrix;
-    // for (int row = 0; row < 4; ++row)
-    //     for (int col = 0; col < 4; ++col)
-    //         view_matrix[col][row] = eigen_view_matrix(row, col);
     glm::mat4 view_matrix = glm::lookAt(
-        glm::vec3(eigen_view_matrix(0, 3), eigen_view_matrix(1, 3), -eigen_view_matrix(2, 3)), // Camera is at (4,3,3), in World Space
-        glm::vec3(eigen_view_matrix(0, 2), eigen_view_matrix(1, 2), eigen_view_matrix(2, 2)),  // and looks at the origin
-        glm::vec3(0, -1, 0)                                                                    // Head is up (set to 0,-1,0 to look upside-down)
-    );
+        glm::vec3(position[0], position[1], position[2]),
+        glm::vec3(lookat[0], lookat[1], lookat[2]),
+        glm::vec3(0, -1, 0));
 
     glm::mat4 projection_matrix = glm::perspective(glm::radians(45.f), 4.0f / 3.0f, 0.1f, 1000.f);
-    return projection_matrix * view_matrix;
+    return projection_matrix * view_matrix * model_matrix;
 }
 
 void WindowManager::render_scene()
 {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glClearColor(1.f, 0.f, 0.f, 1.f);
-    // glMatrixMode(GL_MODELVIEW);
-    // glOrtho(0, 640, 480, 0, -1, 1);
+    glClearColor(0.f, 0.f, 0.f, 1.f);
 
     int separate_x = (int)((float)window_width / 3);
     glViewport(separate_x * 2, 0, separate_x, window_height / 2);
@@ -414,16 +485,6 @@ void WindowManager::render_scene()
 
     glViewport(separate_x * 2, window_height / 2, separate_x, window_height / 2);
     draw_input_depth();
-
-    // glViewport(0, 0, window_width, window_height);
-    // glColor3f(1, 0, 1);
-    // glLineWidth(30);
-    // glBegin(GL_POLYGON);
-    // glVertex2f(-0.1, 0.1);
-    // glVertex2f(-0.1, -0.1);
-    // glVertex2f(0.1, -0.1);
-    // glVertex2f(0.1, 0.1);
-    // glEnd();
 
     glfwSwapBuffers(window);
     glfwPollEvents();

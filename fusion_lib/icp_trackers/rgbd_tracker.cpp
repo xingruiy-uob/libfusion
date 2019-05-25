@@ -184,7 +184,7 @@ TrackingResult DenseTracking::compute_transform(const RgbdImagePtr reference, co
   // Eigen::FullPivLU<Eigen::MatrixXf> lu(JtJ_);
   // Eigen::MatrixXf null_space = lu.kernel();
   // std::cout << null_space << std::endl;
-  if (estimate.value().log().transpose().norm() > 0.3)
+  if (estimate.value().log().transpose().norm() > 0.1)
     std::cout << estimate.value().log().transpose().norm() << std::endl;
 
   TrackingResult result;
