@@ -55,6 +55,14 @@ void create_scene_mesh(
     uint &triangle_count,
     float3 *vertex_data);
 
+void create_scene_mesh_with_normal(
+    MapStruct map_struct,
+    uint &block_count,
+    int3 *block_list,
+    uint &triangle_count,
+    float3 *vertex_data,
+    float3 *vertex_normal);
+
 } // namespace cuda
 } // namespace fusion
 

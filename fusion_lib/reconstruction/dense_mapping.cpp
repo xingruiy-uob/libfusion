@@ -15,6 +15,7 @@ public:
   void raycast(RgbdImagePtr current_image);
   void create_scene_mesh();
   void create_scene_mesh(float3 *data, uint &max_size);
+  void fetch_mesh_with_normal(float3 *vertex, float3 *normal, uint &max_size);
 
   IntrinsicMatrix intrinsic_matrix_;
   std::shared_ptr<MapStruct> map_struct_;
@@ -137,6 +138,11 @@ void DenseMapping::DenseMappingImpl::create_scene_mesh(float3 *data, uint &max_s
   cuda::create_scene_mesh(*map_struct_, block_count, block_list, max_size, data);
 }
 
+void DenseMapping::DenseMappingImpl::fetch_mesh_with_normal(float3 *vertex, float3 *normal, uint &max_size)
+{
+  cuda::create_scene_mesh_with_normal(*map_struct_, block_count, block_list, max_size, vertex, normal);
+}
+
 DenseMapping::DenseMapping(IntrinsicMatrix cam_param) : impl(new DenseMappingImpl(cam_param))
 {
 }
@@ -159,6 +165,11 @@ void DenseMapping::create_scene_mesh()
 void DenseMapping::create_scene_mesh(float3 *data, uint &max_size)
 {
   impl->create_scene_mesh(data, max_size);
+}
+
+void DenseMapping::fetch_mesh_with_normal(float3 *vertex, float3 *normal, uint &max_size)
+{
+  impl->fetch_mesh_with_normal(vertex, normal, max_size);
 }
 
 void DenseMapping::restart_mapping()

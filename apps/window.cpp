@@ -96,24 +96,24 @@ static void cursor_position_callback(GLFWwindow *window, double xpos, double ypo
     }
 
     // handle rotation
-    if (left_pressed && xpos - wm->prev_mouse_pos[0] < -5)
+    if (left_pressed && xpos - wm->prev_mouse_pos[0] < -2)
     {
-        wm->model_matrix = glm::rotate(wm->model_matrix, glm::radians(3.f), glm::vec3(0, 1, 0));
+        wm->model_matrix = glm::rotate_slow(wm->model_matrix, glm::radians(3.f), glm::vec3(0, 1, 0));
     }
 
-    if (left_pressed && xpos - wm->prev_mouse_pos[0] > 5)
+    if (left_pressed && xpos - wm->prev_mouse_pos[0] > 2)
     {
-        wm->model_matrix = glm::rotate(wm->model_matrix, glm::radians(3.f), glm::vec3(0, -1, 0));
+        wm->model_matrix = glm::rotate_slow(wm->model_matrix, glm::radians(3.f), glm::vec3(0, -1, 0));
     }
 
-    if (left_pressed && ypos - wm->prev_mouse_pos[1] < -5)
+    if (left_pressed && ypos - wm->prev_mouse_pos[1] < -2)
     {
-        wm->model_matrix = glm::rotate(wm->model_matrix, glm::radians(3.f), glm::vec3(1, 0, 0));
+        wm->model_matrix = glm::rotate_slow(wm->model_matrix, glm::radians(3.f), glm::vec3(1, 0, 0));
     }
 
-    if (left_pressed && ypos - wm->prev_mouse_pos[1] > 5)
+    if (left_pressed && ypos - wm->prev_mouse_pos[1] > 2)
     {
-        wm->model_matrix = glm::rotate(wm->model_matrix, glm::radians(3.f), glm::vec3(-1, 0, 0));
+        wm->model_matrix = glm::rotate_slow(wm->model_matrix, glm::radians(3.f), glm::vec3(-1, 0, 0));
     }
 
     wm->prev_mouse_pos[0] = xpos;
@@ -241,6 +241,15 @@ GLuint create_program_from_shaders(GLuint *shaders, GLint size)
     }
 }
 
+GLuint create_buffer_and_bind(size_t size)
+{
+    GLuint buffer;
+    glGenBuffers(1, &buffer);
+    glBindBuffer(GL_ARRAY_BUFFER, buffer);
+    glBufferData(GL_ARRAY_BUFFER, size, NULL, GL_STATIC_DRAW);
+    return buffer;
+}
+
 bool WindowManager::initialize_gl_context(const size_t width, const int height)
 {
     window_width = width;
@@ -289,7 +298,7 @@ bool WindowManager::initialize_gl_context(const size_t width, const int height)
     glGenTextures(3, &textures[0]);
 
     shaders[0] = load_shader_from_file("./shaders/phong_vertex.shader", GL_VERTEX_SHADER);
-    shaders[1] = load_shader_from_file("./shaders/phong_fragment.shader", GL_FRAGMENT_SHADER);
+    shaders[1] = load_shader_from_file("./shaders/fragment.shader", GL_FRAGMENT_SHADER);
     program[0] = create_program_from_shaders(&shaders[0], 2);
 
     // create array object
@@ -297,18 +306,21 @@ bool WindowManager::initialize_gl_context(const size_t width, const int height)
     glBindVertexArray(gl_array[0]);
 
     // create buffer object
-    glGenBuffers(1, &buffers[0]);
-    glBindBuffer(GL_ARRAY_BUFFER, buffers[0]);
-    GLuint size = sizeof(GLfloat) * 50000000 * 3;
-    glBufferData(GL_ARRAY_BUFFER, size, NULL, GL_STATIC_DRAW);
+    size_t size = sizeof(GLfloat) * 50000000 * 3;
+    buffers[0] = create_buffer_and_bind(size);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, NULL);
     glEnableVertexAttribArray(0);
+
+    buffers[1] = create_buffer_and_bind(size);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+    glEnableVertexAttribArray(1);
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
 
     // bind buffer object to CUDA
     safe_call(cudaGraphicsGLRegisterBuffer(&buffer_res[0], buffers[0], cudaGraphicsMapFlagsWriteDiscard));
+    safe_call(cudaGraphicsGLRegisterBuffer(&buffer_res[1], buffers[1], cudaGraphicsMapFlagsWriteDiscard));
 
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LESS);
@@ -373,18 +385,18 @@ void WindowManager::set_input_depth(cv::Mat depth)
         depth.ptr());
 }
 
-float3 *WindowManager::get_cuda_mapped_ptr_vertex(int id)
+float3 *WindowManager::get_cuda_mapped_ptr(int id)
 {
     float3 *dev_ptr;
-    safe_call(cudaGraphicsMapResources(1, &buffer_res[0]));
+    safe_call(cudaGraphicsMapResources(1, &buffer_res[id]));
     size_t num_bytes;
-    cudaGraphicsResourceGetMappedPointer((void **)&dev_ptr, &num_bytes, buffer_res[0]);
+    cudaGraphicsResourceGetMappedPointer((void **)&dev_ptr, &num_bytes, buffer_res[id]);
     return dev_ptr;
 }
 
 void WindowManager::cuda_unmap_resources(int id)
 {
-    safe_call(cudaGraphicsUnmapResources(1, &buffer_res[0]));
+    safe_call(cudaGraphicsUnmapResources(1, &buffer_res[id]));
 }
 
 void draw_quads()

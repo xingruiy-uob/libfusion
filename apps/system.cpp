@@ -97,6 +97,11 @@ void System::create_mesh_gl(float3 *data, uint &max_size)
     mapping->create_scene_mesh(data, max_size);
 }
 
+void System::fetch_mesh_with_normal(float3 *vertex, float3 *normal, uint &max_size)
+{
+    mapping->fetch_mesh_with_normal(vertex, normal, max_size);
+}
+
 Eigen::Matrix4f System::get_current_camera_pose() const
 {
     return odometry->get_current_pose_matrix();

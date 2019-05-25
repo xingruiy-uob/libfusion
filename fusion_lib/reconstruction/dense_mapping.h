@@ -20,6 +20,8 @@ public:
 
   void create_scene_mesh();
   void create_scene_mesh(float3 *data, uint &max_size);
+  void fetch_mesh_with_normal(float3 *vertex, float3 *normal, uint &max_size);
+
   void restart_mapping();
   void write_mesh_to_file(const char *file_name);
 

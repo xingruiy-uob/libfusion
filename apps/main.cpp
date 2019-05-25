@@ -45,9 +45,15 @@ int main(int argc, char **argv)
             }
             default:
                 // TODO: only update when tracking was succeeded.
-                float3 *ptr = wm.get_cuda_mapped_ptr_vertex(0);
-                slam.create_mesh_gl(ptr, wm.num_mesh_triangles);
+                // float3 *vertex_ptr = wm.get_cuda_mapped_ptr_vertex(0);
+                // slam.create_mesh_gl(vertex_ptr, wm.num_mesh_triangles);
+                // wm.cuda_unmap_resources(0);
+                // wm.view_matrix = slam.get_current_camera_pose();
+                float3 *vertex_ptr = wm.get_cuda_mapped_ptr(0);
+                float3 *normal_ptr = wm.get_cuda_mapped_ptr(1);
+                slam.fetch_mesh_with_normal(vertex_ptr, normal_ptr, wm.num_mesh_triangles);
                 wm.cuda_unmap_resources(0);
+                wm.cuda_unmap_resources(1);
                 wm.view_matrix = slam.get_current_camera_pose();
             }
 

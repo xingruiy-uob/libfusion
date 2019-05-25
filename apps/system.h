@@ -34,6 +34,7 @@ public:
 
     // create mesh and store in the address
     void create_mesh_gl(float3 *data, uint &max_size);
+    void fetch_mesh_with_normal(float3 *vertex, float3 *normal, uint &max_size);
 
     // retrieve current camera pose
     Eigen::Matrix4f get_current_camera_pose() const;

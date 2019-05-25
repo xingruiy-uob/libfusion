@@ -287,6 +287,7 @@ struct BuildVertexArray
     int3 *block_array;
     uint *block_count;
     uint *triangle_count;
+    float3 *surface_normal;
 
     __device__ __forceinline__ void select_blocks() const
     {
@@ -475,6 +476,7 @@ struct BuildVertexArray
         return cube_index;
     }
 
+    template <bool compute_normal = false>
     __device__ __forceinline__ void operator()()
     {
         int x = blockIdx.y * gridDim.x + blockIdx.x;
@@ -501,6 +503,11 @@ struct BuildVertexArray
                     triangles[triangleId * 3] = vertex_array[triangle_table[cube_index][i]] * factor;
                     triangles[triangleId * 3 + 1] = vertex_array[triangle_table[cube_index][i + 1]] * factor;
                     triangles[triangleId * 3 + 2] = vertex_array[triangle_table[cube_index][i + 2]] * factor;
+                    if (compute_normal)
+                    {
+                        surface_normal[triangleId * 3] = normalised(cross(triangles[triangleId * 3 + 1] - triangles[triangleId * 3], triangles[triangleId * 3 + 2] - triangles[triangleId * 3]));
+                        surface_normal[triangleId * 3 + 1] = surface_normal[triangleId * 3 + 2] = surface_normal[triangleId * 3];
+                    }
                 }
             }
         }
@@ -514,7 +521,7 @@ __global__ void select_blocks_kernel(BuildVertexArray bva)
 
 __global__ void generate_vertex_array_kernel(BuildVertexArray bva)
 {
-    bva();
+    bva.operator()<false>();
 }
 
 void create_scene_mesh(
@@ -551,6 +558,52 @@ void create_scene_mesh(
     block = dim3(div_up(block_count, 16), 16);
 
     generate_vertex_array_kernel<<<block, thread>>>(bva);
+
+    safe_call(cudaMemcpy(&triangle_count, cuda_triangle_count, sizeof(uint), cudaMemcpyDeviceToHost));
+    triangle_count = std::min(triangle_count, (uint)state.num_max_mesh_triangles_);
+}
+
+__global__ void generate_vertex_and_normal_array_kernel(BuildVertexArray bva)
+{
+    bva.operator()<true>();
+}
+
+void create_scene_mesh_with_normal(
+    MapStruct map_struct,
+    uint &block_count,
+    int3 *block_list,
+    uint &triangle_count,
+    float3 *vertex_data,
+    float3 *vertex_normal)
+{
+    uint *cuda_block_count;
+    uint *cuda_triangle_count;
+    safe_call(cudaMalloc(&cuda_block_count, sizeof(uint)));
+    safe_call(cudaMalloc(&cuda_triangle_count, sizeof(uint)));
+    safe_call(cudaMemset(cuda_block_count, 0, sizeof(uint)));
+    safe_call(cudaMemset(cuda_triangle_count, 0, sizeof(uint)));
+
+    BuildVertexArray bva;
+    bva.map_struct = map_struct;
+    bva.block_array = block_list;
+    bva.block_count = cuda_block_count;
+    bva.triangle_count = cuda_triangle_count;
+    bva.triangles = vertex_data;
+    bva.surface_normal = vertex_normal;
+
+    dim3 thread(1024);
+    dim3 block = dim3(div_up(state.num_total_hash_entries_, thread.x));
+
+    select_blocks_kernel<<<block, thread>>>(bva);
+
+    safe_call(cudaMemcpy(&block_count, cuda_block_count, sizeof(uint), cudaMemcpyDeviceToHost));
+    if (block_count == 0)
+        return;
+
+    thread = dim3(8, 8);
+    block = dim3(div_up(block_count, 16), 16);
+
+    generate_vertex_and_normal_array_kernel<<<block, thread>>>(bva);
 
     safe_call(cudaMemcpy(&triangle_count, cuda_triangle_count, sizeof(uint), cudaMemcpyDeviceToHost));
     triangle_count = std::min(triangle_count, (uint)state.num_max_mesh_triangles_);

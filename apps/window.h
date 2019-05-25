@@ -35,7 +35,7 @@ public:
     void set_input_depth(cv::Mat depth);
 
     // get mapped resources
-    float3 *get_cuda_mapped_ptr_vertex(int id);
+    float3 *get_cuda_mapped_ptr(int id);
     void cuda_unmap_resources(int id);
 
     // system control
