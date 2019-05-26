@@ -18,12 +18,6 @@ int main(int argc, char **argv)
     {
         if (camera.get_image())
         {
-            if (WindowManager::should_reset)
-            {
-                slam.restart();
-                WindowManager::should_reset = false;
-            }
-
             switch (WindowManager::run_mode)
             {
             case 1:
@@ -54,13 +48,6 @@ int main(int argc, char **argv)
                 slam.fetch_mesh_with_normal(vertex_ptr, normal_ptr, wm.num_mesh_triangles);
                 wm.cuda_unmap_resources(0);
                 wm.cuda_unmap_resources(1);
-                wm.view_matrix = slam.get_current_camera_pose();
-            }
-
-            if (WindowManager::should_save_file)
-            {
-                WindowManager::should_save_file = false;
-                slam.save_mesh_to_file("mesh.stl");
             }
 
             wm.set_source_image(camera.image.clone());

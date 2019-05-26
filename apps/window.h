@@ -30,6 +30,7 @@ public:
     // Main loop
     void render_scene();
 
+    // set display images
     void set_rendered_scene(cv::Mat scene);
     void set_source_image(cv::Mat image_src);
     void set_input_depth(cv::Mat depth);
@@ -44,8 +45,8 @@ public:
     static bool should_save_file;
     static bool should_reset;
 
+    // triangle count
     uint num_mesh_triangles;
-    Eigen::Matrix4f view_matrix;
 
 public:
     // textures used in our code
@@ -64,11 +65,15 @@ public:
     // shaders temporary variables
     GLuint shaders[4];
 
-    GLfloat position[3];
-    GLfloat lookat[3];
-
+    // camera control
+    // TODO: move this to a separate struct
+    // probably called "Camera"
     double prev_mouse_pos[2];
     glm::mat4 model_matrix;
+    glm::mat4 view_matrix;
+    glm::vec3 cam_position;
+    glm::vec3 lookat_vec;
+    glm::vec3 camera_up_vec;
 
     // drawing functions
     void draw_source_image();
@@ -80,7 +85,7 @@ public:
     // window control
     static void toggle_full_screen();
 
-    glm::mat4 get_view_projection_matrix(Eigen::Matrix4f eigen_view_matrix);
+    glm::mat4 get_view_projection_matrix();
 };
 
 #endif

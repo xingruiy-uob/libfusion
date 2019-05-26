@@ -10,31 +10,23 @@ bool full_screen = false;
 GLFWwindow *window = NULL;
 int WindowManager::run_mode = 0;
 int WindowManager::colour_mode = 0;
-bool WindowManager::should_save_file = false;
-bool WindowManager::should_reset = false;
 
+// print message for GLFW internal errors
 void error_callback(int error, const char *description)
 {
     std::cerr << description << std::endl;
 }
 
+// handling key strokes
 void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods)
 {
-    WindowManager *wm;
-    fusion::System *sys;
     void *data = glfwGetWindowUserPointer(window);
-    if (data != NULL)
-    {
-        wm = static_cast<WindowManager *>(data);
-        sys = wm->system;
-    }
+    WindowManager *wm = static_cast<WindowManager *>(data);
+    fusion::System *sys = wm->system;
 
     // Quit
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
         glfwSetWindowShouldClose(window, GL_TRUE);
-
-    if (sys == NULL)
-        return;
 
     // Toggle full screen mode
     if (key == GLFW_KEY_TAB && action == GLFW_PRESS)
@@ -46,17 +38,18 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
 
     // Download mesh to disk
     if (key == GLFW_KEY_S && action == GLFW_PRESS)
-        wm->should_save_file = true;
+        sys->save_mesh_to_file("mesh.stl");
 
     // Restart the system
     if (key == GLFW_KEY_R && action == GLFW_PRESS)
-        wm->should_reset = true;
+        sys->restart();
 
     // Switch colour
     if (key == GLFW_KEY_C && action == GLFW_PRESS)
         wm->colour_mode = (wm->colour_mode + 1) % 2;
 }
 
+// called whenever mouse moved within the window
 static void cursor_position_callback(GLFWwindow *window, double xpos, double ypos)
 {
     bool left_pressed = (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) != GLFW_RELEASE);
@@ -70,50 +63,51 @@ static void cursor_position_callback(GLFWwindow *window, double xpos, double ypo
     void *data = glfwGetWindowUserPointer(window);
     WindowManager *wm = static_cast<WindowManager *>(data);
 
+    double x_diff = xpos - wm->prev_mouse_pos[0];
+    double y_diff = ypos - wm->prev_mouse_pos[1];
+
     // handle translation
-    if (right_pressed && xpos - wm->prev_mouse_pos[0] < -5)
+    if (right_pressed)
     {
-        wm->position[0] += 0.01f;
-        wm->lookat[0] += 0.01f;
-    }
-
-    if (right_pressed && xpos - wm->prev_mouse_pos[0] > 5)
-    {
-        wm->position[0] -= 0.01f;
-        wm->lookat[0] -= 0.01f;
-    }
-
-    if (right_pressed && ypos - wm->prev_mouse_pos[1] < -5)
-    {
-        wm->position[1] += 0.01f;
-        wm->lookat[1] += 0.01f;
-    }
-
-    if (right_pressed && ypos - wm->prev_mouse_pos[1] > 5)
-    {
-        wm->position[1] -= 0.01f;
-        wm->lookat[1] -= 0.01f;
+        if (x_diff < 0)
+            wm->cam_position[0] += 0.005f * sqrt(glm::dot(x_diff, x_diff));
+        if (x_diff > 0)
+            wm->cam_position[0] -= 0.005f * sqrt(glm::dot(x_diff, x_diff));
+        if (y_diff < 0)
+            wm->cam_position[1] += 0.005f * sqrt(glm::dot(y_diff, y_diff));
+        if (y_diff > 0)
+            wm->cam_position[1] -= 0.005f * sqrt(glm::dot(y_diff, y_diff));
     }
 
     // handle rotation
-    if (left_pressed && xpos - wm->prev_mouse_pos[0] < -2)
+    // TODO: needs improvement
+    if (left_pressed)
     {
-        wm->model_matrix = glm::rotate_slow(wm->model_matrix, glm::radians(3.f), glm::vec3(0, 1, 0));
-    }
+        if (x_diff < 0)
+        {
+            double speed = 0.5f * abs(x_diff);
+            wm->model_matrix = glm::rotate_slow(wm->model_matrix, glm::radians((float)speed), wm->camera_up_vec);
+        }
 
-    if (left_pressed && xpos - wm->prev_mouse_pos[0] > 2)
-    {
-        wm->model_matrix = glm::rotate_slow(wm->model_matrix, glm::radians(3.f), glm::vec3(0, -1, 0));
-    }
+        if (x_diff > 0)
+        {
+            double speed = 0.5f * abs(x_diff);
+            wm->model_matrix = glm::rotate_slow(wm->model_matrix, glm::radians(-(float)speed), wm->camera_up_vec);
+        }
 
-    if (left_pressed && ypos - wm->prev_mouse_pos[1] < -2)
-    {
-        wm->model_matrix = glm::rotate_slow(wm->model_matrix, glm::radians(3.f), glm::vec3(1, 0, 0));
-    }
+        if (y_diff < 0)
+        {
+            glm::vec3 left_vec = glm::cross(wm->camera_up_vec, wm->lookat_vec);
+            double speed = 0.5f * abs(y_diff);
+            wm->model_matrix = glm::rotate_slow(wm->model_matrix, glm::radians((float)speed), left_vec);
+        }
 
-    if (left_pressed && ypos - wm->prev_mouse_pos[1] > 2)
-    {
-        wm->model_matrix = glm::rotate_slow(wm->model_matrix, glm::radians(3.f), glm::vec3(-1, 0, 0));
+        if (y_diff > 0)
+        {
+            glm::vec3 left_vec = glm::cross(wm->camera_up_vec, wm->lookat_vec);
+            double speed = 0.5f * abs(y_diff);
+            wm->model_matrix = glm::rotate_slow(wm->model_matrix, glm::radians(-(float)speed), left_vec);
+        }
     }
 
     wm->prev_mouse_pos[0] = xpos;
@@ -137,15 +131,9 @@ void scroll_callback(GLFWwindow *window, double xoffset, double yoffset)
     WindowManager *wm = static_cast<WindowManager *>(data);
 
     if (yoffset > 0)
-    {
-        wm->position[2] += 0.1f;
-        wm->lookat[2] += 0.f;
-    }
+        wm->cam_position[2] += 0.1f;
     else
-    {
-        wm->position[2] += -0.1f;
-        wm->lookat[2] += -0.f;
-    }
+        wm->cam_position[2] += -0.1f;
 }
 
 void window_size_callback(GLFWwindow *window, int width, int height)
@@ -255,14 +243,11 @@ bool WindowManager::initialize_gl_context(const size_t width, const int height)
     window_width = width;
     window_height = height;
     num_mesh_triangles = 0;
-    view_matrix = Eigen::Matrix4f::Identity();
     model_matrix = glm::mat4(1.f); // default to identity matrix
-    position[0] = 0;
-    position[1] = 0;
-    position[2] = -1;
-    lookat[0] = 0;
-    lookat[1] = 0;
-    lookat[2] = 0;
+    view_matrix = glm::mat4(1.f);
+    cam_position = glm::vec3(0, 0, 0);
+    lookat_vec = glm::vec3(0, 0, 1);
+    camera_up_vec = glm::vec3(0, -1, 0);
 
     glfwSetErrorCallback(error_callback);
 
@@ -369,6 +354,11 @@ void WindowManager::set_source_image(cv::Mat image_src)
 
 void WindowManager::set_input_depth(cv::Mat depth)
 {
+    cv::Mat coloured_depth;
+    depth.convertTo(coloured_depth, CV_8UC1, 255.f / 20);
+    // cv::applyColorMap(coloured_depth, coloured_depth, cv::COLORMAP_OCEAN);
+    // cv::cvtColor(coloured_depth, coloured_depth, cv::COLOR_GRAY2RGB);
+
     glBindTexture(GL_TEXTURE_2D, textures[1]);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -376,13 +366,18 @@ void WindowManager::set_input_depth(cv::Mat depth)
     glTexImage2D(
         GL_TEXTURE_2D,
         0,
-        GL_LUMINANCE16,
+        // GL_LUMINANCE16,
+        GL_LUMINANCE8,
+        // GL_RGB,
         depth.cols,
         depth.rows,
         0,
+        // GL_RGB,
         GL_LUMINANCE,
-        GL_UNSIGNED_SHORT,
-        depth.ptr());
+        // GL_UNSIGNED_SHORT,
+        GL_UNSIGNED_BYTE,
+        // depth.ptr());
+        coloured_depth.ptr());
 }
 
 float3 *WindowManager::get_cuda_mapped_ptr(int id)
@@ -460,12 +455,12 @@ bool WindowManager::should_quit() const
     return glfwWindowShouldClose(window);
 }
 
-glm::mat4 WindowManager::get_view_projection_matrix(Eigen::Matrix4f eigen_view_matrix)
+glm::mat4 WindowManager::get_view_projection_matrix()
 {
     glm::mat4 view_matrix = glm::lookAt(
-        glm::vec3(position[0], position[1], position[2]),
-        glm::vec3(lookat[0], lookat[1], lookat[2]),
-        glm::vec3(0, -1, 0));
+        cam_position,
+        cam_position + lookat_vec,
+        camera_up_vec);
 
     glm::mat4 projection_matrix = glm::perspective(glm::radians(45.f), 4.0f / 3.0f, 0.1f, 1000.f);
     return projection_matrix * view_matrix * model_matrix;
@@ -487,7 +482,7 @@ void WindowManager::render_scene()
     {
         glUseProgram(program[0]);
         glBindVertexArray(gl_array[0]);
-        glm::mat4 mvp_mat = get_view_projection_matrix(view_matrix);
+        glm::mat4 mvp_mat = get_view_projection_matrix();
 
         GLint loc = glGetUniformLocation(program[0], "mvp_matrix");
         glUniformMatrix4fv(loc, 1, GL_FALSE, &mvp_mat[0][0]);
