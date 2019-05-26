@@ -46,7 +46,7 @@ add_executable(app_cli "")
 target_sources(app_cli
 PRIVATE
     apps/system.cpp
-    apps/main.cpp
+    apps/main_cli.cpp
 )
 
 target_include_directories(app_cli

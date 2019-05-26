@@ -1,6 +1,5 @@
 #include <iostream>
 #include "system.h"
-#include "window.h"
 #include "rgbd_camera.h"
 #include "intrinsic_matrix.h"
 #include <signal.h>
