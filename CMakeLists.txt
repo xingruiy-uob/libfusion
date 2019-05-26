@@ -17,6 +17,7 @@ pkg_search_module(GLFW REQUIRED glfw3)
 
 add_subdirectory(fusion_lib)
 
+# app gui
 add_executable(app "")
 
 target_sources(app
@@ -38,6 +39,26 @@ PRIVATE
     ${GLFW_STATIC_LIBRARIES}
     ${GLEW_LIBRARIES}
 )
+
+# app cli
+add_executable(app_cli "")
+
+target_sources(app_cli
+PRIVATE
+    apps/system.cpp
+    apps/main.cpp
+)
+
+target_include_directories(app_cli
+PUBLIC
+    ${GLFW_INCLUDE_DIRS}
+)
+
+target_link_libraries(app_cli
+PRIVATE
+    fusion_lib
+)
+
 
 file (GLOB_RECURSE resources "shaders/*.*")
 foreach(resource ${resources})

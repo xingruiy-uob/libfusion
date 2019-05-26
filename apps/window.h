@@ -60,7 +60,7 @@ public:
     // vertex buffer, normal buffer and colour buffer
     GLuint buffers[3];
     GLuint gl_array[3];
-    cudaGraphicsResource_t buffer_res[3];
+    cudaGraphicsResource_t buffer_res[3]; // map buffer to CUDA
 
     // shaders temporary variables
     GLuint shaders[4];
