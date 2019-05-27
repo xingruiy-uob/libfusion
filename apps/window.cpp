@@ -67,7 +67,7 @@ static void cursor_position_callback(GLFWwindow *window, double xpos, double ypo
     double y_diff = ypos - wm->prev_mouse_pos[1];
 
     // handle translation
-    if (right_pressed)
+    if (!right_pressed && left_pressed)
     {
         if (x_diff < 0)
             wm->cam_position[0] += 0.005f * sqrt(glm::dot(x_diff, x_diff));
@@ -80,14 +80,15 @@ static void cursor_position_callback(GLFWwindow *window, double xpos, double ypo
     }
 
     // handle rotation
-    // TODO: needs improvement
-    if (left_pressed)
+    // TODO: compute rotation axis based on the mouse position
+    // when it was being clicked
+    if (!left_pressed && right_pressed)
     {
         if (x_diff < 0)
         {
             double speed = 0.5f * abs(x_diff);
             glm::mat4 identity_matrix(1.f);
-            identity_matrix = glm::rotate_slow(identity_matrix, glm::radians(-(float)speed), wm->lookat_vec);
+            identity_matrix = glm::rotate_slow(identity_matrix, glm::radians((float)speed), wm->camera_up_vec);
             wm->model_matrix = identity_matrix * wm->model_matrix;
         }
 
@@ -95,7 +96,7 @@ static void cursor_position_callback(GLFWwindow *window, double xpos, double ypo
         {
             double speed = 0.5f * abs(x_diff);
             glm::mat4 identity_matrix(1.f);
-            identity_matrix = glm::rotate_slow(identity_matrix, glm::radians((float)speed), wm->lookat_vec);
+            identity_matrix = glm::rotate_slow(identity_matrix, glm::radians(-(float)speed), wm->camera_up_vec);
             wm->model_matrix = identity_matrix * wm->model_matrix;
         }
 
@@ -114,6 +115,25 @@ static void cursor_position_callback(GLFWwindow *window, double xpos, double ypo
             double speed = 0.5f * abs(y_diff);
             glm::mat4 identity_matrix(1.f);
             identity_matrix = glm::rotate_slow(identity_matrix, glm::radians(-(float)speed), left_vec);
+            wm->model_matrix = identity_matrix * wm->model_matrix;
+        }
+    }
+
+    if (left_pressed && right_pressed)
+    {
+        if (x_diff < 0)
+        {
+            double speed = 0.5f * abs(x_diff);
+            glm::mat4 identity_matrix(1.f);
+            identity_matrix = glm::rotate_slow(identity_matrix, glm::radians((float)speed), wm->lookat_vec);
+            wm->model_matrix = identity_matrix * wm->model_matrix;
+        }
+
+        if (x_diff > 0)
+        {
+            double speed = 0.5f * abs(x_diff);
+            glm::mat4 identity_matrix(1.f);
+            identity_matrix = glm::rotate_slow(identity_matrix, glm::radians(-(float)speed), wm->lookat_vec);
             wm->model_matrix = identity_matrix * wm->model_matrix;
         }
     }
@@ -484,6 +504,16 @@ glm::mat4 WindowManager::get_view_projection_matrix()
 
 void WindowManager::draw_mesh()
 {
+    if (need_update)
+    {
+        float3 *vertex_ptr = get_cuda_mapped_ptr(0);
+        float3 *normal_ptr = get_cuda_mapped_ptr(1);
+        system->fetch_mesh_with_normal(vertex_ptr, normal_ptr, num_mesh_triangles);
+        cuda_unmap_resources(0);
+        cuda_unmap_resources(1);
+        need_update = false;
+    }
+
     if (num_mesh_triangles != 0)
     {
         glUseProgram(program[0]);
@@ -499,26 +529,20 @@ void WindowManager::draw_mesh()
 
 void WindowManager::process_images(cv::Mat depth, cv::Mat image)
 {
-    if (run_mode == 1)
+    switch (run_mode)
     {
+    case 1:
         system->process_images(depth, image);
         set_rendered_scene(system->get_rendered_scene());
         need_update = true;
-    }
-    else if (need_update)
-    {
-        float3 *vertex_ptr = get_cuda_mapped_ptr(0);
-        float3 *normal_ptr = get_cuda_mapped_ptr(1);
-        system->fetch_mesh_with_normal(vertex_ptr, normal_ptr, num_mesh_triangles);
-        cuda_unmap_resources(0);
-        cuda_unmap_resources(1);
+        break;
     }
 
     set_source_image(image);
     set_input_depth(depth);
 }
 
-void WindowManager::render_scene()
+void WindowManager::render_screen()
 {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glClearColor(0.f, 0.f, 0.f, 1.f);

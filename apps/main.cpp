@@ -18,7 +18,8 @@ int main(int argc, char **argv)
         if (camera.get_image())
         {
             window.process_images(camera.depth, camera.image);
-            window.render_scene();
         }
+
+        window.render_screen();
     }
 }

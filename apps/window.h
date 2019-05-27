@@ -32,7 +32,7 @@ public:
     void process_images(cv::Mat depth, cv::Mat image);
 
     // Main loop
-    void render_scene();
+    void render_screen();
 
     // set display images
     // TODO: only initiate textures once
