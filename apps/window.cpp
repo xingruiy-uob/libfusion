@@ -605,7 +605,17 @@ void WindowManager::process_images(cv::Mat depth, cv::Mat image)
     {
     case 1:
         system->process_images(depth, image);
-        set_rendered_scene(system->get_rendered_scene());
+
+        switch (colour_mode)
+        {
+        case 0:
+            set_rendered_scene(system->get_rendered_scene());
+            break;
+        case 1:
+        case 2:
+            set_rendered_scene(system->get_rendered_scene_textured());
+            break;
+        }
         need_update = true;
         break;
     }

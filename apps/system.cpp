@@ -47,6 +47,7 @@ cv::Mat System::get_rendered_scene() const
 
 cv::Mat System::get_rendered_scene_textured() const
 {
+    return cv::Mat(odometry->get_reference_image()->get_rendered_scene_textured());
 }
 
 void System::restart()

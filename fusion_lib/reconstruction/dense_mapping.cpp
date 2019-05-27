@@ -103,24 +103,24 @@ void DenseMapping::DenseMappingImpl::raycast(RgbdImagePtr current_image)
     cast_nmap_ = current_image->get_nmap();
     cast_image_ = current_image->get_image();
 
-    // cuda::raycast_with_colour(
-    //     *map_struct_,
-    //     cast_vmap_,
-    //     cast_nmap_,
-    //     cast_image_,
-    //     zrange_x_,
-    //     zrange_y_,
-    //     pose,
-    //     intrinsic_matrix_);
-
-    cuda::raycast(
+    cuda::raycast_with_colour(
         *map_struct_,
         cast_vmap_,
         cast_nmap_,
+        cast_image_,
         zrange_x_,
         zrange_y_,
         pose,
         intrinsic_matrix_);
+
+    // cuda::raycast(
+    //     *map_struct_,
+    //     cast_vmap_,
+    //     cast_nmap_,
+    //     zrange_x_,
+    //     zrange_y_,
+    //     pose,
+    //     intrinsic_matrix_);
 
     // cv::Mat img(cast_image_);
     // cv::resize(img, img, cv::Size2i(0, 0), 2, 2);

@@ -263,17 +263,19 @@ __global__ void render_scene_textured_kernel(const cv::cuda::PtrStep<float4> vma
         const float Ks = 0.2f; //specular coeff
         const float n = 20.f;  //specular power
 
-        const float Ax = pixel.x;
-        const float Dx = pixel.y;
-        const float Sx = pixel.z;
+        const float Ax = 1.f;
+        const float Dx = 1.f;
+        const float Sx = 1.f;
         const float Lx = 2.f; //light color
 
         float3 L = normalised(light_pos - P);
         float3 V = normalised(make_float3(0.f, 0.f, 0.f) - P);
         float3 R = normalised(2 * N * (N * L) - L);
 
-        float Ix = Ax * Ka * Dx + Lx * Kd * Dx * fmax(0.f, (N * L)) + Lx * Ks * Sx * pow(fmax(0.f, (R * V)), n);
-        color = make_float3(Ix, Ix, Ix);
+        float Ix = pixel.x * Ka * Dx + Lx * Kd * pixel.x * fmax(0.f, (N * L)) + Lx * Ks * pixel.x * pow(fmax(0.f, (R * V)), n);
+        float Iy = pixel.y * Ka * Dx + Lx * Kd * pixel.y * fmax(0.f, (N * L)) + Lx * Ks * pixel.y * pow(fmax(0.f, (R * V)), n);
+        float Iz = pixel.z * Ka * Dx + Lx * Kd * pixel.z * fmax(0.f, (N * L)) + Lx * Ks * pixel.z * pow(fmax(0.f, (R * V)), n);
+        color = make_float3(Ix, Iy, Iz);
     }
 
     uchar4 out;
