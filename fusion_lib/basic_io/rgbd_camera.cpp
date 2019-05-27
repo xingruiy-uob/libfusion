@@ -12,24 +12,30 @@ RgbdCamera::RgbdCamera(size_t cols, size_t rows, int fps)
 {
     // openni context initialization
     if (openni::OpenNI::initialize() != openni::STATUS_OK)
-        return;
+    {
+        std::cout << openni::OpenNI::getExtendedError() << std::endl;
+        exit(0);
+    }
 
     // openni camera open
     if (device.open(openni::ANY_DEVICE) != openni::STATUS_OK)
-        return;
+    {
+        std::cout << openni::OpenNI::getExtendedError() << std::endl;
+        exit(0);
+    }
 
     // create depth stream
     if (depth_stream.create(device, openni::SENSOR_DEPTH) != openni::STATUS_OK)
     {
-        std::cout << "failed openning depth stream" << std::endl;
-        return;
+        std::cout << openni::OpenNI::getExtendedError() << std::endl;
+        exit(0);
     }
 
     // create colour stream
     if (color_stream.create(device, openni::SENSOR_COLOR) != openni::STATUS_OK)
     {
-        std::cout << "failed openning color stream" << std::endl;
-        return;
+        std::cout << openni::OpenNI::getExtendedError() << std::endl;
+        exit(0);
     }
 
     // NOTE: not recommended
@@ -55,14 +61,14 @@ RgbdCamera::RgbdCamera(size_t cols, size_t rows, int fps)
 
     if (depth_stream.start() != openni::STATUS_OK)
     {
-        std::cout << "failed starting depth stream" << std::endl;
-        return;
+        std::cout << openni::OpenNI::getExtendedError() << std::endl;
+        exit(0);
     }
 
     if (color_stream.start() != openni::STATUS_OK)
     {
-        std::cout << "failed starting color stream" << std::endl;
-        return;
+        std::cout << openni::OpenNI::getExtendedError() << std::endl;
+        exit(0);
     }
 
     std::cout << "camera ready" << std::endl;

@@ -16,6 +16,7 @@ class WindowManager
 {
 public:
     WindowManager();
+    WindowManager(fusion::System *system);
     ~WindowManager();
 
     // init opengl context and create a window
@@ -27,10 +28,15 @@ public:
     // if window is closed
     bool should_quit() const;
 
+    // process data
+    void process_images(cv::Mat depth, cv::Mat image);
+
     // Main loop
     void render_scene();
 
     // set display images
+    // TODO: only initiate textures once
+    // **potential performance overhead**
     void set_rendered_scene(cv::Mat scene);
     void set_source_image(cv::Mat image_src);
     void set_input_depth(cv::Mat depth);
@@ -68,6 +74,7 @@ public:
     // camera control
     // TODO: move this to a separate struct
     // probably called "Camera"
+    glm::mat4 get_view_projection_matrix();
     double prev_mouse_pos[2];
     glm::mat4 model_matrix;
     glm::mat4 view_matrix;
@@ -79,13 +86,14 @@ public:
     void draw_source_image();
     void draw_rendered_scene();
     void draw_input_depth();
+    void draw_mesh();
 
+    // system control
     fusion::System *system;
+    bool need_update;
 
     // window control
     static void toggle_full_screen();
-
-    glm::mat4 get_view_projection_matrix();
 };
 
 #endif

@@ -24,20 +24,30 @@ class System
 public:
     System(IntrinsicMatrix base, const int NUM_PYR);
     void process_images(const cv::Mat depth, const cv::Mat image);
-    void restart();
+
+    // get rendered ray tracing map
     cv::Mat get_rendered_scene() const;
     cv::Mat get_rendered_scene_textured() const;
 
     // create a mesh from the map
     // and save it to a named file
+    // it only contains vertex data
     void save_mesh_to_file(const char *str);
 
     // create mesh and store in the address
-    void create_mesh_gl(float3 *data, uint &max_size);
+    // users are reponsible for allocating
+    // the adresses in CUDA using `cudaMalloc`
+    void fetch_mesh_vertex_only(float3 *data, uint &max_size);
     void fetch_mesh_with_normal(float3 *vertex, float3 *normal, uint &max_size);
+    void fetch_mesh_with_colour(float3 *vertex, float3 *normal, uchar3 *colour, uint &max_size);
 
     // retrieve current camera pose
     Eigen::Matrix4f get_current_camera_pose() const;
+
+    // system controls
+    void change_colour_mode(int colour_mode = 0);
+    void change_run_mode(int run_mode = 0);
+    void restart();
 
 private:
     RgbdFramePtr current;
