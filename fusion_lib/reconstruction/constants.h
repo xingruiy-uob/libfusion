@@ -1,3 +1,6 @@
+#ifndef CONSTANTS_H
+#define CONSTANTS_H
+
 #include <cuda_runtime_api.h>
 
 namespace fusion
@@ -275,3 +278,5 @@ static const __device__ int triangle_table[256][16] = {{-1, -1, -1, -1, -1, -1, 
                                                        {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1}};
 
 } // namespace fusion
+
+#endif

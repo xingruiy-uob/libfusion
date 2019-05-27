@@ -60,8 +60,8 @@ TrackingResult DenseTracking::compute_transform(const RgbdImagePtr reference, co
           icp_hessian.data(),
           icp_residual.data(),
           residual_icp_.data());
-      joint_hessian = icp_hessian;
-      joint_residual = icp_residual;
+      // joint_hessian = icp_hessian;
+      // joint_residual = icp_residual;
 
       // rgb_reduce(
       //     curr_intensity,
@@ -82,7 +82,7 @@ TrackingResult DenseTracking::compute_transform(const RgbdImagePtr reference, co
 
       // uint num_corresp;
       // float mean_estimated;
-      // float stdev_estimated;
+      float stdev_estimated;
 
       // compute_rgb_corresp(
       //     last_vmap,
@@ -100,23 +100,23 @@ TrackingResult DenseTracking::compute_transform(const RgbdImagePtr reference, co
       //     stdev_estimated,
       //     num_corresp);
 
-      // rgb_step(
-      //     curr_intensity,
-      //     last_intensity,
-      //     last_vmap,
-      //     curr_vmap,
-      //     intensity_dx,
-      //     intensity_dy,
-      //     sum_se3,
-      //     out_se3,
-      //     stddev_estimated,
-      //     last_estimate,
-      //     K,
-      //     rgb_hessian.data(),
-      //     rgb_residual.data(),
-      //     residual_rgb_.data());
+      rgb_step(
+          curr_intensity,
+          last_intensity,
+          last_vmap,
+          curr_vmap,
+          intensity_dx,
+          intensity_dy,
+          sum_se3,
+          out_se3,
+          stddev_estimated,
+          last_estimate,
+          K,
+          rgb_hessian.data(),
+          rgb_residual.data(),
+          residual_rgb_.data());
 
-      // stddev_estimated = sqrt(residual_rgb_[0] / (residual_rgb_[1] - 6));
+      stddev_estimated = sqrt(residual_rgb_[0] / (residual_rgb_[1] - 6));
       // compute_least_square_RGB(
       //     num_corresp,
       //     transformed_points,
@@ -134,8 +134,8 @@ TrackingResult DenseTracking::compute_transform(const RgbdImagePtr reference, co
 
       // compute_rgb_correspondence(curr_intensity, last_intensity, intensity_dx, intensity_dy, last_vmap, last_estimate, K);
 
-      // joint_hessian = 1e6 * icp_hessian + rgb_hessian;
-      // joint_residual = 1e6 * icp_residual + rgb_residual;
+      joint_hessian = 1e6 * icp_hessian + rgb_hessian;
+      joint_residual = 1e6 * icp_residual + rgb_residual;
 
       update = joint_hessian.cast<double>().ldlt().solve(joint_residual.cast<double>());
 
