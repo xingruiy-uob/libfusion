@@ -37,9 +37,10 @@ public:
     // create mesh and store in the address
     // users are reponsible for allocating
     // the adresses in CUDA using `cudaMalloc`
+    uint get_maximum_triangle_num() const; // TODO: not implemented
     void fetch_mesh_vertex_only(float3 *data, uint &max_size);
     void fetch_mesh_with_normal(float3 *vertex, float3 *normal, uint &max_size);
-    void fetch_mesh_with_colour(float3 *vertex, float3 *normal, uchar3 *colour, uint &max_size);
+    void fetch_mesh_with_colour(float3 *vertex, uchar3 *colour, uint &max_size);
 
     // retrieve current camera pose
     Eigen::Matrix4f get_current_camera_pose() const;

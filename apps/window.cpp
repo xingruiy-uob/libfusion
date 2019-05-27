@@ -34,7 +34,7 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
 
     // Start and pause the sytem
     if (key == GLFW_KEY_ENTER && action == GLFW_PRESS)
-        wm->run_mode = (wm->run_mode == 1) ? 0 : 1;
+        wm->run_mode = (wm->run_mode + 1) % 2;
 
     // Download mesh to disk
     if (key == GLFW_KEY_S && action == GLFW_PRESS)
@@ -46,7 +46,10 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
 
     // Switch colour
     if (key == GLFW_KEY_C && action == GLFW_PRESS)
-        wm->colour_mode = (wm->colour_mode + 1) % 2;
+    {
+        wm->colour_mode = (wm->colour_mode + 1) % 3;
+        wm->need_update = true;
+    }
 }
 
 // called whenever mouse moved within the window
@@ -276,6 +279,7 @@ bool WindowManager::initialize_gl_context(const size_t width, const int height)
     window_width = width;
     window_height = height;
     num_mesh_triangles = 0;
+    colour_mode = 0;
     model_matrix = glm::mat4(1.f); // default to identity matrix
     view_matrix = glm::mat4(1.f);
     cam_position = glm::vec3(0, 0, 0);
@@ -320,7 +324,8 @@ bool WindowManager::initialize_gl_context(const size_t width, const int height)
     program[0] = create_program_from_shaders(&shaders[0], 2);
 
     shaders[2] = load_shader_from_file("./shaders/colour.shader", GL_VERTEX_SHADER);
-    program[1] = create_program_from_shaders(&shaders[1], 2);
+    shaders[3] = load_shader_from_file("./shaders/fragment.shader", GL_FRAGMENT_SHADER);
+    program[1] = create_program_from_shaders(&shaders[2], 2);
 
     // create array object
     glGenVertexArrays(1, &gl_array[0]);
@@ -336,12 +341,38 @@ bool WindowManager::initialize_gl_context(const size_t width, const int height)
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, NULL);
     glEnableVertexAttribArray(1);
 
+    // array object for normal
+    glGenVertexArrays(1, &gl_array[1]);
+    glBindVertexArray(gl_array[1]);
+
+    glBindBuffer(GL_ARRAY_BUFFER, buffers[0]);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+    glEnableVertexAttribArray(0);
+
+    glBindBuffer(GL_ARRAY_BUFFER, buffers[1]);
+    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+    glEnableVertexAttribArray(2);
+
+    // vertex array for colour
+    glGenVertexArrays(1, &gl_array[2]);
+    glBindVertexArray(gl_array[2]);
+
+    glBindBuffer(GL_ARRAY_BUFFER, buffers[0]);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+    glEnableVertexAttribArray(0);
+
+    size = sizeof(GLchar) * 50000000 * 3;
+    buffers[2] = create_buffer_and_bind(size);
+    glVertexAttribPointer(2, 3, GL_UNSIGNED_BYTE, GL_TRUE, 0, NULL);
+    glEnableVertexAttribArray(2);
+
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
 
     // bind buffer object to CUDA
     safe_call(cudaGraphicsGLRegisterBuffer(&buffer_res[0], buffers[0], cudaGraphicsMapFlagsWriteDiscard));
     safe_call(cudaGraphicsGLRegisterBuffer(&buffer_res[1], buffers[1], cudaGraphicsMapFlagsWriteDiscard));
+    safe_call(cudaGraphicsGLRegisterBuffer(&buffer_res[2], buffers[2], cudaGraphicsMapFlagsWriteDiscard));
 
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LESS);
@@ -392,8 +423,6 @@ void WindowManager::set_input_depth(cv::Mat depth)
 {
     cv::Mat coloured_depth;
     depth.convertTo(coloured_depth, CV_8UC1, 255.f / 20);
-    // cv::applyColorMap(coloured_depth, coloured_depth, cv::COLORMAP_OCEAN);
-    // cv::cvtColor(coloured_depth, coloured_depth, cv::COLOR_GRAY2RGB);
 
     glBindTexture(GL_TEXTURE_2D, textures[1]);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -416,9 +445,9 @@ void WindowManager::set_input_depth(cv::Mat depth)
         coloured_depth.ptr());
 }
 
-float3 *WindowManager::get_cuda_mapped_ptr(int id)
+void *WindowManager::get_cuda_mapped_ptr(int id)
 {
-    float3 *dev_ptr;
+    void *dev_ptr;
     safe_call(cudaGraphicsMapResources(1, &buffer_res[id]));
     size_t num_bytes;
     cudaGraphicsResourceGetMappedPointer((void **)&dev_ptr, &num_bytes, buffer_res[id]);
@@ -506,22 +535,65 @@ void WindowManager::draw_mesh()
 {
     if (need_update)
     {
-        float3 *vertex_ptr = get_cuda_mapped_ptr(0);
-        float3 *normal_ptr = get_cuda_mapped_ptr(1);
-        system->fetch_mesh_with_normal(vertex_ptr, normal_ptr, num_mesh_triangles);
-        cuda_unmap_resources(0);
-        cuda_unmap_resources(1);
+        switch (colour_mode)
+        {
+        case 0:
+        case 1:
+        {
+            float3 *vertex_ptr = (float3 *)get_cuda_mapped_ptr(0);
+            float3 *normal_ptr = (float3 *)get_cuda_mapped_ptr(1);
+            system->fetch_mesh_with_normal(vertex_ptr, normal_ptr, num_mesh_triangles);
+            cuda_unmap_resources(0);
+            cuda_unmap_resources(1);
+            break;
+        }
+        case 2:
+        {
+            float3 *vertex_ptr = (float3 *)get_cuda_mapped_ptr(0);
+            uchar3 *colour_ptr = (uchar3 *)get_cuda_mapped_ptr(2);
+            system->fetch_mesh_with_colour(vertex_ptr, colour_ptr, num_mesh_triangles);
+            cuda_unmap_resources(0);
+            cuda_unmap_resources(2);
+            break;
+        }
+        }
+
         need_update = false;
     }
 
     if (num_mesh_triangles != 0)
     {
-        glUseProgram(program[0]);
-        glBindVertexArray(gl_array[0]);
-        glm::mat4 mvp_mat = get_view_projection_matrix();
+        switch (colour_mode)
+        {
+        case 0:
+        {
+            glUseProgram(program[0]);
+            glBindVertexArray(gl_array[0]);
+            glm::mat4 mvp_mat = get_view_projection_matrix();
+            GLint loc = glGetUniformLocation(program[0], "mvp_matrix");
+            glUniformMatrix4fv(loc, 1, GL_FALSE, &mvp_mat[0][0]);
+            break;
+        }
+        case 1:
+        {
+            glUseProgram(program[1]);
+            glBindVertexArray(gl_array[1]);
+            glm::mat4 mvp_mat = get_view_projection_matrix();
+            GLint loc = glGetUniformLocation(program[1], "mvp_matrix");
+            glUniformMatrix4fv(loc, 1, GL_FALSE, &mvp_mat[0][0]);
+            break;
+        }
+        case 2:
+        {
+            glUseProgram(program[1]);
+            glBindVertexArray(gl_array[2]);
+            glm::mat4 mvp_mat = get_view_projection_matrix();
+            GLint loc = glGetUniformLocation(program[1], "mvp_matrix");
+            glUniformMatrix4fv(loc, 1, GL_FALSE, &mvp_mat[0][0]);
+            break;
+        }
+        }
 
-        GLint loc = glGetUniformLocation(program[0], "mvp_matrix");
-        glUniformMatrix4fv(loc, 1, GL_FALSE, &mvp_mat[0][0]);
         glDrawArrays(GL_TRIANGLES, 0, num_mesh_triangles * 3);
         glUseProgram(0);
     }

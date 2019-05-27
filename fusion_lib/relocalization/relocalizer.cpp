@@ -22,6 +22,10 @@ float interpolate_depth_bilinear(cv::Mat vmap, float x, float y)
            z10 * ((1 - coeff_x) + z11 * coeff_x) * coeff_y;
 }
 
+cv::Vec3f interpolate_normal_bilinear(cv::Mat vmap, float x, float y)
+{
+}
+
 void Relocalizer::insert_current_frame()
 {
     match_by_pose_constraint();
@@ -32,7 +36,7 @@ void Relocalizer::insert_keyframe(RgbdFramePtr keyframe)
     cv::Mat source_image = keyframe->get_image();
     std::vector<cv::KeyPoint> detected_points;
     SURF->detect(source_image, detected_points);
-    point_struct = std::make_shared<FeaturePointFrame>();
+    current_point_struct = std::make_shared<FeaturePointFrame>();
 
     if (keyframe->has_scene_data())
     {
@@ -46,7 +50,7 @@ void Relocalizer::insert_keyframe(RgbdFramePtr keyframe)
 
             // NOTE: this will produce erroneous measurements
             float z = interpolate_depth_bilinear(vmap, x, y);
-            // Eigen::Vector4f normal = interpolate_normal_bilinear(nmap, x, y);
+            cv::Vec3f normal = interpolate_normal_bilinear(nmap, x, y);
             Eigen::Vector3f pos;
             pos << (x - cam_param.cx) * cam_param.invfx * z,
                 (y - cam_param.cy) * cam_param.invfy * z,
@@ -56,10 +60,10 @@ void Relocalizer::insert_keyframe(RgbdFramePtr keyframe)
             fp->depth = z;
             fp->pos = pos;
             fp->source = *iter;
-            point_struct->key_points.emplace_back(fp);
+            current_point_struct->key_points.emplace_back(fp);
         }
 
-        point_struct->reference = keyframe;
+        current_point_struct->reference = keyframe;
     }
 }
 

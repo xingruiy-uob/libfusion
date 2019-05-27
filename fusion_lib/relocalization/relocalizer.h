@@ -24,7 +24,7 @@ private:
     cv::Ptr<cv::BRISK> BRISK;
     cv::Ptr<cv::xfeatures2d::SURF> SURF;
 
-    std::shared_ptr<FeaturePointFrame> point_struct;
+    std::shared_ptr<FeaturePointFrame> current_point_struct;
     std::shared_ptr<FeaturePointFrame> reference_struct;
     std::shared_ptr<size_t> point_corresp;
 

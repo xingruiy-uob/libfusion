@@ -114,6 +114,11 @@ __host__ __device__ __forceinline__ int3 operator-(int3 a, int3 b)
     return make_int3(a.x - b.x, a.y - b.y, a.z - b.z);
 }
 
+__host__ __device__ __forceinline__ uchar3 operator-(uchar3 a, uchar3 b)
+{
+    return make_uchar3(a.x - b.x, a.y - b.y, a.z - b.z);
+}
+
 __host__ __device__ __forceinline__ float3 operator-(float3 a, float3 b)
 {
     return make_float3(a.x - b.x, a.y - b.y, a.z - b.z);

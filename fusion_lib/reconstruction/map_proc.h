@@ -63,6 +63,14 @@ void create_scene_mesh_with_normal(
     float3 *vertex_data,
     float3 *vertex_normal);
 
+void create_scene_mesh_with_colour(
+    MapStruct map_struct,
+    uint &block_count,
+    int3 *block_list,
+    uint &triangle_count,
+    float3 *vertex_data,
+    uchar3 *vertex_colour);
+
 } // namespace cuda
 } // namespace fusion
 

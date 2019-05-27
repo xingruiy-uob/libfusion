@@ -5,7 +5,7 @@ namespace fusion
 {
 
 System::System(IntrinsicMatrix base, const int NUM_PYR)
-    : processed_frame_count(0), keyframe(NULL), system_initialized(false)
+    : processed_frame_count(0), system_initialized(false)
 {
     mapping = std::make_shared<DenseMapping>(base);
     odometry = std::make_shared<DenseOdometry>(base, NUM_PYR);
@@ -22,8 +22,6 @@ void System::process_images(const cv::Mat depth, const cv::Mat image)
     // needs initialization
     if (system_initialized)
     {
-        keyframe = current;
-
         // break the loop
         system_initialized = true;
     }
@@ -34,36 +32,9 @@ void System::process_images(const cv::Mat depth, const cv::Mat image)
     {
         auto reference_image = odometry->get_reference_image();
 
-        // if (processed_frame_count == 0)
-        // {
-        //     cv::Mat render(reference_image->get_rendered_image());
-        //     cv::Mat img2;
-        //     cv::cvtColor(image, img2, cv::COLOR_RGB2BGR);
-        //     cv::imwrite("depth.png", render);
-        //     cv::imwrite("image.png", img2);
-        // }
-
-        // if (processed_frame_count == 100)
-        // {
-        //     cv::Mat render(reference_image->get_rendered_image());
-        //     cv::imwrite("depth2.png", render);
-        // }
-
         mapping->update(reference_image);
         mapping->raycast(reference_image);
         reference_image->resize_device_map();
-
-        // if (processed_frame_count == 0)
-        // {
-        //     cv::Mat render(reference_image->get_rendered_image());
-        //     cv::imwrite("render.png", render);
-        // }
-
-        // if (processed_frame_count == 100)
-        // {
-        //     cv::Mat render(reference_image->get_rendered_image());
-        //     cv::imwrite("render2.png", render);
-        // }
 
         processed_frame_count += 1;
     }
@@ -100,6 +71,11 @@ void System::fetch_mesh_vertex_only(float3 *data, uint &max_size)
 void System::fetch_mesh_with_normal(float3 *vertex, float3 *normal, uint &max_size)
 {
     mapping->fetch_mesh_with_normal(vertex, normal, max_size);
+}
+
+void System::fetch_mesh_with_colour(float3 *vertex, uchar3 *colour, uint &max_size)
+{
+    mapping->create_mesh_with_colour(vertex, colour, max_size);
 }
 
 Eigen::Matrix4f System::get_current_camera_pose() const
