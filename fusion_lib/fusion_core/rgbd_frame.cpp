@@ -73,4 +73,10 @@ void RgbdFrame::set_reference_frame(RgbdFramePtr reference)
     this->reference = reference;
 }
 
+void RgbdFrame::set_scene_data(cv::cuda::GpuMat vmap, cv::cuda::GpuMat nmap)
+{
+    vmap.download(this->vmap);
+    nmap.download(this->nmap);
+}
+
 } // namespace fusion

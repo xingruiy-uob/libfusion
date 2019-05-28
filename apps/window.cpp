@@ -280,6 +280,8 @@ bool WindowManager::initialize_gl_context(const size_t width, const int height)
     window_height = height;
     num_mesh_triangles = 0;
     colour_mode = 0;
+    num_key_points = 0;
+    keypoint3d = new float[100000];
     model_matrix = glm::mat4(1.f); // default to identity matrix
     view_matrix = glm::mat4(1.f);
     cam_position = glm::vec3(0, 0, 0);
@@ -365,6 +367,10 @@ bool WindowManager::initialize_gl_context(const size_t width, const int height)
     buffers[2] = create_buffer_and_bind(size);
     glVertexAttribPointer(2, 3, GL_UNSIGNED_BYTE, GL_TRUE, 0, NULL);
     glEnableVertexAttribArray(2);
+
+    // vertex array for key points
+    glGenVertexArrays(1, &gl_array[3]);
+    glGenBuffers(1, &buffers[3]);
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
@@ -599,6 +605,32 @@ void WindowManager::draw_mesh()
     }
 }
 
+void WindowManager::draw_keypoints()
+{
+    system->fetch_key_points(keypoint3d, num_key_points);
+    std::cout << num_key_points << std::endl;
+
+    glUseProgram(program[1]);
+    glBindVertexArray(gl_array[3]);
+
+    glm::mat4 mvp_mat = get_view_projection_matrix();
+    GLint loc = glGetUniformLocation(program[1], "mvp_matrix");
+    glUniformMatrix4fv(loc, 1, GL_FALSE, &mvp_mat[0][0]);
+
+    glBindBuffer(GL_ARRAY_BUFFER, buffers[3]);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * num_key_points, keypoint3d, GL_STATIC_DRAW);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+    glEnableVertexAttribArray(0);
+    glPointSize(5);
+
+    glDrawArrays(GL_POINTS, 0, num_key_points);
+
+    glPointSize(1);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
+    glUseProgram(0);
+}
+
 void WindowManager::process_images(cv::Mat depth, cv::Mat image)
 {
     switch (run_mode)
@@ -647,6 +679,7 @@ void WindowManager::render_screen()
         break;
     default:
         draw_mesh();
+        draw_keypoints();
         break;
     }
 

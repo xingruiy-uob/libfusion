@@ -53,6 +53,8 @@ public:
 
     // triangle count
     uint num_mesh_triangles;
+    size_t num_key_points;
+    float *keypoint3d;
 
 public:
     // textures used in our code
@@ -64,9 +66,9 @@ public:
     GLuint program[3];
 
     // vertex buffer, normal buffer and colour buffer
-    GLuint buffers[3];
-    GLuint gl_array[3];
-    cudaGraphicsResource_t buffer_res[3]; // map buffer to CUDA
+    GLuint buffers[4];
+    GLuint gl_array[4];
+    cudaGraphicsResource_t buffer_res[4]; // map buffer to CUDA
 
     // shaders temporary variables
     GLuint shaders[4];
@@ -87,10 +89,12 @@ public:
     void draw_rendered_scene();
     void draw_input_depth();
     void draw_mesh();
+    void draw_keypoints();
 
     // system control
     fusion::System *system;
     bool need_update;
+    bool keypoints_need_update;
 
     // window control
     static void toggle_full_screen();
