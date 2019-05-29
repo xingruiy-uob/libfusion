@@ -282,6 +282,7 @@ bool WindowManager::initialize_gl_context(const size_t width, const int height)
     colour_mode = 0;
     num_key_points = 0;
     keypoint3d = new float[100000];
+    // point_normal = new float[100000];
     model_matrix = glm::mat4(1.f); // default to identity matrix
     view_matrix = glm::mat4(1.f);
     cam_position = glm::vec3(0, 0, 0);

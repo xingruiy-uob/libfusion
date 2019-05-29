@@ -113,7 +113,12 @@ void System::fetch_mesh_with_colour(float3 *vertex, uchar3 *colour, uint &max_si
 
 void System::fetch_key_points(float *points, size_t &max_size)
 {
-    relocalizer->get_keypoints_world(points, max_size);
+    relocalizer->get_points(points, max_size);
+}
+
+void System::fetch_key_points_with_normal(float *points, float *normal, size_t &max_size)
+{
+    relocalizer->get_points_and_normal(points, normal, max_size);
 }
 
 Eigen::Matrix4f System::get_current_camera_pose() const

@@ -17,7 +17,8 @@ class Relocalizer
 public:
     Relocalizer(IntrinsicMatrix K);
     void insert_keyframe(RgbdFramePtr keyframe);
-    void get_keypoints_world(float *pt3d, size_t &max_size);
+    void get_points(float *points, size_t &max_size);
+    void get_points_and_normal(float *points, float *normals, size_t &max_size);
     void reset_relocalizer();
     void main_loop();
 
@@ -32,6 +33,7 @@ private:
     std::mutex new_keyframe_buffer_lock;
     ThreadQueue<RgbdFramePtr> new_keyframe_buffer;
     void process_new_keyframe();
+    void extract_feature_points(RgbdFramePtr keyframe);
 
     // keyframe graph
     std::vector<RgbdFramePtr> keyframe_graph;

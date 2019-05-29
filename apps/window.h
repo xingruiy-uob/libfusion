@@ -55,6 +55,7 @@ public:
     uint num_mesh_triangles;
     size_t num_key_points;
     float *keypoint3d;
+    float *point_normal;
 
 public:
     // textures used in our code

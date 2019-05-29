@@ -38,7 +38,8 @@ public:
     void fetch_mesh_with_colour(float3 *vertex, uchar3 *colour, uint &max_size);
 
     // key points
-    void fetch_key_points(float* points, size_t &max_size);
+    void fetch_key_points(float *points, size_t &max_size);
+    void fetch_key_points_with_normal(float *points, float *normal, size_t &max_size);
 
     // retrieve current camera pose
     Eigen::Matrix4f get_current_camera_pose() const;
