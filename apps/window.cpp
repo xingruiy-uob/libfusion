@@ -608,7 +608,6 @@ void WindowManager::draw_mesh()
 void WindowManager::draw_keypoints()
 {
     system->fetch_key_points(keypoint3d, num_key_points);
-    std::cout << num_key_points << std::endl;
 
     glUseProgram(program[1]);
     glBindVertexArray(gl_array[3]);

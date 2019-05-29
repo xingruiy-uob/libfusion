@@ -85,6 +85,7 @@ void System::restart()
 {
     mapping->restart_mapping();
     odometry->restart_tracking();
+    relocalizer->reset_relocalizer();
     system_initialized = false;
     processed_frame_count = 0;
 }

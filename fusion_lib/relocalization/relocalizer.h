@@ -3,6 +3,7 @@
 
 #include "rgbd_frame.h"
 #include "feature_point.h"
+#include "thread_queue.h"
 #include <mutex>
 #include <queue>
 #include <opencv2/features2d.hpp>
@@ -17,6 +18,7 @@ public:
     Relocalizer(IntrinsicMatrix K);
     void insert_keyframe(RgbdFramePtr keyframe);
     void get_keypoints_world(float *pt3d, size_t &max_size);
+    void reset_relocalizer();
     void main_loop();
 
     bool should_quit;
@@ -28,7 +30,7 @@ private:
 
     // interface
     std::mutex new_keyframe_buffer_lock;
-    std::queue<RgbdFramePtr> new_keyframe_buffer;
+    ThreadQueue<RgbdFramePtr> new_keyframe_buffer;
     void process_new_keyframe();
 
     // keyframe graph

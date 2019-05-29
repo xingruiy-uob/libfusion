@@ -18,20 +18,6 @@ cv::Vec4f interpolate_depth_bilinear(cv::Mat vmap, float x, float y)
     {
         return vmap.ptr<cv::Vec4f>(v)[u];
     }
-    // int u = (int)floor(x), v = (int)floor(y);
-    // float coeff_x = x - u, coeff_y = y - v;
-    // float z00 = vmap.ptr<cv::Vec4f>(v)[u](3);
-    // float z01 = vmap.ptr<cv::Vec4f>(v)[u + 1](3);
-    // float z10 = vmap.ptr<cv::Vec4f>(v + 1)[u](3);
-    // float z11 = vmap.ptr<cv::Vec4f>(v + 1)[u + 1](3);
-    // return (z00 * (1 - coeff_x) + z01 * coeff_x) * (1 - coeff_y) +
-    //        z10 * ((1 - coeff_x) + z11 * coeff_x) * coeff_y;
-    // float z00 = vmap.ptr<float>(v)[u];
-    // float z01 = vmap.ptr<float>(v)[u + 1];
-    // float z10 = vmap.ptr<float>(v + 1)[u];
-    // float z11 = vmap.ptr<float>(v + 1)[u + 1];
-    // return (z00 * (1 - coeff_x) + z01 * coeff_x) * (1 - coeff_y) +
-    //        z10 * ((1 - coeff_x) + z11 * coeff_x) * coeff_y;
 }
 
 cv::Vec3f interpolate_normal_bilinear(cv::Mat vmap, float x, float y)
@@ -71,12 +57,21 @@ void Relocalizer::get_keypoints_world(float *pt3d, size_t &max_size)
     }
 }
 
+void Relocalizer::reset_relocalizer()
+{
+    while (new_keyframe_buffer.size_sync())
+        new_keyframe_buffer.pop_sync();
+
+    keypoint_map.clear();
+    keyframe_graph.clear();
+}
+
 void Relocalizer::process_new_keyframe()
 {
-    if (new_keyframe_buffer.size() == 0)
+    if (new_keyframe_buffer.size_sync() == 0)
         return;
 
-    auto keyframe = new_keyframe_buffer.front();
+    auto keyframe = new_keyframe_buffer.front_sync();
     cv::Mat source_image = keyframe->get_image();
     auto frame_pose = keyframe->get_pose().cast<float>();
 
@@ -112,7 +107,7 @@ void Relocalizer::process_new_keyframe()
     }
 
     std::cout << "frame : " << keyframe->get_id() << " processed." << std::endl;
-    new_keyframe_buffer.pop();
+    new_keyframe_buffer.pop_sync();
 }
 
 } // namespace fusion
