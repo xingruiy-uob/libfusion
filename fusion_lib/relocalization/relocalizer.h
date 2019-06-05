@@ -26,6 +26,9 @@ public:
     // TODO: not implemented
     void get_points_and_normal(float *points, float *normals, size_t &max_size);
 
+    void set_relocalization_target(RgbdFramePtr frame);
+    void get_relocalized_result();
+
     bool should_quit;
 
 private:
@@ -49,6 +52,14 @@ private:
 
     // map and points
     std::vector<std::shared_ptr<FeaturePointFrame>> keypoint_map;
+    void set_all_points_unvisited();
+    std::vector<cv::KeyPoint> find_all_cv_key_points();
+    void find_all_key_points_and_descriptors();
+
+    // for relocalization
+    RgbdFramePtr relocalization_target;
+    std::vector<Eigen::Vector3f> reference_points;
+    cv::Mat relocalization_reference;
 };
 
 } // namespace fusion

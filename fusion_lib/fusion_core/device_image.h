@@ -56,6 +56,7 @@ private:
 
     // original image in CV_32FC3
     // this is needed when converting to grayscale
+    // otherwise lose accuracy due to tuncation error
     cv::cuda::GpuMat image_float;
 
     // original depth in CV_32FC1
@@ -72,7 +73,7 @@ private:
     std::vector<cv::cuda::GpuMat> vmap_pyr;         // CV_32FC4
     std::vector<cv::cuda::GpuMat> nmap_pyr;         // CV_32FC4
 
-    // for debugging
+    // for debugging and visualization
     cv::cuda::GpuMat rendered_image;
     cv::cuda::GpuMat rendered_image_textured;
     std::vector<cv::cuda::GpuMat> semi_dense_image;

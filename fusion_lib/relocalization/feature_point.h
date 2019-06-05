@@ -12,11 +12,14 @@ namespace fusion
 
 struct FeaturePoint
 {
+    FeaturePoint();
     float depth;
     Eigen::Vector3f pos;
     Eigen::Vector3f vec_normal;
     cv::Mat descriptor;
     cv::KeyPoint source;
+    bool visited;
+    std::vector<std::pair<RgbdFramePtr, int>> observations;
 };
 
 struct FeaturePointFrame

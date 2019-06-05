@@ -7,7 +7,7 @@ namespace fusion
 Relocalizer::Relocalizer(IntrinsicMatrix K) : should_quit(false)
 {
     BRISK = cv::BRISK::create();
-    SURF = cv::xfeatures2d::SURF::create();
+    SURF = cv::xfeatures2d::SURF::create(100);
     cam_param = K;
 }
 
@@ -38,34 +38,37 @@ void Relocalizer::insert_keyframe(RgbdFramePtr keyframe)
 void Relocalizer::get_points(float *pt3d, size_t &max_size)
 {
     max_size = 0;
+    set_all_points_unvisited();
 
-    for (int i = 0; i < keypoint_map.size(); ++i)
+    for (const auto &point_frame : keypoint_map)
     {
-        auto point_frame = keypoint_map[i];
-
-        for (int j = 0; j < point_frame->key_points.size(); ++j)
+        for (const auto &point : point_frame->key_points)
         {
-            auto point = point_frame->key_points[j];
+            if (point->observations.size() < 2 || point->visited)
+                continue;
 
             pt3d[max_size * 3 + 0] = point->pos(0);
             pt3d[max_size * 3 + 1] = point->pos(1);
             pt3d[max_size * 3 + 2] = point->pos(2);
             max_size++;
+
+            point->visited = true;
         }
     }
+
+    std::cout << max_size << std::endl;
 }
 
 void Relocalizer::get_points_and_normal(float *points, float *normals, size_t &max_size)
 {
     max_size = 0;
 
-    for (int i = 0; i < keypoint_map.size(); ++i)
+    for (const auto &point_frame : keypoint_map)
     {
-        auto point_frame = keypoint_map[i];
-
-        for (int j = 0; j < point_frame->key_points.size(); ++j)
+        for (const auto &point : point_frame->key_points)
         {
-            auto point = point_frame->key_points[j];
+            if (point->observations.size() < 2 || point->visited)
+                continue;
 
             points[max_size * 3 + 0] = point->pos(0);
             points[max_size * 3 + 1] = point->pos(1);
@@ -74,6 +77,59 @@ void Relocalizer::get_points_and_normal(float *points, float *normals, size_t &m
             normals[max_size * 3 + 0] = point->vec_normal(1);
             normals[max_size * 3 + 0] = point->vec_normal(2);
             max_size++;
+
+            point->visited = true;
+        }
+    }
+}
+
+void Relocalizer::set_relocalization_target(RgbdFramePtr frame)
+{
+    relocalization_target = frame;
+}
+
+void Relocalizer::get_relocalized_result()
+{
+    cv::Mat source_img = relocalization_target->get_image();
+    std::vector<cv::KeyPoint> detected_points;
+    SURF->detect(source_img, detected_points);
+
+    auto depth = relocalization_target->get_depth();
+
+    auto ibegin = detected_points.begin();
+    auto iend = detected_points.end();
+    for (auto iter = ibegin; iter != iend; iter++)
+    {
+    }
+}
+
+void Relocalizer::set_all_points_unvisited()
+{
+    for (const auto &iter : keypoint_map)
+    {
+        for (const auto &iter2 : iter->key_points)
+        {
+            iter2->visited = false;
+        }
+    }
+}
+
+void Relocalizer::find_all_key_points_and_descriptors()
+{
+    set_all_points_unvisited();
+    reference_points.clear();
+    relocalization_reference.release();
+
+    for (const auto &iter : keypoint_map)
+    {
+        for (const auto &iter2 : iter->key_points)
+        {
+            if (iter2->visited == true)
+                continue;
+
+            reference_points.push_back(iter2->pos);
+            relocalization_reference.push_back(iter2->descriptor);
+            iter2->visited = true;
         }
     }
 }
@@ -92,8 +148,10 @@ void Relocalizer::extract_feature_points(RgbdFramePtr keyframe)
     cv::Mat source_image = keyframe->get_image();
     auto frame_pose = keyframe->get_pose().cast<float>();
 
+    cv::Mat descriptors;
     std::vector<cv::KeyPoint> detected_points;
     SURF->detect(source_image, detected_points);
+    BRISK->compute(source_image, detected_points, descriptors);
 
     current_point_struct = std::make_shared<FeaturePointFrame>();
     current_point_struct->cv_key_points.clear();
@@ -105,7 +163,9 @@ void Relocalizer::extract_feature_points(RgbdFramePtr keyframe)
         cv::Mat vmap = keyframe->get_vmap();
         cv::Mat nmap = keyframe->get_nmap();
 
-        for (auto iter = detected_points.begin(); iter != detected_points.end(); ++iter)
+        auto ibegin = detected_points.begin();
+        auto iend = detected_points.end();
+        for (auto iter = ibegin; iter != iend; ++iter)
         {
             float x = iter->pt.x;
             float y = iter->pt.y;
@@ -115,7 +175,7 @@ void Relocalizer::extract_feature_points(RgbdFramePtr keyframe)
             cv::Vec4f n = interpolate_bilinear(nmap, x, y);
 
             // validate vertex and normal
-            if (n(3) < 0 || z(3) < 0)
+            if (n(3) < 0 || z(3) < 0 || z(2) < 0.1f)
                 continue;
 
             std::shared_ptr<FeaturePoint> point(new FeaturePoint());
@@ -123,12 +183,14 @@ void Relocalizer::extract_feature_points(RgbdFramePtr keyframe)
             // convert point to world coordinate
             point->pos = frame_pose * point->pos;
             point->vec_normal << n(0), n(1), n(2);
+            point->observations.emplace_back(std::make_pair(current_point_struct->reference, std::distance(ibegin, iter)));
             current_point_struct->cv_key_points.push_back(*iter);
             current_point_struct->key_points.emplace_back(point);
         }
     }
     else
     {
+        // only the first frame will trigger this branch
         if (keyframe->get_id() != 0)
             std::cout << "control flow should not reach here!" << std::endl;
         current_point_struct->cv_key_points = detected_points;
@@ -203,7 +265,7 @@ void Relocalizer::search_feature_correspondence()
 
         if (best_idx >= 0)
         {
-
+            (*iter)->observations.emplace_back(std::make_pair(reference_struct->reference, best_idx));
             // for visualization only
             cv::DMatch match;
             // match.distance = min_dist;
@@ -214,14 +276,16 @@ void Relocalizer::search_feature_correspondence()
     }
 
     // for visualization only
-    // auto image_curr = current_point_struct->reference->get_image();
-    // auto image_last = reference_struct->reference->get_image();
-    // auto cv_key_points_curr = current_point_struct->cv_key_points;
-    // cv::Mat outImg;
-    // cv::drawMatches(image_curr, cv_key_points_curr, image_last, cv_keypoints_last, matches, outImg);
-    // cv::cvtColor(outImg, outImg, cv::COLOR_RGB2BGR);
-    // cv::imshow("img", outImg);
-    // cv::waitKey(0);
+    /*
+    auto image_curr = current_point_struct->reference->get_image();
+    auto image_last = reference_struct->reference->get_image();
+    auto cv_key_points_curr = current_point_struct->cv_key_points;
+    cv::Mat outImg;
+    cv::drawMatches(image_curr, cv_key_points_curr, image_last, cv_keypoints_last, matches, outImg);
+    cv::cvtColor(outImg, outImg, cv::COLOR_RGB2BGR);
+    cv::imshow("img", outImg);
+    cv::waitKey(0);
+    */
 }
 
 } // namespace fusion

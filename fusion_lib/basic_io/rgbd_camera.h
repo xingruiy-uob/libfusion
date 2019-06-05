@@ -1,5 +1,5 @@
-#ifndef __RGBD_CAMERA__
-#define __RGBD_CAMERA__
+#ifndef RGBD_CAMERA_H
+#define RGBD_CAMERA_H
 
 #include <openni2/OpenNI.h>
 #include <opencv2/opencv.hpp>

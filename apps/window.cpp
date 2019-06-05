@@ -3,6 +3,7 @@
 #include <iostream>
 #include <thread>
 #include <chrono>
+#define MAX_KEY_POINT_NUM 300000
 
 int window_width = 0;
 int window_height = 0;
@@ -291,7 +292,7 @@ bool WindowManager::initialize_gl_context(const size_t width, const int height)
     num_mesh_triangles = 0;
     colour_mode = 0;
     num_key_points = 0;
-    keypoint3d = new float[100000];
+    keypoint3d = new float[MAX_KEY_POINT_NUM];
     // point_normal = new float[100000];
     model_matrix = glm::mat4(1.f); // default to identity matrix
     view_matrix = glm::mat4(1.f);
@@ -721,13 +722,15 @@ void WindowManager::render_screen()
     switch (run_mode)
     {
     case 1:
+        // online system
         draw_rendered_scene();
         break;
-    default:
+    case 0:
+        // system offline
         draw_mesh();
         if (display_key_points)
             draw_keypoints();
-        draw_current_camera();
+        // draw_current_camera();
         break;
     }
 
