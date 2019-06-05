@@ -46,10 +46,10 @@ public:
     void cuda_unmap_resources(int id);
 
     // system control
-    static int run_mode;
-    static int colour_mode;
-    static bool should_save_file;
-    static bool should_reset;
+    int run_mode;
+    int colour_mode;
+    bool display_key_points;
+    bool referesh_key_points;
 
     // triangle count
     uint num_mesh_triangles;
@@ -66,10 +66,12 @@ public:
     // phong shading, normal map, colour map
     GLuint program[3];
 
-    // vertex buffer, normal buffer and colour buffer
-    GLuint buffers[4];
-    GLuint gl_array[4];
-    cudaGraphicsResource_t buffer_res[4]; // map buffer to CUDA
+    // 1.vertex buffer, 2.normal buffer 3.colour buffer
+    // 4.key point buffer 5. camera frame buffer
+    GLuint buffers[5];
+    GLuint gl_array[5];
+    // map buffers to CUDA
+    cudaGraphicsResource_t buffer_res[5];
 
     // shaders temporary variables
     GLuint shaders[4];
@@ -91,6 +93,7 @@ public:
     void draw_input_depth();
     void draw_mesh();
     void draw_keypoints();
+    void draw_current_camera();
 
     // system control
     fusion::System *system;

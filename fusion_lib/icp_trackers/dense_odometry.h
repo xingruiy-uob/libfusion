@@ -15,6 +15,7 @@ public:
   DenseOdometry(IntrinsicMatrix base, int NUM_PYR);
   void track_frame(RgbdFramePtr current_frame);
   bool keyframe_needed() const;
+  // TODO: not yet implemented
   bool is_tracking_lost() const;
   void create_keyframe();
   void restart_tracking();

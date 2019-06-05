@@ -41,23 +41,23 @@ PRIVATE
 )
 
 # app cli
-add_executable(app_cli "")
+# add_executable(app_cli "")
 
-target_sources(app_cli
-PRIVATE
-    apps/system.cpp
-    apps/main_cli.cpp
-)
+# target_sources(app_cli
+# PRIVATE
+#     apps/system.cpp
+#     apps/main_cli.cpp
+# )
 
-target_include_directories(app_cli
-PUBLIC
-    ${GLFW_INCLUDE_DIRS}
-)
+# target_include_directories(app_cli
+# PUBLIC
+#     ${GLFW_INCLUDE_DIRS}
+# )
 
-target_link_libraries(app_cli
-PRIVATE
-    fusion_lib
-)
+# target_link_libraries(app_cli
+# PRIVATE
+#     fusion_lib
+# )
 
 
 file (GLOB_RECURSE resources "shaders/*.*")

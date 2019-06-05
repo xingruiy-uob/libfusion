@@ -17,10 +17,14 @@ class Relocalizer
 public:
     Relocalizer(IntrinsicMatrix K);
     void insert_keyframe(RgbdFramePtr keyframe);
-    void get_points(float *points, size_t &max_size);
-    void get_points_and_normal(float *points, float *normals, size_t &max_size);
     void reset_relocalizer();
+    // NOTE: this should be running in another thread.
     void main_loop();
+
+    // NOTE: for visualisation purpose only
+    void get_points(float *points, size_t &max_size);
+    // TODO: not implemented
+    void get_points_and_normal(float *points, float *normals, size_t &max_size);
 
     bool should_quit;
 
@@ -34,6 +38,7 @@ private:
     ThreadQueue<RgbdFramePtr> new_keyframe_buffer;
     void process_new_keyframe();
     void extract_feature_points(RgbdFramePtr keyframe);
+    void search_feature_correspondence();
 
     // keyframe graph
     std::vector<RgbdFramePtr> keyframe_graph;

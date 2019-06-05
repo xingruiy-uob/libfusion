@@ -1,4 +1,5 @@
 #include "relocalizer.h"
+#define MAX_SEARCH_RADIUS 5
 
 namespace fusion
 {
@@ -30,6 +31,7 @@ void Relocalizer::main_loop()
 
 void Relocalizer::insert_keyframe(RgbdFramePtr keyframe)
 {
+    // TODO: make this thread safe?
     new_keyframe_buffer.push(keyframe);
 }
 
@@ -94,6 +96,9 @@ void Relocalizer::extract_feature_points(RgbdFramePtr keyframe)
     SURF->detect(source_image, detected_points);
 
     current_point_struct = std::make_shared<FeaturePointFrame>();
+    current_point_struct->cv_key_points.clear();
+    current_point_struct->key_points.clear();
+    current_point_struct->reference = NULL;
 
     if (keyframe->has_scene_data())
     {
@@ -118,16 +123,23 @@ void Relocalizer::extract_feature_points(RgbdFramePtr keyframe)
             // convert point to world coordinate
             point->pos = frame_pose * point->pos;
             point->vec_normal << n(0), n(1), n(2);
-            // Question: will it be better if we put all
-            // opencv feature points into one separate vector?
-            point->source = *iter;
+            current_point_struct->cv_key_points.push_back(*iter);
             current_point_struct->key_points.emplace_back(point);
         }
-
-        current_point_struct->reference = keyframe;
-        // the map consists many small "observations" of it
-        keypoint_map.emplace_back(current_point_struct);
     }
+    else
+    {
+        if (keyframe->get_id() != 0)
+            std::cout << "control flow should not reach here!" << std::endl;
+        current_point_struct->cv_key_points = detected_points;
+    }
+
+    // NOTE: should this be thread safe?
+    keyframe_graph.push_back(keyframe);
+    current_point_struct->reference = keyframe;
+    // the map consists many small "observations" of it
+    // NOTE: should this be thread safe?
+    keypoint_map.emplace_back(current_point_struct);
 }
 
 void Relocalizer::process_new_keyframe()
@@ -135,14 +147,81 @@ void Relocalizer::process_new_keyframe()
     if (new_keyframe_buffer.size_sync() == 0)
         return;
 
+    // thread safe front()
     auto keyframe = new_keyframe_buffer.front_sync();
 
     // extract feature points from the new keyframe
     extract_feature_points(keyframe);
 
+    if (reference_struct != NULL)
+    {
+        search_feature_correspondence();
+    }
+
+    reference_struct = current_point_struct;
     // pop the front element
     // this is thread locked.
     new_keyframe_buffer.pop_sync();
+}
+
+void Relocalizer::search_feature_correspondence()
+{
+    if (reference_struct == NULL)
+        return;
+
+    auto pose_last_inv = reference_struct->reference->get_pose().inverse().cast<float>();
+    auto keypoints_curr = current_point_struct->key_points;
+    auto keypoints_last = reference_struct->key_points;
+    auto cv_keypoints_last = reference_struct->cv_key_points;
+
+    // for visualization only
+    std::vector<cv::DMatch> matches(0);
+
+    for (auto iter = keypoints_curr.begin(); iter != keypoints_curr.end(); ++iter)
+    {
+        auto pt3d = pose_last_inv * (*iter)->pos;
+        float x = cam_param.fx * pt3d(0) / pt3d(2) + cam_param.cx;
+        float y = cam_param.fy * pt3d(1) / pt3d(2) + cam_param.cy;
+
+        float min_dist = MAX_SEARCH_RADIUS;
+        int best_idx = -1;
+        if (x >= 0 && y >= 0 && x <= cam_param.width - 1 && y <= cam_param.height - 1)
+        {
+            for (auto iter2 = cv_keypoints_last.begin(); iter2 != cv_keypoints_last.end(); ++iter2)
+            {
+                float x2 = iter2->pt.x;
+                float y2 = iter2->pt.y;
+                float dist = sqrt(std::pow(x2 - x, 2) + std::pow(y2 - y, 2));
+
+                if (dist < min_dist)
+                {
+                    min_dist = dist;
+                    best_idx = std::distance(cv_keypoints_last.begin(), iter2);
+                }
+            }
+        }
+
+        if (best_idx >= 0)
+        {
+
+            // for visualization only
+            cv::DMatch match;
+            // match.distance = min_dist;
+            match.trainIdx = best_idx;
+            match.queryIdx = std::distance(keypoints_curr.begin(), iter);
+            matches.push_back(match);
+        }
+    }
+
+    // for visualization only
+    // auto image_curr = current_point_struct->reference->get_image();
+    // auto image_last = reference_struct->reference->get_image();
+    // auto cv_key_points_curr = current_point_struct->cv_key_points;
+    // cv::Mat outImg;
+    // cv::drawMatches(image_curr, cv_key_points_curr, image_last, cv_keypoints_last, matches, outImg);
+    // cv::cvtColor(outImg, outImg, cv::COLOR_RGB2BGR);
+    // cv::imshow("img", outImg);
+    // cv::waitKey(0);
 }
 
 } // namespace fusion

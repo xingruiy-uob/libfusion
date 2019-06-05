@@ -121,6 +121,11 @@ void System::fetch_key_points_with_normal(float *points, float *normal, size_t &
     relocalizer->get_points_and_normal(points, normal, max_size);
 }
 
+bool System::is_initialized() const
+{
+    return this->system_initialized;
+}
+
 Eigen::Matrix4f System::get_current_camera_pose() const
 {
     return odometry->get_current_pose_matrix();

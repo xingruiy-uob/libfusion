@@ -43,6 +43,7 @@ public:
 
     // retrieve current camera pose
     Eigen::Matrix4f get_current_camera_pose() const;
+    bool is_initialized() const;
 
     // system controls
     void change_colour_mode(int colour_mode = 0);
@@ -59,12 +60,15 @@ private:
 
     IntrinsicMatrixPyramidPtr cam_param;
 
-    // system module
+    // System modules
     std::shared_ptr<DenseMapping> mapping;
     std::shared_ptr<DenseOdometry> odometry;
     std::shared_ptr<Relocalizer> relocalizer;
-    std::thread relocalizer_thread;
+    std::thread relocalizer_thread; // put relocalizer in another thread
 
+    // Return TRUE if a new key frame is desired
+    // return FALSE otherwise
+    // TODO: this needs to be redesigned.
     bool keyframe_needed() const;
     void create_new_keyframe();
 };

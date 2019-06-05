@@ -8,8 +8,6 @@ int window_width = 0;
 int window_height = 0;
 bool full_screen = false;
 GLFWwindow *window = NULL;
-int WindowManager::run_mode = 0;
-int WindowManager::colour_mode = 0;
 
 // print message for GLFW internal errors
 void error_callback(int error, const char *description)
@@ -49,6 +47,12 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
     {
         wm->colour_mode = (wm->colour_mode + 1) % 3;
         wm->need_update = true;
+    }
+
+    if (key == GLFW_KEY_K && action == GLFW_PRESS)
+    {
+        wm->display_key_points = !wm->display_key_points;
+        wm->referesh_key_points = true;
     }
 }
 
@@ -175,12 +179,18 @@ void window_size_callback(GLFWwindow *window, int width, int height)
 
 WindowManager::WindowManager()
 {
+    colour_mode = 0;
+    run_mode = 0;
+    display_key_points = false;
     full_screen = false;
 }
 
 WindowManager::WindowManager(fusion::System *system) : system(system)
 {
     full_screen = false;
+    colour_mode = 0;
+    run_mode = 0;
+    display_key_points = false;
 }
 
 WindowManager::~WindowManager()
@@ -294,7 +304,8 @@ bool WindowManager::initialize_gl_context(const size_t width, const int height)
     if (!glfwInit())
         return false;
 
-    window = glfwCreateWindow(width, height, "BasicFusion", NULL, NULL);
+    glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
+    window = glfwCreateWindow(width, height, "X FUSION", NULL, NULL);
 
     if (!window)
     {
@@ -331,7 +342,7 @@ bool WindowManager::initialize_gl_context(const size_t width, const int height)
     program[1] = create_program_from_shaders(&shaders[2], 2);
 
     // create array object
-    glGenVertexArrays(1, &gl_array[0]);
+    glGenVertexArrays(5, &gl_array[0]);
     glBindVertexArray(gl_array[0]);
 
     // create buffer object
@@ -345,7 +356,7 @@ bool WindowManager::initialize_gl_context(const size_t width, const int height)
     glEnableVertexAttribArray(1);
 
     // array object for normal
-    glGenVertexArrays(1, &gl_array[1]);
+    // glGenVertexArrays(1, &gl_array[1]);
     glBindVertexArray(gl_array[1]);
 
     glBindBuffer(GL_ARRAY_BUFFER, buffers[0]);
@@ -357,7 +368,7 @@ bool WindowManager::initialize_gl_context(const size_t width, const int height)
     glEnableVertexAttribArray(2);
 
     // vertex array for colour
-    glGenVertexArrays(1, &gl_array[2]);
+    // glGenVertexArrays(1, &gl_array[2]);
     glBindVertexArray(gl_array[2]);
 
     glBindBuffer(GL_ARRAY_BUFFER, buffers[0]);
@@ -370,8 +381,8 @@ bool WindowManager::initialize_gl_context(const size_t width, const int height)
     glEnableVertexAttribArray(2);
 
     // vertex array for key points
-    glGenVertexArrays(1, &gl_array[3]);
-    glGenBuffers(1, &buffers[3]);
+    // glGenVertexArrays(1, &gl_array[3]);
+    glGenBuffers(2, &buffers[3]);
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
@@ -608,7 +619,19 @@ void WindowManager::draw_mesh()
 
 void WindowManager::draw_keypoints()
 {
-    system->fetch_key_points(keypoint3d, num_key_points);
+    if (referesh_key_points)
+    {
+        system->fetch_key_points(keypoint3d, num_key_points);
+        glBindVertexArray(gl_array[3]);
+        glBindBuffer(GL_ARRAY_BUFFER, buffers[3]);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * num_key_points, keypoint3d, GL_STATIC_DRAW);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+        glEnableVertexAttribArray(0);
+        glBindVertexArray(0);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+        referesh_key_points = false;
+    }
 
     glUseProgram(program[1]);
     glBindVertexArray(gl_array[3]);
@@ -617,16 +640,37 @@ void WindowManager::draw_keypoints()
     GLint loc = glGetUniformLocation(program[1], "mvp_matrix");
     glUniformMatrix4fv(loc, 1, GL_FALSE, &mvp_mat[0][0]);
 
-    glBindBuffer(GL_ARRAY_BUFFER, buffers[3]);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * num_key_points, keypoint3d, GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, NULL);
-    glEnableVertexAttribArray(0);
     glPointSize(5);
-
     glDrawArrays(GL_POINTS, 0, num_key_points);
-
     glPointSize(1);
+
+    // clear up
+    glBindVertexArray(0);
+    glUseProgram(0);
+}
+
+void WindowManager::draw_current_camera()
+{
+    if (!system->is_initialized())
+        return;
+
+    auto pose = system->get_current_camera_pose();
+    float vertex[18] = {-1, -1, 1, 1, 1, 1, 1, -1, 1, -1, 1, 1, 1, 1, 1, 1, -1, 1};
+    glBindVertexArray(gl_array[4]);
+    glBindBuffer(GL_ARRAY_BUFFER, buffers[4]);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * 18, vertex, GL_STATIC_DRAW);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, NULL);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    glUseProgram(program[1]);
+    glBindVertexArray(gl_array[4]);
+
+    glm::mat4 mvp_mat = get_view_projection_matrix();
+    GLint loc = glGetUniformLocation(program[1], "mvp_matrix");
+    glUniformMatrix4fv(loc, 1, GL_FALSE, &mvp_mat[0][0]);
+
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+
     glBindVertexArray(0);
     glUseProgram(0);
 }
@@ -648,7 +692,9 @@ void WindowManager::process_images(cv::Mat depth, cv::Mat image)
             set_rendered_scene(system->get_rendered_scene_textured());
             break;
         }
+
         need_update = true;
+        referesh_key_points = true;
         break;
     }
 
@@ -679,7 +725,9 @@ void WindowManager::render_screen()
         break;
     default:
         draw_mesh();
-        draw_keypoints();
+        if (display_key_points)
+            draw_keypoints();
+        draw_current_camera();
         break;
     }
 

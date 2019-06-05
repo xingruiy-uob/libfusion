@@ -43,7 +43,7 @@ public:
 DenseMapping::DenseMappingImpl::DenseMappingImpl(IntrinsicMatrix cam_param)
     : intrinsic_matrix_(cam_param)
 {
-  map_struct_ = std::make_shared<MapStruct>(300000, 450000, 100000, 0.003f);
+  map_struct_ = std::make_shared<MapStruct>(1300000, 1450000, 1000000, 0.004f);
   map_struct_->allocate_device_memory();
   map_struct_->reset_map_struct();
 

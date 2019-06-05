@@ -22,6 +22,7 @@ struct FeaturePoint
 struct FeaturePointFrame
 {
     RgbdFramePtr reference;
+    std::vector<cv::KeyPoint> cv_key_points;
     std::vector<std::shared_ptr<FeaturePoint>> key_points;
     std::unordered_map<RgbdFramePtr, int> neighbours;
 };
