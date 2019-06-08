@@ -36,7 +36,7 @@ void DenseOdometry::track_frame(RgbdFramePtr current_frame)
   {
     auto pose = reference_frame->get_pose() * result.update;
 
-    current_frame->set_reference_frame(reference_frame);
+    // current_frame->set_reference_frame(reference_frame);
     current_frame->set_pose(pose);
 
     reference_frame = current_frame;
