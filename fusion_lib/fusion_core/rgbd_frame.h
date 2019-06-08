@@ -53,6 +53,8 @@ public:
   // set reference frame
   void set_reference_frame(RgbdFramePtr reference);
 
+  void set_scene_data(cv::cuda::GpuMat vmap, cv::cuda::GpuMat nmap);
+
 private:
   cv::Mat source_image;
   cv::Mat source_depth;

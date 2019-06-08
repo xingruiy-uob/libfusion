@@ -17,6 +17,7 @@ pkg_search_module(GLFW REQUIRED glfw3)
 
 add_subdirectory(fusion_lib)
 
+# app gui
 add_executable(app "")
 
 target_sources(app

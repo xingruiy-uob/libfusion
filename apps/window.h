@@ -16,6 +16,7 @@ class WindowManager
 {
 public:
     WindowManager();
+    WindowManager(fusion::System *system);
     ~WindowManager();
 
     // init opengl context and create a window
@@ -27,26 +28,34 @@ public:
     // if window is closed
     bool should_quit() const;
 
+    // process data
+    void process_images(cv::Mat depth, cv::Mat image);
+
     // Main loop
-    void render_scene();
+    void render_screen();
 
     // set display images
+    // TODO: only initiate textures once
+    // **potential performance overhead**
     void set_rendered_scene(cv::Mat scene);
     void set_source_image(cv::Mat image_src);
     void set_input_depth(cv::Mat depth);
 
     // get mapped resources
-    float3 *get_cuda_mapped_ptr(int id);
+    void *get_cuda_mapped_ptr(int id);
     void cuda_unmap_resources(int id);
 
     // system control
-    static int run_mode;
-    static int colour_mode;
-    static bool should_save_file;
-    static bool should_reset;
+    int run_mode;
+    int colour_mode;
+    bool display_key_points;
+    bool referesh_key_points;
 
     // triangle count
     uint num_mesh_triangles;
+    size_t num_key_points;
+    float *keypoint3d;
+    float *point_normal;
 
 public:
     // textures used in our code
@@ -57,10 +66,12 @@ public:
     // phong shading, normal map, colour map
     GLuint program[3];
 
-    // vertex buffer, normal buffer and colour buffer
-    GLuint buffers[3];
-    GLuint gl_array[3];
-    cudaGraphicsResource_t buffer_res[3];
+    // 1.vertex buffer, 2.normal buffer 3.colour buffer
+    // 4.key point buffer 5. camera frame buffer
+    GLuint buffers[5];
+    GLuint gl_array[5];
+    // map buffers to CUDA
+    cudaGraphicsResource_t buffer_res[5];
 
     // shaders temporary variables
     GLuint shaders[4];
@@ -68,6 +79,7 @@ public:
     // camera control
     // TODO: move this to a separate struct
     // probably called "Camera"
+    glm::mat4 get_view_projection_matrix();
     double prev_mouse_pos[2];
     glm::mat4 model_matrix;
     glm::mat4 view_matrix;
@@ -79,13 +91,17 @@ public:
     void draw_source_image();
     void draw_rendered_scene();
     void draw_input_depth();
+    void draw_mesh();
+    void draw_keypoints();
+    void draw_current_camera();
 
+    // system control
     fusion::System *system;
+    bool need_update;
+    bool keypoints_need_update;
 
     // window control
     static void toggle_full_screen();
-
-    glm::mat4 get_view_projection_matrix();
 };
 
 #endif

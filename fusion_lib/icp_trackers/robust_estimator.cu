@@ -482,8 +482,6 @@ void rgb_step(const cv::cuda::GpuMat &curr_intensity,
     create_jtjjtr<6, 7>(host_data, jtj, jtr);
     residual[0] = host_data.ptr<float>()[27];
     residual[1] = host_data.ptr<float>()[28];
-
-    std::cout << stddev_estimate << std::endl;
 }
 
 } // namespace fusion

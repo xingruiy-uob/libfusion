@@ -16,6 +16,7 @@ public:
   void create_scene_mesh();
   void create_scene_mesh(float3 *data, uint &max_size);
   void fetch_mesh_with_normal(float3 *vertex, float3 *normal, uint &max_size);
+  void create_mesh_with_colour(float3 *vertex, uchar3 *colour, uint &max_size);
 
   IntrinsicMatrix intrinsic_matrix_;
   std::shared_ptr<MapStruct> map_struct_;
@@ -42,7 +43,7 @@ public:
 DenseMapping::DenseMappingImpl::DenseMappingImpl(IntrinsicMatrix cam_param)
     : intrinsic_matrix_(cam_param)
 {
-  map_struct_ = std::make_shared<MapStruct>(300000, 450000, 100000, 0.003f);
+  map_struct_ = std::make_shared<MapStruct>(1300000, 1450000, 1000000, 0.004f);
   map_struct_->allocate_device_memory();
   map_struct_->reset_map_struct();
 
@@ -102,24 +103,24 @@ void DenseMapping::DenseMappingImpl::raycast(RgbdImagePtr current_image)
     cast_nmap_ = current_image->get_nmap();
     cast_image_ = current_image->get_image();
 
-    // cuda::raycast_with_colour(
-    //     *map_struct_,
-    //     cast_vmap_,
-    //     cast_nmap_,
-    //     cast_image_,
-    //     zrange_x_,
-    //     zrange_y_,
-    //     pose,
-    //     intrinsic_matrix_);
-
-    cuda::raycast(
+    cuda::raycast_with_colour(
         *map_struct_,
         cast_vmap_,
         cast_nmap_,
+        cast_image_,
         zrange_x_,
         zrange_y_,
         pose,
         intrinsic_matrix_);
+
+    // cuda::raycast(
+    //     *map_struct_,
+    //     cast_vmap_,
+    //     cast_nmap_,
+    //     zrange_x_,
+    //     zrange_y_,
+    //     pose,
+    //     intrinsic_matrix_);
 
     // cv::Mat img(cast_image_);
     // cv::resize(img, img, cv::Size2i(0, 0), 2, 2);
@@ -141,6 +142,11 @@ void DenseMapping::DenseMappingImpl::create_scene_mesh(float3 *data, uint &max_s
 void DenseMapping::DenseMappingImpl::fetch_mesh_with_normal(float3 *vertex, float3 *normal, uint &max_size)
 {
   cuda::create_scene_mesh_with_normal(*map_struct_, block_count, block_list, max_size, vertex, normal);
+}
+
+void DenseMapping::DenseMappingImpl::create_mesh_with_colour(float3 *vertex, uchar3 *colour, uint &max_size)
+{
+  cuda::create_scene_mesh_with_colour(*map_struct_, block_count, block_list, max_size, vertex, colour);
 }
 
 DenseMapping::DenseMapping(IntrinsicMatrix cam_param) : impl(new DenseMappingImpl(cam_param))
@@ -170,6 +176,11 @@ void DenseMapping::create_scene_mesh(float3 *data, uint &max_size)
 void DenseMapping::fetch_mesh_with_normal(float3 *vertex, float3 *normal, uint &max_size)
 {
   impl->fetch_mesh_with_normal(vertex, normal, max_size);
+}
+
+void DenseMapping::create_mesh_with_colour(float3 *vertex, uchar3 *colour, uint &max_size)
+{
+  impl->create_mesh_with_colour(vertex, colour, max_size);
 }
 
 void DenseMapping::restart_mapping()

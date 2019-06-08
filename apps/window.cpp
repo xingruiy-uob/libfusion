@@ -3,13 +3,12 @@
 #include <iostream>
 #include <thread>
 #include <chrono>
+#define MAX_KEY_POINT_NUM 300000
 
 int window_width = 0;
 int window_height = 0;
 bool full_screen = false;
 GLFWwindow *window = NULL;
-int WindowManager::run_mode = 0;
-int WindowManager::colour_mode = 0;
 
 // print message for GLFW internal errors
 void error_callback(int error, const char *description)
@@ -34,7 +33,7 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
 
     // Start and pause the sytem
     if (key == GLFW_KEY_ENTER && action == GLFW_PRESS)
-        wm->run_mode = (wm->run_mode == 1) ? 0 : 1;
+        wm->run_mode = (wm->run_mode + 1) % 2;
 
     // Download mesh to disk
     if (key == GLFW_KEY_S && action == GLFW_PRESS)
@@ -46,7 +45,16 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
 
     // Switch colour
     if (key == GLFW_KEY_C && action == GLFW_PRESS)
-        wm->colour_mode = (wm->colour_mode + 1) % 2;
+    {
+        wm->colour_mode = (wm->colour_mode + 1) % 3;
+        wm->need_update = true;
+    }
+
+    if (key == GLFW_KEY_K && action == GLFW_PRESS)
+    {
+        wm->display_key_points = !wm->display_key_points;
+        wm->referesh_key_points = true;
+    }
 }
 
 // called whenever mouse moved within the window
@@ -67,7 +75,7 @@ static void cursor_position_callback(GLFWwindow *window, double xpos, double ypo
     double y_diff = ypos - wm->prev_mouse_pos[1];
 
     // handle translation
-    if (right_pressed)
+    if (!right_pressed && left_pressed)
     {
         if (x_diff < 0)
             wm->cam_position[0] += 0.005f * sqrt(glm::dot(x_diff, x_diff));
@@ -80,33 +88,61 @@ static void cursor_position_callback(GLFWwindow *window, double xpos, double ypo
     }
 
     // handle rotation
-    // TODO: needs improvement
-    if (left_pressed)
+    // TODO: compute rotation axis based on the mouse position
+    // when it was being clicked
+    if (!left_pressed && right_pressed)
     {
         if (x_diff < 0)
         {
             double speed = 0.5f * abs(x_diff);
-            wm->model_matrix = glm::rotate_slow(wm->model_matrix, glm::radians((float)speed), wm->camera_up_vec);
+            glm::mat4 identity_matrix(1.f);
+            identity_matrix = glm::rotate_slow(identity_matrix, glm::radians((float)speed), wm->camera_up_vec);
+            wm->model_matrix = identity_matrix * wm->model_matrix;
         }
 
         if (x_diff > 0)
         {
             double speed = 0.5f * abs(x_diff);
-            wm->model_matrix = glm::rotate_slow(wm->model_matrix, glm::radians(-(float)speed), wm->camera_up_vec);
+            glm::mat4 identity_matrix(1.f);
+            identity_matrix = glm::rotate_slow(identity_matrix, glm::radians(-(float)speed), wm->camera_up_vec);
+            wm->model_matrix = identity_matrix * wm->model_matrix;
         }
 
         if (y_diff < 0)
         {
             glm::vec3 left_vec = glm::cross(wm->camera_up_vec, wm->lookat_vec);
             double speed = 0.5f * abs(y_diff);
-            wm->model_matrix = glm::rotate_slow(wm->model_matrix, glm::radians((float)speed), left_vec);
+            glm::mat4 identity_matrix(1.f);
+            identity_matrix = glm::rotate_slow(identity_matrix, glm::radians((float)speed), left_vec);
+            wm->model_matrix = identity_matrix * wm->model_matrix;
         }
 
         if (y_diff > 0)
         {
             glm::vec3 left_vec = glm::cross(wm->camera_up_vec, wm->lookat_vec);
             double speed = 0.5f * abs(y_diff);
-            wm->model_matrix = glm::rotate_slow(wm->model_matrix, glm::radians(-(float)speed), left_vec);
+            glm::mat4 identity_matrix(1.f);
+            identity_matrix = glm::rotate_slow(identity_matrix, glm::radians(-(float)speed), left_vec);
+            wm->model_matrix = identity_matrix * wm->model_matrix;
+        }
+    }
+
+    if (left_pressed && right_pressed)
+    {
+        if (x_diff < 0)
+        {
+            double speed = 0.5f * abs(x_diff);
+            glm::mat4 identity_matrix(1.f);
+            identity_matrix = glm::rotate_slow(identity_matrix, glm::radians((float)speed), wm->lookat_vec);
+            wm->model_matrix = identity_matrix * wm->model_matrix;
+        }
+
+        if (x_diff > 0)
+        {
+            double speed = 0.5f * abs(x_diff);
+            glm::mat4 identity_matrix(1.f);
+            identity_matrix = glm::rotate_slow(identity_matrix, glm::radians(-(float)speed), wm->lookat_vec);
+            wm->model_matrix = identity_matrix * wm->model_matrix;
         }
     }
 
@@ -144,7 +180,18 @@ void window_size_callback(GLFWwindow *window, int width, int height)
 
 WindowManager::WindowManager()
 {
+    colour_mode = 0;
+    run_mode = 0;
+    display_key_points = false;
     full_screen = false;
+}
+
+WindowManager::WindowManager(fusion::System *system) : system(system)
+{
+    full_screen = false;
+    colour_mode = 0;
+    run_mode = 0;
+    display_key_points = false;
 }
 
 WindowManager::~WindowManager()
@@ -243,6 +290,10 @@ bool WindowManager::initialize_gl_context(const size_t width, const int height)
     window_width = width;
     window_height = height;
     num_mesh_triangles = 0;
+    colour_mode = 0;
+    num_key_points = 0;
+    keypoint3d = new float[MAX_KEY_POINT_NUM];
+    // point_normal = new float[100000];
     model_matrix = glm::mat4(1.f); // default to identity matrix
     view_matrix = glm::mat4(1.f);
     cam_position = glm::vec3(0, 0, 0);
@@ -254,7 +305,8 @@ bool WindowManager::initialize_gl_context(const size_t width, const int height)
     if (!glfwInit())
         return false;
 
-    window = glfwCreateWindow(width, height, "BasicFusion", NULL, NULL);
+    glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
+    window = glfwCreateWindow(width, height, "X FUSION", NULL, NULL);
 
     if (!window)
     {
@@ -286,8 +338,12 @@ bool WindowManager::initialize_gl_context(const size_t width, const int height)
     shaders[1] = load_shader_from_file("./shaders/fragment.shader", GL_FRAGMENT_SHADER);
     program[0] = create_program_from_shaders(&shaders[0], 2);
 
+    shaders[2] = load_shader_from_file("./shaders/colour.shader", GL_VERTEX_SHADER);
+    shaders[3] = load_shader_from_file("./shaders/fragment.shader", GL_FRAGMENT_SHADER);
+    program[1] = create_program_from_shaders(&shaders[2], 2);
+
     // create array object
-    glGenVertexArrays(1, &gl_array[0]);
+    glGenVertexArrays(5, &gl_array[0]);
     glBindVertexArray(gl_array[0]);
 
     // create buffer object
@@ -300,12 +356,42 @@ bool WindowManager::initialize_gl_context(const size_t width, const int height)
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, NULL);
     glEnableVertexAttribArray(1);
 
+    // array object for normal
+    // glGenVertexArrays(1, &gl_array[1]);
+    glBindVertexArray(gl_array[1]);
+
+    glBindBuffer(GL_ARRAY_BUFFER, buffers[0]);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+    glEnableVertexAttribArray(0);
+
+    glBindBuffer(GL_ARRAY_BUFFER, buffers[1]);
+    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+    glEnableVertexAttribArray(2);
+
+    // vertex array for colour
+    // glGenVertexArrays(1, &gl_array[2]);
+    glBindVertexArray(gl_array[2]);
+
+    glBindBuffer(GL_ARRAY_BUFFER, buffers[0]);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+    glEnableVertexAttribArray(0);
+
+    size = sizeof(GLchar) * 50000000 * 3;
+    buffers[2] = create_buffer_and_bind(size);
+    glVertexAttribPointer(2, 3, GL_UNSIGNED_BYTE, GL_TRUE, 0, NULL);
+    glEnableVertexAttribArray(2);
+
+    // vertex array for key points
+    // glGenVertexArrays(1, &gl_array[3]);
+    glGenBuffers(2, &buffers[3]);
+
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
 
     // bind buffer object to CUDA
     safe_call(cudaGraphicsGLRegisterBuffer(&buffer_res[0], buffers[0], cudaGraphicsMapFlagsWriteDiscard));
     safe_call(cudaGraphicsGLRegisterBuffer(&buffer_res[1], buffers[1], cudaGraphicsMapFlagsWriteDiscard));
+    safe_call(cudaGraphicsGLRegisterBuffer(&buffer_res[2], buffers[2], cudaGraphicsMapFlagsWriteDiscard));
 
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LESS);
@@ -356,8 +442,6 @@ void WindowManager::set_input_depth(cv::Mat depth)
 {
     cv::Mat coloured_depth;
     depth.convertTo(coloured_depth, CV_8UC1, 255.f / 20);
-    // cv::applyColorMap(coloured_depth, coloured_depth, cv::COLORMAP_OCEAN);
-    // cv::cvtColor(coloured_depth, coloured_depth, cv::COLOR_GRAY2RGB);
 
     glBindTexture(GL_TEXTURE_2D, textures[1]);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -380,9 +464,9 @@ void WindowManager::set_input_depth(cv::Mat depth)
         coloured_depth.ptr());
 }
 
-float3 *WindowManager::get_cuda_mapped_ptr(int id)
+void *WindowManager::get_cuda_mapped_ptr(int id)
 {
-    float3 *dev_ptr;
+    void *dev_ptr;
     safe_call(cudaGraphicsMapResources(1, &buffer_res[id]));
     size_t num_bytes;
     cudaGraphicsResourceGetMappedPointer((void **)&dev_ptr, &num_bytes, buffer_res[id]);
@@ -466,33 +550,195 @@ glm::mat4 WindowManager::get_view_projection_matrix()
     return projection_matrix * view_matrix * model_matrix;
 }
 
-void WindowManager::render_scene()
+void WindowManager::draw_mesh()
+{
+    if (need_update)
+    {
+        switch (colour_mode)
+        {
+        case 0:
+        case 1:
+        {
+            float3 *vertex_ptr = (float3 *)get_cuda_mapped_ptr(0);
+            float3 *normal_ptr = (float3 *)get_cuda_mapped_ptr(1);
+            system->fetch_mesh_with_normal(vertex_ptr, normal_ptr, num_mesh_triangles);
+            cuda_unmap_resources(0);
+            cuda_unmap_resources(1);
+            break;
+        }
+        case 2:
+        {
+            float3 *vertex_ptr = (float3 *)get_cuda_mapped_ptr(0);
+            uchar3 *colour_ptr = (uchar3 *)get_cuda_mapped_ptr(2);
+            system->fetch_mesh_with_colour(vertex_ptr, colour_ptr, num_mesh_triangles);
+            cuda_unmap_resources(0);
+            cuda_unmap_resources(2);
+            break;
+        }
+        }
+
+        need_update = false;
+    }
+
+    if (num_mesh_triangles != 0)
+    {
+        switch (colour_mode)
+        {
+        case 0:
+        {
+            glUseProgram(program[0]);
+            glBindVertexArray(gl_array[0]);
+            glm::mat4 mvp_mat = get_view_projection_matrix();
+            GLint loc = glGetUniformLocation(program[0], "mvp_matrix");
+            glUniformMatrix4fv(loc, 1, GL_FALSE, &mvp_mat[0][0]);
+            break;
+        }
+        case 1:
+        {
+            glUseProgram(program[1]);
+            glBindVertexArray(gl_array[1]);
+            glm::mat4 mvp_mat = get_view_projection_matrix();
+            GLint loc = glGetUniformLocation(program[1], "mvp_matrix");
+            glUniformMatrix4fv(loc, 1, GL_FALSE, &mvp_mat[0][0]);
+            break;
+        }
+        case 2:
+        {
+            glUseProgram(program[1]);
+            glBindVertexArray(gl_array[2]);
+            glm::mat4 mvp_mat = get_view_projection_matrix();
+            GLint loc = glGetUniformLocation(program[1], "mvp_matrix");
+            glUniformMatrix4fv(loc, 1, GL_FALSE, &mvp_mat[0][0]);
+            break;
+        }
+        }
+
+        glDrawArrays(GL_TRIANGLES, 0, num_mesh_triangles * 3);
+        glUseProgram(0);
+    }
+}
+
+void WindowManager::draw_keypoints()
+{
+    if (referesh_key_points)
+    {
+        system->fetch_key_points(keypoint3d, num_key_points);
+        glBindVertexArray(gl_array[3]);
+        glBindBuffer(GL_ARRAY_BUFFER, buffers[3]);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * num_key_points, keypoint3d, GL_STATIC_DRAW);
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+        glEnableVertexAttribArray(0);
+        glBindVertexArray(0);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+        referesh_key_points = false;
+    }
+
+    glUseProgram(program[1]);
+    glBindVertexArray(gl_array[3]);
+
+    glm::mat4 mvp_mat = get_view_projection_matrix();
+    GLint loc = glGetUniformLocation(program[1], "mvp_matrix");
+    glUniformMatrix4fv(loc, 1, GL_FALSE, &mvp_mat[0][0]);
+
+    glPointSize(5);
+    glDrawArrays(GL_POINTS, 0, num_key_points);
+    glPointSize(1);
+
+    // clear up
+    glBindVertexArray(0);
+    glUseProgram(0);
+}
+
+void WindowManager::draw_current_camera()
+{
+    if (!system->is_initialized())
+        return;
+
+    auto pose = system->get_current_camera_pose();
+    float vertex[18] = {-1, -1, 1, 1, 1, 1, 1, -1, 1, -1, 1, 1, 1, 1, 1, 1, -1, 1};
+    glBindVertexArray(gl_array[4]);
+    glBindBuffer(GL_ARRAY_BUFFER, buffers[4]);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * 18, vertex, GL_STATIC_DRAW);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+    glUseProgram(program[1]);
+    glBindVertexArray(gl_array[4]);
+
+    glm::mat4 mvp_mat = get_view_projection_matrix();
+    GLint loc = glGetUniformLocation(program[1], "mvp_matrix");
+    glUniformMatrix4fv(loc, 1, GL_FALSE, &mvp_mat[0][0]);
+
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+
+    glBindVertexArray(0);
+    glUseProgram(0);
+}
+
+void WindowManager::process_images(cv::Mat depth, cv::Mat image)
+{
+    switch (run_mode)
+    {
+    case 1:
+        system->process_images(depth, image);
+
+        switch (colour_mode)
+        {
+        case 0:
+            set_rendered_scene(system->get_rendered_scene());
+            break;
+        case 1:
+        case 2:
+            set_rendered_scene(system->get_rendered_scene_textured());
+            break;
+        }
+
+        need_update = true;
+        referesh_key_points = true;
+        break;
+    }
+
+    set_source_image(image);
+    set_input_depth(depth);
+}
+
+void WindowManager::render_screen()
 {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glClearColor(0.f, 0.f, 0.f, 1.f);
 
-    int separate_x = (int)((float)window_width / 3);
-    glViewport(separate_x * 2, 0, separate_x, window_height / 2);
+    // TODO: make this a class member
+    // only calculate once when window size changed
+    int divider = (int)((float)window_width / 3);
+
+    // bottom right viewport
+    glViewport(divider * 2, 0, divider, window_height / 2);
     draw_source_image();
 
-    glViewport(0, 0, separate_x * 2, window_height);
-    if (run_mode == 1)
-        draw_rendered_scene();
-    else if (num_mesh_triangles != 0)
-    {
-        glUseProgram(program[0]);
-        glBindVertexArray(gl_array[0]);
-        glm::mat4 mvp_mat = get_view_projection_matrix();
+    // main viewport: left centre
+    glViewport(0, 0, divider * 2, window_height);
 
-        GLint loc = glGetUniformLocation(program[0], "mvp_matrix");
-        glUniformMatrix4fv(loc, 1, GL_FALSE, &mvp_mat[0][0]);
-        glDrawArrays(GL_TRIANGLES, 0, num_mesh_triangles * 3);
-        glUseProgram(0);
+    switch (run_mode)
+    {
+    case 1:
+        // online system
+        draw_rendered_scene();
+        break;
+    case 0:
+        // system offline
+        draw_mesh();
+        if (display_key_points)
+            draw_keypoints();
+        // draw_current_camera();
+        break;
     }
 
-    glViewport(separate_x * 2, window_height / 2, separate_x, window_height / 2);
+    // top right viewport
+    glViewport(divider * 2, window_height / 2, divider, window_height / 2);
     draw_input_depth();
 
+    // finish drawing calls
     glfwSwapBuffers(window);
     glfwPollEvents();
 }

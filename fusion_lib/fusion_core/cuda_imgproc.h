@@ -22,7 +22,7 @@ void build_normal_pyramid(const std::vector<cv::cuda::GpuMat> &vmap_pyr, std::ve
 
 void resize_device_map(std::vector<cv::cuda::GpuMat> &map_pyr);
 
-// Shaded scene without texures
+// Shaded scene without textures
 void render_scene(
     const cv::cuda::GpuMat vmap,
     const cv::cuda::GpuMat nmap,

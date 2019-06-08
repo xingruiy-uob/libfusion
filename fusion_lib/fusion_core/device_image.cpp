@@ -152,14 +152,9 @@ cv::cuda::GpuMat DeviceImage::get_raw_depth() const
     return depth_float;
 }
 
-cv::cuda::GpuMat DeviceImage::get_image(const int &level) const
+cv::cuda::GpuMat DeviceImage::get_image() const
 {
-    if (level == 0)
-        return image;
-    else
-    {
-        return image;
-    }
+    return image;
 }
 
 RgbdFramePtr DeviceImage::get_reference_frame() const
