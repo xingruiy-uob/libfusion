@@ -83,24 +83,34 @@ void Relocalizer::get_points_and_normal(float *points, float *normals, size_t &m
     }
 }
 
-void Relocalizer::set_relocalization_target(RgbdFramePtr frame)
+void Relocalizer::set_target(RgbdFramePtr frame)
 {
     relocalization_target = frame;
 }
 
-void Relocalizer::get_relocalized_result()
+void Relocalizer::compute_relocalization()
 {
     cv::Mat source_img = relocalization_target->get_image();
     std::vector<cv::KeyPoint> detected_points;
     SURF->detect(source_img, detected_points);
 
     auto depth = relocalization_target->get_depth();
+    std::vector<float> keypoint_depth(0);
+    std::vector<cv::KeyPoint> keypoints(0);
 
-    auto ibegin = detected_points.begin();
-    auto iend = detected_points.end();
-    for (auto iter = ibegin; iter != iend; iter++)
+    for (const auto &kp : detected_points)
     {
+        const auto z = depth.ptr((int)(kp.pt.y + 0.5f))[(int)(kp.pt.x + 0.5f)];
+
+        if (z > 0.2f)
+        {
+            keypoint_depth.push_back(z);
+            keypoints.push_back(kp);
+        }
     }
+
+    cv::Mat descriptors;
+    BRISK->compute(source_img, keypoints, descriptors);
 }
 
 void Relocalizer::set_all_points_unvisited()

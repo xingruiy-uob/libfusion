@@ -26,8 +26,8 @@ public:
     // TODO: not implemented
     void get_points_and_normal(float *points, float *normals, size_t &max_size);
 
-    void set_relocalization_target(RgbdFramePtr frame);
-    void get_relocalized_result();
+    void set_target(RgbdFramePtr frame);
+    void compute_relocalization();
 
     bool should_quit;
 
