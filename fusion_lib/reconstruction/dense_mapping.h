@@ -32,6 +32,7 @@ public:
   void raycast(cv::cuda::GpuMat &vmap, cv::cuda::GpuMat &image, const Sophus::SE3d pose);
 
   void restart_mapping();
+  void create_new_submap();
   size_t create_mesh_with_normal(float3 *vertex, float3 *normal);
 
 private:

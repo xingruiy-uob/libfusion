@@ -72,6 +72,7 @@ void System::create_new_keyframe()
 {
     current_keyframe = last_tracked_frame;
     relocalizer->insert_keyframe(current_keyframe);
+    mapping->create_new_submap();
 }
 
 cv::Mat System::get_rendered_scene() const

@@ -323,6 +323,14 @@ void DenseMapping::restart_mapping()
   active_map->reset_map_struct();
 }
 
+void DenseMapping::create_new_submap()
+{
+  active_map_index += 1;
+  active_map_index %= NUM_PYRS;
+  auto active_map = device_maps[active_map_index];
+  // active_map->reset_map_struct();
+}
+
 size_t DenseMapping::create_mesh_with_normal(float3 *vertex, float3 *normal)
 {
   auto active_map = device_maps[active_map_index];
