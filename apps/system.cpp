@@ -43,8 +43,11 @@ void System::process_images(const cv::Mat depth, const cv::Mat image)
         auto reference_image = odometry->get_reference_image();
         auto reference_frame = reference_image->get_reference_frame();
 
-        mapping->update(reference_image);
-        mapping->raycast(reference_image);
+        mapping->update(reference_image->depth_float, reference_image->get_image(), reference_frame->get_pose());
+        mapping->raycast(reference_image->vmap_pyr[0], reference_image->nmap_pyr[0], reference_frame->get_pose());
+
+        // mapping->update(reference_image);
+        // mapping->raycast(reference_image);
         reference_image->resize_device_map();
         reference_frame->set_scene_data(reference_image->get_vmap(), reference_image->get_nmap());
 
@@ -92,23 +95,23 @@ void System::restart()
 
 void System::save_mesh_to_file(const char *str)
 {
-    mapping->create_scene_mesh();
-    mapping->write_mesh_to_file(str);
+    // mapping->create_scene_mesh();
+    // mapping->write_mesh_to_file(str);
 }
 
 void System::fetch_mesh_vertex_only(float3 *data, uint &max_size)
 {
-    mapping->create_scene_mesh(data, max_size);
+    // mapping->create_scene_mesh(data, max_size);
 }
 
 void System::fetch_mesh_with_normal(float3 *vertex, float3 *normal, uint &max_size)
 {
-    mapping->fetch_mesh_with_normal(vertex, normal, max_size);
+    max_size = mapping->create_mesh_with_normal(vertex, normal);
 }
 
 void System::fetch_mesh_with_colour(float3 *vertex, uchar3 *colour, uint &max_size)
 {
-    mapping->create_mesh_with_colour(vertex, colour, max_size);
+    // mapping->create_mesh_with_colour(vertex, colour, max_size);
 }
 
 void System::fetch_key_points(float *points, size_t &max_size)

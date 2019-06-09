@@ -6,68 +6,55 @@ MapState state;
 bool state_initialised = false;
 __device__ MapState param;
 
-void update_device_map_state()
+MapStruct::MapStruct()
 {
-    safe_call(cudaMemcpyToSymbol(param, &state, sizeof(MapState)));
-
     if (!state_initialised)
+    {
+        state.num_total_buckets_ = 80000;
+        state.num_total_hash_entries_ = 100000;
+        state.voxel_size_ = 0.004f;
+        state.num_total_voxel_blocks_ = 65535;
+        state.depth_min = 0.1f;
+        state.depth_max = 3.0f;
+        state.zmax_raycast_ = 3.0f;
+        state.zmax_update_ = 3.0f;
+        state.zmin_update_ = 0.1f;
+        state.zmin_raycast_ = 0.1f;
+        state.num_max_rendering_blocks_ = 100000;
+        state.num_max_mesh_triangles_ = 20000000;
+
+        safe_call(cudaMemcpyToSymbol(param, &state, sizeof(MapState)));
         state_initialised = true;
+    }
 }
 
-MapStruct::MapStruct(const int &n_buckets, const int &n_entries, const int &n_blocks, const float &voxel_size)
+void MapStruct::allocate_memory(const bool &on_device)
 {
-    assert(n_entries > n_buckets);
-
-    state.num_total_buckets_ = n_buckets;
-    state.num_total_hash_entries_ = n_entries;
-    state.voxel_size_ = voxel_size;
-    state.num_total_voxel_blocks_ = n_blocks;
-    state.zmax_raycast_ = 3.0f;
-    state.zmax_update_ = 3.0f;
-    state.zmin_raycast_ = 0.1f;
-    state.zmin_update_ = 0.1f;
-
-    state.num_max_rendering_blocks_ = 200000; // negligible
-    state.num_max_mesh_triangles_ = 50000000; // approxi. 0.55 GB
-
-    update_device_map_state();
+    if (on_device)
+    {
+        safe_call(cudaMalloc((void **)&excess_counter_, sizeof(int)));
+        safe_call(cudaMalloc((void **)&heap_mem_counter_, sizeof(int)));
+        safe_call(cudaMalloc((void **)&bucket_mutex_, sizeof(int) * state.num_total_buckets_));
+        safe_call(cudaMalloc((void **)&heap_mem_, sizeof(int) * state.num_total_voxel_blocks_));
+        safe_call(cudaMalloc((void **)&hash_table_, sizeof(HashEntry) * state.num_total_hash_entries_));
+        safe_call(cudaMalloc((void **)&voxels_, sizeof(Voxel) * state.num_total_voxels()));
+    }
+    else
+    {
+    }
 }
 
-void MapStruct::allocate_device_memory()
+void MapStruct::release_memory(const bool &on_device)
 {
-    safe_call(cudaMalloc((void **)&excess_counter_, sizeof(int)));
-    safe_call(cudaMalloc((void **)&heap_mem_counter_, sizeof(int)));
-    safe_call(cudaMalloc((void **)&bucket_mutex_, sizeof(int) * state.num_total_buckets_));
-    safe_call(cudaMalloc((void **)&heap_mem_, sizeof(int) * state.num_total_voxel_blocks_));
-    safe_call(cudaMalloc((void **)&hash_table_, sizeof(HashEntry) * state.num_total_hash_entries_));
-    safe_call(cudaMalloc((void **)&visible_block_pos_, sizeof(HashEntry) * state.num_total_hash_entries_));
-    safe_call(cudaMalloc((void **)&voxels_, sizeof(Voxel) * state.num_total_voxels()));
-    safe_call(cudaMalloc((void **)&visible_block_count_, sizeof(uint)));
-    safe_call(cudaMalloc((void **)&rendering_blocks, sizeof(RenderingBlock) * state.num_max_rendering_blocks_));
-    safe_call(cudaMalloc((void **)&rendering_block_count, sizeof(uint)));
-
-    size_t count = 0;
-    count += sizeof(int) * state.num_total_buckets_;
-    count += sizeof(int) * state.num_total_voxel_blocks_;
-    count += sizeof(HashEntry) * state.num_total_hash_entries_;
-    count += sizeof(HashEntry) * state.num_total_hash_entries_;
-    count += sizeof(Voxel) * state.num_total_voxels();
-    count += sizeof(RenderingBlock) * state.num_max_rendering_blocks_;
-
-    std::cout << "Memory Allocated with " << count / (1024 * 1024 * 1024.f) << " GB" << std::endl;
-}
-
-void MapStruct::release_device_memory()
-{
-    safe_call(cudaFree((void *)heap_mem_));
-    safe_call(cudaFree((void *)heap_mem_counter_));
-    safe_call(cudaFree((void *)hash_table_));
-    safe_call(cudaFree((void *)bucket_mutex_));
-    safe_call(cudaFree((void *)excess_counter_));
-    safe_call(cudaFree((void *)visible_block_pos_));
-    safe_call(cudaFree((void *)voxels_));
-    safe_call(cudaFree((void *)rendering_blocks));
-    safe_call(cudaFree((void *)rendering_block_count));
+    if (on_device)
+    {
+        safe_call(cudaFree((void *)heap_mem_));
+        safe_call(cudaFree((void *)heap_mem_counter_));
+        safe_call(cudaFree((void *)hash_table_));
+        safe_call(cudaFree((void *)bucket_mutex_));
+        safe_call(cudaFree((void *)excess_counter_));
+        safe_call(cudaFree((void *)voxels_));
+    }
 }
 
 __global__ void reset_hash_entries_kernel(HashEntry *hash_table, int max_num)
@@ -109,12 +96,6 @@ void MapStruct::reset_map_struct()
     safe_call(cudaMemset(excess_counter_, 0, sizeof(int)));
     safe_call(cudaMemset(bucket_mutex_, 0, sizeof(int) * state.num_total_buckets_));
     safe_call(cudaMemset(voxels_, 0, sizeof(Voxel) * state.num_total_voxels()));
-
-    reset_visible_block_count();
-    reset_rendering_block_count();
-
-    safe_call(cudaDeviceSynchronize());
-    safe_call(cudaGetLastError());
 }
 
 void MapStruct::reset_visible_block_count()

@@ -27,10 +27,10 @@ PRIVATE
 
     # Reconstruction module
     reconstruction/dense_mapping.cpp
-    reconstruction/map_struct.cu
-    reconstruction/depth_fusion.cu
-    reconstruction/ray_tracing.cu
-    reconstruction/scene_mesh.cu
+    reconstruction/cuda/map_struct.cu
+    reconstruction/cuda/depth_fusion.cu
+    reconstruction/cuda/ray_tracing.cu
+    reconstruction/cuda/scene_mesh.cu
 
     # Relocalization module
     relocalization/relocalizer.cpp
@@ -51,6 +51,7 @@ PUBLIC
     ${PROJECT_SOURCE_DIR}/icp_trackers
     ${PROJECT_SOURCE_DIR}/relocalization
     ${PROJECT_SOURCE_DIR}/reconstruction
+    ${PROJECT_SOURCE_DIR}/reconstruction/cuda
     ${CUDA_INCLUDE_DIRS}
     ${OpenCV_INCLUDE_DIRS}
 )

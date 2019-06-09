@@ -40,6 +40,9 @@ struct MapState
     float zmax_update_;
     float voxel_size_;
 
+    float depth_min;
+    float depth_max;
+
     __device__ __host__ int num_total_voxels() const;
     __device__ __host__ int num_excess_entries() const;
     __device__ __host__ int num_total_mesh_vertices() const;
@@ -82,12 +85,12 @@ struct HashEntry
 
 struct MapStruct
 {
-    MapStruct() = default;
-    MapStruct(const MapState &);
-    MapStruct(const int &n_buckets, const int &n_entries, const int &n_blocks, const float &voxel_size);
+    MapStruct();
+    MapStruct(const MapState &) = delete;
+    MapStruct &operator=(const MapState &) = delete;
 
-    void allocate_device_memory();
-    void release_device_memory();
+    void allocate_memory(const bool &on_device = false);
+    void release_memory(const bool &on_device = false);
     void reset_map_struct();
     void reset_visible_block_count();
     void get_visible_block_count(uint &count) const;

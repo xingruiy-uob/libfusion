@@ -48,7 +48,6 @@ public:
     void create_vmap_pyramid(const int max_level); // TODO
     void create_nmap_pyramid(const int max_level); // TODO
 
-private:
     RgbdFramePtr reference_frame;
 
     // original image in CV_8UC3

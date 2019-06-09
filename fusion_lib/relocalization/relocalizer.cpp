@@ -44,7 +44,7 @@ void Relocalizer::get_points(float *pt3d, size_t &max_size)
     {
         for (const auto &point : point_frame->key_points)
         {
-            if (point->observations.size() < 2 || point->visited)
+            if (point->observations.size() <= 1 || point->visited)
                 continue;
 
             pt3d[max_size * 3 + 0] = point->pos(0);
@@ -204,6 +204,7 @@ void Relocalizer::extract_feature_points(RgbdFramePtr keyframe)
         if (keyframe->get_id() != 0)
             std::cout << "control flow should not reach here!" << std::endl;
         current_point_struct->cv_key_points = detected_points;
+        current_point_struct->key_points.resize(detected_points.size());
     }
 
     // NOTE: should this be thread safe?
@@ -275,12 +276,17 @@ void Relocalizer::search_feature_correspondence()
 
         if (best_idx >= 0)
         {
-            (*iter)->observations.emplace_back(std::make_pair(reference_struct->reference, best_idx));
+            if (keypoints_last[best_idx] == NULL)
+                keypoints_last[best_idx] = *iter;
+
+            auto keypoint_idx_curr = std::distance(keypoints_curr.begin(), iter);
+            keypoints_last[best_idx]->observations.emplace_back(std::make_pair(current_point_struct->reference, keypoint_idx_curr));
+
             // for visualization only
             cv::DMatch match;
             // match.distance = min_dist;
             match.trainIdx = best_idx;
-            match.queryIdx = std::distance(keypoints_curr.begin(), iter);
+            match.queryIdx = keypoint_idx_curr;
             matches.push_back(match);
         }
     }

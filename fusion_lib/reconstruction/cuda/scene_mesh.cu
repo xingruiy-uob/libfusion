@@ -2,7 +2,7 @@
 #include "vector_math.h"
 #include "cuda_utils.h"
 #include "prefix_sum.h"
-#include "constants.h"
+#include "cuda_constants.h"
 
 namespace fusion
 {
@@ -14,7 +14,7 @@ struct BuildVertexArray
     MapStruct map_struct;
 
     float3 *triangles;
-    int3 *block_array;
+    HashEntry *block_array;
     uint *block_count;
     uint *triangle_count;
     float3 *surface_normal;
@@ -44,7 +44,7 @@ struct BuildVertexArray
             int offset = exclusive_scan<1024>(val, block_count);
             if (offset != -1)
             {
-                block_array[offset] = map_struct.hash_table_[x].pos_;
+                block_array[offset] = map_struct.hash_table_[x];
             }
         }
     }
@@ -214,7 +214,7 @@ struct BuildVertexArray
             return;
 
         float3 vertex_array[12];
-        int3 pos = block_array[x] * BLOCK_SIZE;
+        int3 pos = block_array[x].pos_ * BLOCK_SIZE;
         auto factor = param.voxel_size_;
 
         for (int voxel_id = 0; voxel_id < BLOCK_SIZE; ++voxel_id)
@@ -258,7 +258,7 @@ __global__ void generate_vertex_array_kernel(BuildVertexArray bva)
 void create_scene_mesh(
     MapStruct map_struct,
     uint &block_count,
-    int3 *block_list,
+    HashEntry *block_list,
     uint &triangle_count,
     float3 *vertex_data)
 {
@@ -302,10 +302,10 @@ __global__ void generate_vertex_and_normal_array_kernel(BuildVertexArray bva)
     bva.operator()<true>();
 }
 
-void create_scene_mesh_with_normal(
+void create_mesh_with_normal(
     MapStruct map_struct,
     uint &block_count,
-    int3 *block_list,
+    HashEntry *block_list,
     uint &triangle_count,
     float3 *vertex_data,
     float3 *vertex_normal)
@@ -351,7 +351,7 @@ struct BuildVertexAndColourArray
     MapStruct map_struct;
 
     float3 *triangles;
-    int3 *block_array;
+    HashEntry *block_array;
     uint *block_count;
     uint *triangle_count;
     uchar3 *vertex_colour;
@@ -381,7 +381,7 @@ struct BuildVertexAndColourArray
             int offset = exclusive_scan<1024>(val, block_count);
             if (offset != -1)
             {
-                block_array[offset] = map_struct.hash_table_[x].pos_;
+                block_array[offset] = map_struct.hash_table_[x];
             }
         }
     }
@@ -555,7 +555,7 @@ struct BuildVertexAndColourArray
 
         float3 vertex_array[12];
         uchar3 colour_array[12];
-        int3 pos = block_array[x] * BLOCK_SIZE;
+        int3 pos = block_array[x].pos_ * BLOCK_SIZE;
         auto factor = param.voxel_size_;
 
         for (int voxel_id = 0; voxel_id < BLOCK_SIZE; ++voxel_id)
@@ -596,7 +596,7 @@ __global__ void generate_vertex_and_colour_array_kernel(BuildVertexAndColourArra
 void create_scene_mesh_with_colour(
     MapStruct map_struct,
     uint &block_count,
-    int3 *block_list,
+    HashEntry *block_list,
     uint &triangle_count,
     float3 *vertex_data,
     uchar3 *vertex_colour)

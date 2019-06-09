@@ -117,12 +117,12 @@ __global__ void create_blocks_kernel(MapStruct map_struct, cv::cuda::PtrStepSz<f
         return;
 
     float z = depth.ptr(y)[x];
-    if (isnan(z) || z < param.zmin_update_ || z > param.zmax_update_)
+    if (isnan(z) || z < param.depth_min || z > param.depth_max)
         return;
 
     float z_thresh = param.truncation_dist() * 0.5;
-    float z_near = min(param.zmax_update_, z - z_thresh);
-    float z_far = min(param.zmax_update_, z + z_thresh);
+    float z_near = max(param.depth_min, z - z_thresh);
+    float z_far = min(param.depth_max, z + z_thresh);
     if (z_near >= z_far)
         return;
 
@@ -243,7 +243,7 @@ __global__ void update_map_kernel(MapStruct map_struct,
             continue;
 
         float dist = depth.ptr(v)[u];
-        if (isnan(dist) || dist < 1e-2 || dist > param.zmax_update_ || dist < param.zmin_update_)
+        if (isnan(dist) || dist < 1e-2 || dist > param.depth_max || dist < param.depth_min)
             continue;
 
         float sdf = dist - pt.z;
@@ -272,16 +272,18 @@ __global__ void update_map_kernel(MapStruct map_struct,
 }
 
 __global__ void update_map_with_colour_kernel(MapStruct map_struct,
+                                              HashEntry *visible_blocks,
+                                              uint count_visible_block,
                                               cv::cuda::PtrStepSz<float> depth,
                                               cv::cuda::PtrStepSz<uchar3> image,
                                               DeviceMatrix3x4 inv_pose,
                                               float fx, float fy,
                                               float cx, float cy)
 {
-    if (blockIdx.x >= param.num_total_hash_entries_ || blockIdx.x >= *map_struct.visible_block_count_)
+    if (blockIdx.x >= param.num_total_hash_entries_ || blockIdx.x >= count_visible_block)
         return;
 
-    HashEntry &current = map_struct.visible_block_pos_[blockIdx.x];
+    HashEntry &current = visible_blocks[blockIdx.x];
 
     int3 voxel_pos = map_struct.block_pos_to_voxel_pos(current.pos_);
     float dist_thresh = param.truncation_dist();
@@ -299,7 +301,7 @@ __global__ void update_map_with_colour_kernel(MapStruct map_struct,
             continue;
 
         float dist = depth.ptr(v)[u];
-        if (isnan(dist) || dist < 1e-2 || dist > param.zmax_update_ || dist < param.zmin_update_)
+        if (isnan(dist) || dist < 1e-2 || dist > param.depth_max || dist < param.depth_min)
             continue;
 
         float sdf = dist - pt.z;
@@ -345,6 +347,7 @@ void update(MapStruct map_struct,
             const IntrinsicMatrix K,
             cv::cuda::GpuMat &cv_flag,
             cv::cuda::GpuMat &cv_pos_array,
+            HashEntry *visible_blocks,
             uint &visible_block_count)
 {
     if (cv_flag.empty())
@@ -361,25 +364,50 @@ void update(MapStruct map_struct,
     dim3 thread(8, 8);
     dim3 block(div_up(cols, thread.x), div_up(rows, thread.y));
 
-    create_blocks_kernel<<<block, thread>>>(map_struct, depth, K.invfx, K.invfy, K.cx, K.cy, frame_pose, flag.get());
+    create_blocks_kernel<<<block, thread>>>(
+        map_struct,
+        depth,
+        K.invfx,
+        K.invfy,
+        K.cx, K.cy,
+        frame_pose,
+        flag.get());
 
     thread = dim3(MAX_THREAD);
     block = dim3(div_up(state.num_total_hash_entries_, thread.x));
 
-    check_visibility_flag_kernel<<<block, thread>>>(map_struct, flag.get(), frame_pose.inverse(), cols, rows, K.fx, K.fy, K.cx, K.cy);
+    check_visibility_flag_kernel<<<block, thread>>>(
+        map_struct,
+        flag.get(),
+        frame_pose.inverse(),
+        cols, rows,
+        K.fx, K.fy,
+        K.cx, K.cy);
+
     thrust::exclusive_scan(flag, flag + state.num_total_hash_entries_, pos_array);
-    copy_visible_block_kernel<<<block, thread>>>(map_struct.hash_table_, map_struct.visible_block_pos_, flag.get(), pos_array.get());
+
+    copy_visible_block_kernel<<<block, thread>>>(
+        map_struct.hash_table_,
+        visible_blocks,
+        flag.get(),
+        pos_array.get());
+
     visible_block_count = pos_array[state.num_total_hash_entries_ - 1];
 
-    safe_call(cudaMemcpy(map_struct.visible_block_count_, &visible_block_count, sizeof(uint), cudaMemcpyHostToDevice));
     if (visible_block_count == 0)
         return;
 
     thread = dim3(8, 8);
     block = dim3(visible_block_count);
 
-    // update_map_kernel<<<block, thread>>>(map_struct, depth, frame_pose.inverse(), K.fx, K.fy, K.cx, K.cy);
-    update_map_with_colour_kernel<<<block, thread>>>(map_struct, depth, image, frame_pose.inverse(), K.fx, K.fy, K.cx, K.cy);
+    update_map_with_colour_kernel<<<block, thread>>>(
+        map_struct,
+        visible_blocks,
+        visible_block_count,
+        depth, image,
+        frame_pose.inverse(),
+        K.fx, K.fy,
+        K.cx, K.cy);
 }
 
 } // namespace cuda

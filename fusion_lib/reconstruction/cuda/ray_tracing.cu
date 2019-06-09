@@ -20,7 +20,7 @@ struct RenderingBlockDelegate
     float fx, fy, cx, cy;
 
     uint *rendering_block_count;
-    uint *visible_block_count;
+    uint visible_block_count;
 
     HashEntry *visible_block_pos;
     mutable cv::cuda::PtrStepSz<float> zrange_x;
@@ -158,7 +158,7 @@ struct RenderingBlockDelegate
         RenderingBlock block;
         int nx, ny;
 
-        if (x < *visible_block_count && visible_block_pos[x].ptr_ != -1)
+        if (x < visible_block_count && visible_block_pos[x].ptr_ != -1)
         {
             valid = create_rendering_block(visible_block_pos[x].pos_, block);
             float dx = (float)block.lower_right.x - block.upper_left.x + 1;
@@ -218,15 +218,18 @@ __global__ void split_and_fill_rendering_blocks_kernel(const RenderingBlockDeleg
     delegate.fill_rendering_blocks();
 }
 
-void create_rendering_blocks(MapStruct map_struct,
-                             cv::cuda::GpuMat &zrange_x,
-                             cv::cuda::GpuMat &zrange_y,
-                             const Sophus::SE3d &frame_pose,
-                             const IntrinsicMatrix intrinsic_matrix)
+void create_rendering_blocks(
+    MapStruct map_struct,
+    uint count_visible_block,
+    uint &count_rendering_block,
+    HashEntry *visible_blocks,
+    cv::cuda::GpuMat &zrange_x,
+    cv::cuda::GpuMat &zrange_y,
+    RenderingBlock *rendering_blocks,
+    const Sophus::SE3d &frame_pose,
+    const IntrinsicMatrix cam_params)
 {
-    uint visible_block_count;
-    map_struct.get_visible_block_count(visible_block_count);
-    if (visible_block_count == 0)
+    if (count_visible_block == 0)
         return;
 
     const int cols = zrange_x.cols;
@@ -234,7 +237,11 @@ void create_rendering_blocks(MapStruct map_struct,
 
     zrange_x.setTo(cv::Scalar(100.f));
     zrange_y.setTo(cv::Scalar(0));
-    map_struct.reset_rendering_block_count();
+
+    uint *count_device;
+    count_rendering_block = 0;
+    safe_call(cudaMalloc((void **)&count_device, sizeof(uint)));
+    safe_call(cudaMemset((void *)count_device, 0, sizeof(uint)));
 
     RenderingBlockDelegate delegate;
 
@@ -243,29 +250,29 @@ void create_rendering_blocks(MapStruct map_struct,
     delegate.inv_pose = frame_pose.inverse();
     delegate.zrange_x = zrange_x;
     delegate.zrange_y = zrange_y;
-    delegate.fx = intrinsic_matrix.fx;
-    delegate.fy = intrinsic_matrix.fy;
-    delegate.cx = intrinsic_matrix.cx;
-    delegate.cy = intrinsic_matrix.cy;
-    delegate.visible_block_pos = map_struct.visible_block_pos_;
-    delegate.visible_block_count = map_struct.visible_block_count_;
-    delegate.rendering_block_count = map_struct.rendering_block_count;
-    delegate.rendering_blocks = map_struct.rendering_blocks;
+    delegate.fx = cam_params.fx;
+    delegate.fy = cam_params.fy;
+    delegate.cx = cam_params.cx;
+    delegate.cy = cam_params.cy;
+    delegate.visible_block_pos = visible_blocks;
+    delegate.visible_block_count = count_visible_block;
+    delegate.rendering_block_count = count_device;
+    delegate.rendering_blocks = rendering_blocks;
 
     dim3 thread = dim3(MAX_THREAD);
-    dim3 block = dim3(div_up(visible_block_count, thread.x));
+    dim3 block = dim3(div_up(count_visible_block, thread.x));
 
     create_rendering_blocks_kernel<<<block, thread>>>(delegate);
 
-    uint rendering_block_count;
-    map_struct.get_rendering_block_count(rendering_block_count);
-    if (rendering_block_count == 0)
+    safe_call(cudaMemcpy(&count_rendering_block, count_device, sizeof(uint), cudaMemcpyDeviceToHost));
+    if (count_rendering_block == 0)
         return;
 
     thread = dim3(RENDERING_BLOCK_SIZE_X, RENDERING_BLOCK_SIZE_Y);
-    block = dim3((uint)ceil((float)rendering_block_count / 4), 4);
+    block = dim3((uint)ceil((float)count_rendering_block / 4), 4);
 
     split_and_fill_rendering_blocks_kernel<<<block, thread>>>(delegate);
+    safe_call(cudaFree((void *)count_device));
 }
 
 struct MapRenderingDelegate

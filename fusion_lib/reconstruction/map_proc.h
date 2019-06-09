@@ -20,14 +20,19 @@ void update(
     const IntrinsicMatrix K,
     cv::cuda::GpuMat &cv_flag,
     cv::cuda::GpuMat &cv_pos_array,
+    HashEntry *visible_blocks,
     uint &visible_block_count);
 
 void create_rendering_blocks(
     MapStruct map_struct,
+    uint count_visible_block,
+    uint &count_redering_block,
+    HashEntry *visible_blocks,
     cv::cuda::GpuMat &zrange_x,
     cv::cuda::GpuMat &zrange_y,
+    RenderingBlock *rendering_blocks,
     const Sophus::SE3d &frame_pose,
-    const IntrinsicMatrix intrinsic_matrix);
+    const IntrinsicMatrix cam_params);
 
 void raycast(
     MapStruct map_struct,
@@ -51,14 +56,14 @@ void raycast_with_colour(
 void create_scene_mesh(
     MapStruct map_struct,
     uint &block_count,
-    int3 *block_list,
+    HashEntry *block_list,
     uint &triangle_count,
     float3 *vertex_data);
 
-void create_scene_mesh_with_normal(
+void create_mesh_with_normal(
     MapStruct map_struct,
     uint &block_count,
-    int3 *block_list,
+    HashEntry *block_list,
     uint &triangle_count,
     float3 *vertex_data,
     float3 *vertex_normal);
@@ -66,7 +71,7 @@ void create_scene_mesh_with_normal(
 void create_scene_mesh_with_colour(
     MapStruct map_struct,
     uint &block_count,
-    int3 *block_list,
+    HashEntry *block_list,
     uint &triangle_count,
     float3 *vertex_data,
     uchar3 *vertex_colour);
