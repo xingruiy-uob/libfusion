@@ -98,26 +98,6 @@ void MapStruct::reset_map_struct()
     safe_call(cudaMemset(voxels_, 0, sizeof(Voxel) * state.num_total_voxels()));
 }
 
-void MapStruct::reset_visible_block_count()
-{
-    safe_call(cudaMemset(visible_block_count_, 0, sizeof(uint)));
-}
-
-void MapStruct::get_visible_block_count(uint &count) const
-{
-    safe_call(cudaMemcpy(&count, visible_block_count_, sizeof(uint), cudaMemcpyDeviceToHost));
-}
-
-void MapStruct::reset_rendering_block_count()
-{
-    safe_call(cudaMemset(rendering_block_count, 0, sizeof(uint)));
-}
-
-void MapStruct::get_rendering_block_count(uint &count) const
-{
-    safe_call(cudaMemcpy(&count, rendering_block_count, sizeof(uint), cudaMemcpyDeviceToHost));
-}
-
 std::ostream &operator<<(std::ostream &o, MapState &state)
 {
     return o;

@@ -92,10 +92,6 @@ struct MapStruct
     void allocate_memory(const bool &on_device = false);
     void release_memory(const bool &on_device = false);
     void reset_map_struct();
-    void reset_visible_block_count();
-    void get_visible_block_count(uint &count) const;
-    void reset_rendering_block_count();
-    void get_rendering_block_count(uint &count) const;
 
     __device__ int compute_hash(const int3 &pos) const;
     __device__ bool lock_bucket(int *mutex);
@@ -121,14 +117,8 @@ struct MapStruct
     int *heap_mem_counter_;
     int *bucket_mutex_;
 
-    uint *visible_block_count_;
-    HashEntry *visible_block_pos_;
-
     Voxel *voxels_;
     HashEntry *hash_table_;
-
-    uint *rendering_block_count;
-    RenderingBlock *rendering_blocks;
 };
 
 extern MapState state;

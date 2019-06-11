@@ -30,6 +30,22 @@ struct FeaturePointFrame
     std::unordered_map<RgbdFramePtr, int> neighbours;
 };
 
+class FeatureExtractor
+{
+public:
+    FeatureExtractor();
+    void operator()();
+
+    cv::Mat image;
+    std::vector<cv::KeyPoint> key_points;
+    cv::Mat descriptors;
+
+private:
+    cv::Ptr<cv::BRISK> BRISK;
+    cv::Ptr<cv::ORB> ORB;
+    cv::Ptr<cv::xfeatures2d::SURF> SURF;
+};
+
 } // namespace fusion
 
 #endif

@@ -319,8 +319,11 @@ void DenseMapping::raycast(cv::cuda::GpuMat &vmap, cv::cuda::GpuMat &image, cons
 
 void DenseMapping::restart_mapping()
 {
-  auto active_map = device_maps[active_map_index];
-  active_map->reset_map_struct();
+  active_map_index = 0;
+  for (auto &map : device_maps)
+  {
+    map->reset_map_struct();
+  }
 }
 
 void DenseMapping::create_new_submap()
@@ -328,7 +331,7 @@ void DenseMapping::create_new_submap()
   active_map_index += 1;
   active_map_index %= NUM_PYRS;
   auto active_map = device_maps[active_map_index];
-  // active_map->reset_map_struct();
+  active_map->reset_map_struct();
 }
 
 size_t DenseMapping::create_mesh_with_normal(float3 *vertex, float3 *normal)

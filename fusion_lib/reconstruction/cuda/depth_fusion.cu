@@ -217,15 +217,17 @@ __global__ void create_blocks_kernel(MapStruct map_struct, cv::cuda::PtrStepSz<f
 }
 
 __global__ void update_map_kernel(MapStruct map_struct,
+                                  HashEntry *visible_blocks,
+                                  uint count_visible_block,
                                   cv::cuda::PtrStepSz<float> depth,
                                   DeviceMatrix3x4 inv_pose,
                                   float fx, float fy,
                                   float cx, float cy)
 {
-    if (blockIdx.x >= param.num_total_hash_entries_ || blockIdx.x >= *map_struct.visible_block_count_)
+    if (blockIdx.x >= param.num_total_hash_entries_ || blockIdx.x >= count_visible_block)
         return;
 
-    HashEntry &current = map_struct.visible_block_pos_[blockIdx.x];
+    HashEntry &current = visible_blocks[blockIdx.x];
 
     int3 voxel_pos = map_struct.block_pos_to_voxel_pos(current.pos_);
     float dist_thresh = param.truncation_dist();

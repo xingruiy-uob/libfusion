@@ -1,5 +1,5 @@
-#ifndef __SYSTEM__
-#define __SYSTEM__
+#ifndef SYSTEM_H
+#define SYSTEM_H
 
 #include "rgbd_frame.h"
 #include "intrinsic_matrix.h"
@@ -64,6 +64,7 @@ private:
     std::shared_ptr<DenseMapping> mapping;
     std::shared_ptr<DenseOdometry> odometry;
     std::shared_ptr<Relocalizer> relocalizer;
+    std::shared_ptr<FeatureExtractor> extractor;
     std::thread relocalizer_thread; // put relocalizer in another thread
 
     // Return TRUE if a new key frame is desired
@@ -71,6 +72,11 @@ private:
     // TODO: this needs to be redesigned.
     bool keyframe_needed() const;
     void create_new_keyframe();
+
+    cv::cuda::GpuMat device_depth_float;
+    cv::cuda::GpuMat device_image_uchar;
+    cv::cuda::GpuMat device_vmap_cast;
+    cv::cuda::GpuMat device_nmap_cast;
 };
 
 } // namespace fusion

@@ -6,8 +6,8 @@ namespace fusion
 
 System::~System()
 {
-    relocalizer->should_quit = true;
-    relocalizer_thread.join();
+    // relocalizer->should_quit = true;
+    // relocalizer_thread.join();
 }
 
 System::System(IntrinsicMatrix base, const int NUM_PYR)
@@ -15,15 +15,26 @@ System::System(IntrinsicMatrix base, const int NUM_PYR)
 {
     mapping = std::make_shared<DenseMapping>(base);
     odometry = std::make_shared<DenseOdometry>(base, NUM_PYR);
-    relocalizer = std::make_shared<Relocalizer>(base);
+    extractor = std::make_shared<FeatureExtractor>();
 
-    relocalizer_thread = std::thread(&Relocalizer::main_loop, relocalizer.get());
+    // relocalizer = std::make_shared<Relocalizer>(base);
+
+    // relocalizer_thread = std::thread(&Relocalizer::main_loop, relocalizer.get());
 }
 
 void System::process_images(const cv::Mat depth, const cv::Mat image)
 {
+    std::chrono::system_clock clock;
+    auto time_a = clock.now();
+
     cv::Mat depth_float;
     depth.convertTo(depth_float, CV_32FC1, 1 / 1000.f);
+
+    cv::Mat desc;
+    std::vector<cv::KeyPoint> points;
+    extractor->image = image;
+    std::thread ext(&FeatureExtractor::operator(), extractor.get());
+    // std::thread ext(&FeatureExtractor::extract_features, extractor.get(), image, points, desc);
 
     current_frame = std::make_shared<RgbdFrame>(depth_float, image, processed_frame_count, 0);
 
@@ -57,6 +68,18 @@ void System::process_images(const cv::Mat depth, const cv::Mat image)
         last_tracked_frame = current_frame;
         processed_frame_count += 1;
     }
+
+    ext.join();
+    auto time_b = clock.now();
+
+    auto &key_points = extractor->key_points;
+    auto &descritpors = extractor->descriptors;
+    cv::Mat outImg;
+    cv::drawKeypoints(image, key_points, outImg, cv::Scalar(255, 0, 0));
+    cv::imshow("outImg", outImg);
+    cv::waitKey(1);
+
+    std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(time_b - time_a).count() << std::endl;
 }
 
 bool System::keyframe_needed() const
@@ -71,8 +94,8 @@ bool System::keyframe_needed() const
 void System::create_new_keyframe()
 {
     current_keyframe = last_tracked_frame;
-    relocalizer->insert_keyframe(current_keyframe);
-    mapping->create_new_submap();
+    // relocalizer->insert_keyframe(current_keyframe);
+    // mapping->create_new_submap();
 }
 
 cv::Mat System::get_rendered_scene() const
