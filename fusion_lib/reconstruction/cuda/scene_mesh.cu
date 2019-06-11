@@ -51,12 +51,12 @@ struct BuildVertexArray
 
     __device__ __forceinline__ float read_sdf(float3 pt, bool &valid) const
     {
-        Voxel *vx = NULL;
-        map_struct.find_voxel(make_int3(pt), vx);
-        if (vx && vx->weight_ != 0)
+        Voxel *voxel = NULL;
+        map_struct.find_voxel(make_int3(pt), voxel);
+        if (voxel && voxel->weight != 0)
         {
             valid = true;
-            return vx->get_sdf();
+            return voxel->get_sdf();
         }
         else
         {
@@ -390,11 +390,11 @@ struct BuildVertexAndColourArray
     {
         Voxel *vx = NULL;
         map_struct.find_voxel(make_int3(pt), vx);
-        if (vx && vx->weight_ != 0)
+        if (vx && vx->get_weight() > 1e-3)
         {
             valid = true;
             sdf = vx->get_sdf();
-            colour = vx->rgb_;
+            colour = vx->rgb;
         }
         else
         {

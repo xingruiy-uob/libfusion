@@ -58,12 +58,14 @@ struct RenderingBlock
 
 struct Voxel
 {
-    short sdf;
-    unsigned char weight_;
-    uchar3 rgb_;
+    float sdf;
+    float weight;
+    uchar3 rgb;
 
     __device__ float get_sdf() const;
     __device__ void set_sdf(float val);
+    __device__ float get_weight() const;
+    __device__ void set_weight(float val);
 };
 
 struct HashEntry

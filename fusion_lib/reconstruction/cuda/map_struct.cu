@@ -186,6 +186,18 @@ __device__ void Voxel::set_sdf(float val)
     sdf = pack_float(val);
 }
 
+__device__ float Voxel::get_weight() const
+{
+    // return unpack_float(weight);
+    return weight;
+}
+
+__device__ void Voxel::set_weight(float val)
+{
+    // weight = pack_float(val);
+    weight = val;
+}
+
 __device__ bool MapStruct::lock_bucket(int *mutex)
 {
     if (atomicExch(mutex, 1) != 1)

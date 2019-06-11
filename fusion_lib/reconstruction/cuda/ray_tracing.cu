@@ -290,7 +290,7 @@ struct MapRenderingDelegate
     {
         Voxel *voxel = NULL;
         map_struct.find_voxel(make_int3(pt3d), voxel);
-        if (voxel && voxel->weight_ != 0)
+        if (voxel && voxel->weight != 0)
         {
             valid = true;
             return voxel->get_sdf();
@@ -426,10 +426,10 @@ struct MapRenderingDelegate
     {
         Voxel *voxel = NULL;
         map_struct.find_voxel(make_int3(pt3d), voxel);
-        if (voxel && voxel->weight_ != 0)
+        if (voxel && voxel->weight != 0)
         {
             valid = true;
-            return voxel->rgb_;
+            return voxel->rgb;
         }
         else
         {

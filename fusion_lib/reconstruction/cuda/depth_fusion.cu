@@ -257,19 +257,20 @@ __global__ void update_map_kernel(MapStruct map_struct,
         Voxel &voxel = map_struct.voxels_[current.ptr_ + local_idx];
 
         auto sdf_p = voxel.get_sdf();
-        int weight_p = voxel.weight_;
+        auto weight_p = voxel.get_weight();
+        auto weight = 1 / (dist);
 
-        if (weight_p == 0)
+        if (weight_p < 1e-3)
         {
             voxel.set_sdf(sdf);
-            voxel.weight_ = 1;
+            voxel.set_weight(weight);
             continue;
         }
 
-        unsigned char w_curr = min(255, weight_p + 1);
-        sdf_p = (sdf_p * weight_p + sdf) / (weight_p + 1);
+        // fuse depth
+        sdf_p = (sdf_p * weight_p + sdf * weight) / (weight_p + weight);
         voxel.set_sdf(sdf_p);
-        voxel.weight_ = w_curr;
+        voxel.set_weight(weight_p + weight);
     }
 }
 
@@ -315,30 +316,29 @@ __global__ void update_map_with_colour_kernel(MapStruct map_struct,
         Voxel &voxel = map_struct.voxels_[current.ptr_ + local_idx];
 
         auto sdf_p = voxel.get_sdf();
-        int weight_p = voxel.weight_;
+        auto weight_p = voxel.get_weight();
+        auto weight = 1 / (dist * dist);
 
         // update colour
         auto colour_new = image.ptr(v)[u];
-        auto colour_p = voxel.rgb_;
+        auto colour_p = voxel.rgb;
 
-        if (weight_p == 0)
+        if (voxel.weight == 0)
         {
             voxel.set_sdf(sdf);
-            voxel.weight_ = 1;
-            // voxel.rgb_w_ = 1;
-            voxel.rgb_ = colour_new;
+            voxel.set_weight(weight);
+            voxel.rgb = colour_new;
             continue;
         }
 
         // fuse depth
-        unsigned char w_curr = min(255, weight_p + 1);
-        sdf_p = (sdf_p * weight_p + sdf) / (weight_p + 1);
+        sdf_p = (sdf_p * weight_p + sdf * weight) / (weight_p + weight);
         voxel.set_sdf(sdf_p);
-        voxel.weight_ = w_curr;
+        voxel.set_weight(weight_p + weight);
 
         // fuse colour
-        colour_p = make_uchar3((colour_p * (float)weight_p + colour_new * 1.0f) / ((float)weight_p + 1));
-        voxel.rgb_ = colour_p;
+        colour_p = make_uchar3((colour_p * weight_p + colour_new * weight) / (weight_p + weight));
+        voxel.rgb = colour_p;
     }
 }
 
