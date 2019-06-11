@@ -12,14 +12,12 @@ MapStruct::MapStruct()
     {
         state.num_total_buckets_ = 200000;
         state.num_total_hash_entries_ = 250000;
-        state.voxel_size_ = 0.004f;
         state.num_total_voxel_blocks_ = 200000;
-        state.depth_min = 0.1f;
-        state.depth_max = 3.0f;
-        state.zmax_raycast_ = 3.0f;
-        state.zmax_update_ = 3.0f;
-        state.zmin_update_ = 0.1f;
-        state.zmin_raycast_ = 0.1f;
+        state.zmax_raycast = 3.f;
+        state.zmin_raycast = 0.3f;
+        state.zmax_update = 3.f;
+        state.zmin_update = 0.3f;
+        state.voxel_size = 0.004f;
         state.num_max_rendering_blocks_ = 100000;
         state.num_max_mesh_triangles_ = 20000000;
 
@@ -110,7 +108,7 @@ __device__ __host__ int MapState::num_total_voxels() const
 
 __device__ __host__ float MapState::block_size_metric() const
 {
-    return BLOCK_SIZE * voxel_size_;
+    return BLOCK_SIZE * voxel_size;
 }
 
 __device__ __host__ int MapState::num_total_mesh_vertices() const
@@ -120,7 +118,7 @@ __device__ __host__ int MapState::num_total_mesh_vertices() const
 
 __device__ __host__ float MapState::inverse_voxel_size() const
 {
-    return 1.0f / voxel_size_;
+    return 1.0f / voxel_size;
 }
 
 __device__ __host__ int MapState::num_excess_entries() const
@@ -130,7 +128,7 @@ __device__ __host__ int MapState::num_excess_entries() const
 
 __device__ __host__ float MapState::truncation_dist() const
 {
-    return 5.0f * voxel_size_;
+    return 3.0f * voxel_size;
 }
 
 __device__ __host__ float MapState::raycast_step_scale() const
@@ -361,7 +359,7 @@ __device__ void MapStruct::find_entry(const int3 &block_pos, HashEntry *&out) co
 
 __device__ int3 MapStruct::world_pt_to_voxel_pos(float3 pt) const
 {
-    pt = pt / param.voxel_size_;
+    pt = pt / param.voxel_size;
     return make_int3(pt);
 }
 
@@ -372,7 +370,7 @@ __device__ int MapStruct::voxel_pos_to_local_idx(const int3 &pos) const
 
 __device__ float3 MapStruct::voxel_pos_to_world_pt(const int3 &voxel_pos) const
 {
-    return (voxel_pos)*param.voxel_size_;
+    return (voxel_pos)*param.voxel_size;
 }
 
 __device__ int3 MapStruct::voxel_pos_to_block_pos(int3 voxel_pos) const

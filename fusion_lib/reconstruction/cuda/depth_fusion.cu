@@ -15,7 +15,7 @@ __device__ bool is_vertex_visible(float3 pt, DeviceMatrix3x4 inv_pose,
 {
     pt = inv_pose(pt);
     float2 pt2d = make_float2(fx * pt.x / pt.z + cx, fy * pt.y / pt.z + cy);
-    return !(pt2d.x < 0 || pt2d.y < 0 || pt2d.x > cols - 1 || pt2d.y > rows - 1 || pt.z < param.zmin_update_ || pt.z > param.zmax_update_);
+    return !(pt2d.x < 0 || pt2d.y < 0 || pt2d.x > cols - 1 || pt2d.y > rows - 1 || pt.z < param.zmin_update || pt.z > param.zmax_update);
 }
 
 __device__ bool is_block_visible(const int3 &block_pos,
@@ -117,12 +117,12 @@ __global__ void create_blocks_kernel(MapStruct map_struct, cv::cuda::PtrStepSz<f
         return;
 
     float z = depth.ptr(y)[x];
-    if (isnan(z) || z < param.depth_min || z > param.depth_max)
+    if (isnan(z) || z < param.zmin_update || z > param.zmax_update)
         return;
 
     float z_thresh = param.truncation_dist() * 0.5;
-    float z_near = max(param.depth_min, z - z_thresh);
-    float z_far = min(param.depth_max, z + z_thresh);
+    float z_near = max(param.zmin_update, z - z_thresh);
+    float z_far = min(param.zmax_update, z + z_thresh);
     if (z_near >= z_far)
         return;
 
@@ -245,7 +245,7 @@ __global__ void update_map_kernel(MapStruct map_struct,
             continue;
 
         float dist = depth.ptr(v)[u];
-        if (isnan(dist) || dist < 1e-2 || dist > param.depth_max || dist < param.depth_min)
+        if (isnan(dist) || dist < 1e-2 || dist > param.zmax_update || dist < param.zmin_update)
             continue;
 
         float sdf = dist - pt.z;
@@ -303,7 +303,7 @@ __global__ void update_map_with_colour_kernel(MapStruct map_struct,
             continue;
 
         float dist = depth.ptr(v)[u];
-        if (isnan(dist) || dist < 1e-2 || dist > param.depth_max || dist < param.depth_min)
+        if (isnan(dist) || dist < 1e-2 || dist > param.zmax_update || dist < param.zmin_update)
             continue;
 
         float sdf = dist - pt.z;

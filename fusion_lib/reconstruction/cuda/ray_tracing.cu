@@ -62,7 +62,7 @@ struct RenderingBlockDelegate
     {
         block.upper_left = make_short2(zrange_x.cols, zrange_x.rows);
         block.lower_right = make_short2(-1, -1);
-        block.zrange = make_float2(param.zmax_raycast_, param.zmin_raycast_);
+        block.zrange = make_float2(param.zmax_raycast, param.zmin_raycast);
 
 #pragma unroll
         for (int corner = 0; corner < 8; ++corner)
@@ -114,10 +114,10 @@ struct RenderingBlockDelegate
         if (block.upper_left.y > block.lower_right.y)
             return false;
 
-        if (block.zrange.x < param.zmin_raycast_)
-            block.zrange.x = param.zmin_raycast_;
+        if (block.zrange.x < param.zmin_raycast)
+            block.zrange.x = param.zmin_raycast;
 
-        if (block.zrange.y < param.zmin_raycast_)
+        if (block.zrange.y < param.zmin_raycast)
             return false;
 
         return true;
@@ -417,7 +417,7 @@ struct MapRenderingDelegate
 
         if (found_pt)
         {
-            result = inv_pose(result * param.voxel_size_);
+            result = inv_pose(result * param.voxel_size);
             vmap.ptr(y)[x] = make_float4(result, 1.0);
         }
     }
@@ -555,7 +555,7 @@ struct MapRenderingDelegate
             if (!valid_sdf)
                 return;
 
-            result = inv_pose(result * param.voxel_size_);
+            result = inv_pose(result * param.voxel_size);
             vmap.ptr(y)[x] = make_float4(result, 1.0);
             image.ptr(y)[x] = rgb;
         }

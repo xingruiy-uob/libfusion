@@ -215,7 +215,7 @@ struct BuildVertexArray
 
         float3 vertex_array[12];
         int3 pos = block_array[x].pos_ * BLOCK_SIZE;
-        auto factor = param.voxel_size_;
+        auto factor = param.voxel_size;
 
         for (int voxel_id = 0; voxel_id < BLOCK_SIZE; ++voxel_id)
         {
@@ -556,7 +556,7 @@ struct BuildVertexAndColourArray
         float3 vertex_array[12];
         uchar3 colour_array[12];
         int3 pos = block_array[x].pos_ * BLOCK_SIZE;
-        auto factor = param.voxel_size_;
+        auto factor = param.voxel_size;
 
         for (int voxel_id = 0; voxel_id < BLOCK_SIZE; ++voxel_id)
         {

@@ -34,14 +34,11 @@ struct MapState
     int num_max_mesh_triangles_;
     int num_max_rendering_blocks_;
 
-    float zmin_raycast_;
-    float zmax_raycast_;
-    float zmin_update_;
-    float zmax_update_;
-    float voxel_size_;
-
-    float depth_min;
-    float depth_max;
+    float zmin_raycast;
+    float zmax_raycast;
+    float zmin_update;
+    float zmax_update;
+    float voxel_size;
 
     __device__ __host__ int num_total_voxels() const;
     __device__ __host__ int num_excess_entries() const;
