@@ -32,18 +32,15 @@ public:
     // create mesh and store in the address
     // users are reponsible for allocating
     // the adresses in CUDA using `cudaMalloc`
-    uint get_maximum_triangle_num() const; // TODO: not implemented
-    void fetch_mesh_vertex_only(float3 *data, uint &max_size);
-    void fetch_mesh_with_normal(float3 *vertex, float3 *normal, uint &max_size);
-    void fetch_mesh_with_colour(float3 *vertex, uchar3 *colour, uint &max_size);
+    size_t fetch_mesh_vertex_only(float3 *vertex);
+    size_t fetch_mesh_with_normal(float3 *vertex, float3 *normal);
+    size_t fetch_mesh_with_colour(float3 *vertex, uchar3 *colour);
 
     // key points
     void fetch_key_points(float *points, size_t &max_size);
     void fetch_key_points_with_normal(float *points, float *normal, size_t &max_size);
 
-    // retrieve current camera pose
-    Eigen::Matrix4f get_current_camera_pose() const;
-    bool is_initialized() const;
+    bool is_initialized;
 
     // system controls
     void change_colour_mode(int colour_mode = 0);
@@ -55,23 +52,18 @@ private:
     RgbdFramePtr last_tracked_frame;
     RgbdFramePtr current_keyframe;
 
-    bool system_initialized;
-    size_t processed_frame_count;
-
-    IntrinsicMatrixPyramidPtr cam_param;
+    size_t frame_id;
 
     // System modules
     std::shared_ptr<DenseMapping> mapping;
     std::shared_ptr<DenseOdometry> odometry;
-    std::shared_ptr<Relocalizer> relocalizer;
-    std::shared_ptr<FeatureExtractor> extractor;
-    std::thread relocalizer_thread; // put relocalizer in another thread
 
     // Return TRUE if a new key frame is desired
     // return FALSE otherwise
     // TODO: this needs to be redesigned.
     bool keyframe_needed() const;
-    void create_new_keyframe();
+    void create_keyframe();
+    void initialization();
 
     cv::cuda::GpuMat device_depth_float;
     cv::cuda::GpuMat device_image_uchar;

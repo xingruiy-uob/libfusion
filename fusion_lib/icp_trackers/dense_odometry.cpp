@@ -83,7 +83,7 @@ bool DenseOdometry::is_tracking_lost() const
   return tracking_lost_;
 }
 
-void DenseOdometry::restart_tracking()
+void DenseOdometry::reset_tracking()
 {
   reference_frame = NULL;
   initialized = false;

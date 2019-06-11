@@ -561,7 +561,7 @@ void WindowManager::draw_mesh()
         {
             float3 *vertex_ptr = (float3 *)get_cuda_mapped_ptr(0);
             float3 *normal_ptr = (float3 *)get_cuda_mapped_ptr(1);
-            system->fetch_mesh_with_normal(vertex_ptr, normal_ptr, num_mesh_triangles);
+            num_mesh_triangles = system->fetch_mesh_with_normal(vertex_ptr, normal_ptr);
             cuda_unmap_resources(0);
             cuda_unmap_resources(1);
             break;
@@ -570,7 +570,7 @@ void WindowManager::draw_mesh()
         {
             float3 *vertex_ptr = (float3 *)get_cuda_mapped_ptr(0);
             uchar3 *colour_ptr = (uchar3 *)get_cuda_mapped_ptr(2);
-            system->fetch_mesh_with_colour(vertex_ptr, colour_ptr, num_mesh_triangles);
+            num_mesh_triangles = system->fetch_mesh_with_colour(vertex_ptr, colour_ptr);
             cuda_unmap_resources(0);
             cuda_unmap_resources(2);
             break;
@@ -652,28 +652,28 @@ void WindowManager::draw_keypoints()
 
 void WindowManager::draw_current_camera()
 {
-    if (!system->is_initialized())
-        return;
+    // if (!system->is_initialized())
+    //     return;
 
-    auto pose = system->get_current_camera_pose();
-    float vertex[18] = {-1, -1, 1, 1, 1, 1, 1, -1, 1, -1, 1, 1, 1, 1, 1, 1, -1, 1};
-    glBindVertexArray(gl_array[4]);
-    glBindBuffer(GL_ARRAY_BUFFER, buffers[4]);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * 18, vertex, GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, NULL);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    // auto pose = system->get_current_camera_pose();
+    // float vertex[18] = {-1, -1, 1, 1, 1, 1, 1, -1, 1, -1, 1, 1, 1, 1, 1, 1, -1, 1};
+    // glBindVertexArray(gl_array[4]);
+    // glBindBuffer(GL_ARRAY_BUFFER, buffers[4]);
+    // glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat) * 18, vertex, GL_STATIC_DRAW);
+    // glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, NULL);
+    // glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-    glUseProgram(program[1]);
-    glBindVertexArray(gl_array[4]);
+    // glUseProgram(program[1]);
+    // glBindVertexArray(gl_array[4]);
 
-    glm::mat4 mvp_mat = get_view_projection_matrix();
-    GLint loc = glGetUniformLocation(program[1], "mvp_matrix");
-    glUniformMatrix4fv(loc, 1, GL_FALSE, &mvp_mat[0][0]);
+    // glm::mat4 mvp_mat = get_view_projection_matrix();
+    // GLint loc = glGetUniformLocation(program[1], "mvp_matrix");
+    // glUniformMatrix4fv(loc, 1, GL_FALSE, &mvp_mat[0][0]);
 
-    glDrawArrays(GL_TRIANGLES, 0, 6);
+    // glDrawArrays(GL_TRIANGLES, 0, 6);
 
-    glBindVertexArray(0);
-    glUseProgram(0);
+    // glBindVertexArray(0);
+    // glUseProgram(0);
 }
 
 void WindowManager::process_images(cv::Mat depth, cv::Mat image)

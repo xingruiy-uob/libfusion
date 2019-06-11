@@ -10,10 +10,10 @@ MapStruct::MapStruct()
 {
     if (!state_initialised)
     {
-        state.num_total_buckets_ = 80000;
-        state.num_total_hash_entries_ = 100000;
+        state.num_total_buckets_ = 200000;
+        state.num_total_hash_entries_ = 250000;
         state.voxel_size_ = 0.004f;
-        state.num_total_voxel_blocks_ = 65535;
+        state.num_total_voxel_blocks_ = 200000;
         state.depth_min = 0.1f;
         state.depth_max = 3.0f;
         state.zmax_raycast_ = 3.0f;

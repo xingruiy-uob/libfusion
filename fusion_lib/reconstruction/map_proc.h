@@ -53,7 +53,7 @@ void raycast_with_colour(
     const Sophus::SE3d &pose,
     const IntrinsicMatrix intrinsic_matrix);
 
-void create_scene_mesh(
+void create_mesh_vertex_only(
     MapStruct map_struct,
     uint &block_count,
     HashEntry *block_list,
@@ -68,7 +68,7 @@ void create_mesh_with_normal(
     float3 *vertex_data,
     float3 *vertex_normal);
 
-void create_scene_mesh_with_colour(
+void create_mesh_with_colour(
     MapStruct map_struct,
     uint &block_count,
     HashEntry *block_list,

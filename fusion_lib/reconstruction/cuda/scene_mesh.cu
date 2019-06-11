@@ -255,7 +255,7 @@ __global__ void generate_vertex_array_kernel(BuildVertexArray bva)
     bva.operator()<false>();
 }
 
-void create_scene_mesh(
+void create_mesh_vertex_only(
     MapStruct map_struct,
     uint &block_count,
     HashEntry *block_list,
@@ -593,7 +593,7 @@ __global__ void generate_vertex_and_colour_array_kernel(BuildVertexAndColourArra
     delegate();
 }
 
-void create_scene_mesh_with_colour(
+void create_mesh_with_colour(
     MapStruct map_struct,
     uint &block_count,
     HashEntry *block_list,

@@ -18,17 +18,15 @@ public:
   void update(cv::cuda::GpuMat depth, cv::cuda::GpuMat image, const Sophus::SE3d pose);
   void raycast(cv::cuda::GpuMat &vmap, cv::cuda::GpuMat &image, const Sophus::SE3d pose);
 
-  void restart_mapping();
-  void create_new_submap();
-  size_t create_mesh_with_normal(float3 *vertex, float3 *normal);
+  void reset_mapping();
+
+  size_t fetch_mesh_vertex_only(float3 *vertex);
+  size_t fetch_mesh_with_normal(float3 *vertex, float3 *normal);
+  size_t fetch_mesh_with_colour(float3 *vertex, uchar3 *normal);
 
 private:
-  const size_t NUM_PYRS = 10;
-
   IntrinsicMatrix cam_params;
-  size_t active_map_index;
-  std::vector<std::shared_ptr<MapStruct>> device_maps;
-  std::vector<std::shared_ptr<MapStruct>> host_maps;
+  MapStruct device_map;
 
   // for map udate
   cv::cuda::GpuMat flag;
