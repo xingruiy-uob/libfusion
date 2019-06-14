@@ -11,9 +11,7 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 find_package(OpenGL REQUIRED)
-find_package(PkgConfig REQUIRED)
-find_package(GLEW REQUIRED)
-pkg_search_module(GLFW REQUIRED glfw3)
+find_package(Pangolin REQUIRED)
 
 add_subdirectory(fusion_lib)
 
@@ -27,17 +25,11 @@ PRIVATE
     apps/window.cpp
 )
 
-target_include_directories(app
-PUBLIC
-    ${GLFW_INCLUDE_DIRS}
-)
-
 target_link_libraries(app
 PRIVATE
     fusion_lib
     OpenGL::GL
-    ${GLFW_STATIC_LIBRARIES}
-    ${GLEW_LIBRARIES}
+    ${Pangolin_LIBRARIES}
 )
 
 file (GLOB_RECURSE resources "shaders/*.*")
@@ -58,30 +50,3 @@ foreach(resource ${resources})
     add_custom_target(${filename} ALL DEPENDS ${resource} ${output})
  
 endforeach()
-
-# app gui
-find_package(Pangolin REQUIRED)
-
-add_executable(app2 "")
-
-target_sources(app2
-PRIVATE
-    apps/system.cpp
-    apps/main2.cpp
-    apps/window.cpp
-    apps/gl_window.cpp
-)
-
-target_include_directories(app2
-PUBLIC
-    ${GLFW_INCLUDE_DIRS}
-)
-
-target_link_libraries(app2
-PRIVATE
-    fusion_lib
-    OpenGL::GL
-    ${Pangolin_LIBRARIES}
-    ${GLFW_STATIC_LIBRARIES}
-    ${GLEW_LIBRARIES}
-)
