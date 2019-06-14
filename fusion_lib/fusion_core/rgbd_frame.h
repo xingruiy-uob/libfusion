@@ -12,7 +12,7 @@ namespace fusion
 {
 
 class RgbdFrame;
-typedef std::shared_ptr<RgbdFrame> RgbdFramePtr;
+using RgbdFramePtr = std::shared_ptr<RgbdFrame>;
 
 class RgbdFrame
 {
@@ -54,6 +54,17 @@ public:
   void set_reference_frame(RgbdFramePtr reference);
 
   void set_scene_data(cv::cuda::GpuMat vmap, cv::cuda::GpuMat nmap);
+
+  struct Point3d
+  {
+    bool visited;
+    Eigen::Vector3f pos;
+    Eigen::Vector3f vec_normal;
+    size_t observations;
+  };
+
+  std::vector<cv::KeyPoint> cv_key_points;
+  std::vector<std::shared_ptr<Point3d>> key_points;
 
 private:
   cv::Mat source_image;

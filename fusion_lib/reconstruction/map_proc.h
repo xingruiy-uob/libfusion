@@ -23,6 +23,18 @@ void update(
     HashEntry *visible_blocks,
     uint &visible_block_count);
 
+void update_weighted(
+    MapStruct map_struct,
+    const cv::cuda::GpuMat depth,
+    const cv::cuda::GpuMat normal,
+    const cv::cuda::GpuMat image,
+    const Sophus::SE3d &frame_pose,
+    const IntrinsicMatrix K,
+    cv::cuda::GpuMat &cv_flag,
+    cv::cuda::GpuMat &cv_pos_array,
+    HashEntry *visible_blocks,
+    uint &visible_block_count);
+
 void create_rendering_blocks(
     MapStruct map_struct,
     uint count_visible_block,

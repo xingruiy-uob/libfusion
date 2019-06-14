@@ -25,7 +25,32 @@ DenseMapping::~DenseMapping()
   safe_call(cudaFree((void *)rendering_blocks));
 }
 
-void DenseMapping::update(cv::cuda::GpuMat depth, cv::cuda::GpuMat image, const Sophus::SE3d pose)
+void DenseMapping::update(RgbdImagePtr frame)
+{
+  auto image = frame->get_image();
+  auto depth = frame->get_raw_depth();
+  auto normal = frame->get_nmap();
+  auto pose = frame->get_reference_frame()->get_pose();
+
+  count_visible_block = 0;
+
+  cuda::update_weighted(
+      device_map,
+      depth,
+      normal,
+      image,
+      pose,
+      cam_params,
+      flag,
+      pos_array,
+      visible_blocks,
+      count_visible_block);
+}
+
+void DenseMapping::update(
+    cv::cuda::GpuMat depth,
+    cv::cuda::GpuMat image,
+    const Sophus::SE3d pose)
 {
   count_visible_block = 0;
 
@@ -41,7 +66,10 @@ void DenseMapping::update(cv::cuda::GpuMat depth, cv::cuda::GpuMat image, const 
       count_visible_block);
 }
 
-void DenseMapping::raycast(cv::cuda::GpuMat &vmap, cv::cuda::GpuMat &image, const Sophus::SE3d pose)
+void DenseMapping::raycast(
+    cv::cuda::GpuMat &vmap,
+    cv::cuda::GpuMat &image,
+    const Sophus::SE3d pose)
 {
   if (count_visible_block == 0)
     return;

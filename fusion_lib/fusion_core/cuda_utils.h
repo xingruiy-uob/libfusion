@@ -8,20 +8,6 @@
 #define MAX_THREAD 1024
 #define MAX_WARP_SIZE 32
 
-struct DeviceIntrinsicMatrix
-{
-    inline DeviceIntrinsicMatrix() = default;
-    inline DeviceIntrinsicMatrix(fusion::IntrinsicMatrix K) : fx(K.fx), fy(K.fy), cx(K.cx), cy(K.cy), invfx(K.invfx), invfy(K.invfy)
-    {
-    }
-
-    inline DeviceIntrinsicMatrix(fusion::IntrinsicMatrixPtr K) : fx(K->fx), fy(K->fy), cx(K->cx), cy(K->cy), invfx(K->invfx), invfy(K->invfy)
-    {
-    }
-
-    float fx, fy, cx, cy, invfx, invfy;
-};
-
 #if defined(__GNUC__)
 #define safe_call(expr) ___SafeCall(expr, __FILE__, __LINE__, __func__)
 #else
@@ -45,5 +31,19 @@ static inline int div_up(OP1 a, OP2 b)
 {
     return (int)((a + b - 1) / b);
 }
+
+struct DeviceIntrinsicMatrix
+{
+    inline DeviceIntrinsicMatrix() = default;
+    inline DeviceIntrinsicMatrix(fusion::IntrinsicMatrix K) : fx(K.fx), fy(K.fy), cx(K.cx), cy(K.cy), invfx(K.invfx), invfy(K.invfy)
+    {
+    }
+
+    inline DeviceIntrinsicMatrix(fusion::IntrinsicMatrixPtr K) : fx(K->fx), fy(K->fy), cx(K->cx), cy(K->cy), invfx(K->invfx), invfy(K->invfy)
+    {
+    }
+
+    float fx, fy, cx, cy, invfx, invfy;
+};
 
 #endif

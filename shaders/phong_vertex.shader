@@ -9,7 +9,7 @@ out vec3 shaded_colour;
 
 void main() 
 {
-	gl_Position = mvp_matrix * vec4(position, 1.0);
+	gl_Position =  vec4(position, 1.0);
 	vec3 lightpos = vec3(5, 5, 5);
 	const float ka = 0.3;
 	const float kd = 0.5;

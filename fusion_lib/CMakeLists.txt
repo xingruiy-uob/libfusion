@@ -35,6 +35,8 @@ PRIVATE
     # Relocalization module
     relocalization/relocalizer.cpp
     relocalization/feature_point.cpp
+
+    feature_graph/feature_graph.cpp
 )
 
 set_target_properties(fusion_lib
@@ -49,6 +51,7 @@ PUBLIC
     ${PROJECT_SOURCE_DIR}/basic_io
     ${PROJECT_SOURCE_DIR}/fusion_core
     ${PROJECT_SOURCE_DIR}/icp_trackers
+    ${PROJECT_SOURCE_DIR}/feature_graph
     ${PROJECT_SOURCE_DIR}/relocalization
     ${PROJECT_SOURCE_DIR}/reconstruction
     ${PROJECT_SOURCE_DIR}/reconstruction/cuda

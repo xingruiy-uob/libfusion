@@ -58,3 +58,30 @@ foreach(resource ${resources})
     add_custom_target(${filename} ALL DEPENDS ${resource} ${output})
  
 endforeach()
+
+# app gui
+find_package(Pangolin REQUIRED)
+
+add_executable(app2 "")
+
+target_sources(app2
+PRIVATE
+    apps/system.cpp
+    apps/main2.cpp
+    apps/window.cpp
+    apps/gl_window.cpp
+)
+
+target_include_directories(app2
+PUBLIC
+    ${GLFW_INCLUDE_DIRS}
+)
+
+target_link_libraries(app2
+PRIVATE
+    fusion_lib
+    OpenGL::GL
+    ${Pangolin_LIBRARIES}
+    ${GLFW_STATIC_LIBRARIES}
+    ${GLEW_LIBRARIES}
+)

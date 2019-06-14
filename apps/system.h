@@ -5,7 +5,7 @@
 #include "intrinsic_matrix.h"
 #include "dense_mapping.h"
 #include "dense_odometry.h"
-#include "relocalizer.h"
+#include "feature_graph.h"
 #include <thread>
 #include <eigen3/Eigen/Core>
 #include <opencv2/opencv.hpp>
@@ -21,6 +21,7 @@ public:
     void process_images(const cv::Mat depth, const cv::Mat image);
 
     // get rendered ray tracing map
+    cv::Mat get_shaded_depth();
     cv::Mat get_rendered_scene() const;
     cv::Mat get_rendered_scene_textured() const;
 
@@ -47,6 +48,8 @@ public:
     void change_run_mode(int run_mode = 0);
     void restart();
 
+    Eigen::Matrix4f get_camera_pose() const;
+
 private:
     RgbdFramePtr current_frame;
     RgbdFramePtr last_tracked_frame;
@@ -57,6 +60,8 @@ private:
     // System modules
     std::shared_ptr<DenseMapping> mapping;
     std::shared_ptr<DenseOdometry> odometry;
+    std::shared_ptr<FeatureGraph> features;
+    std::thread feature_thread;
 
     // Return TRUE if a new key frame is desired
     // return FALSE otherwise

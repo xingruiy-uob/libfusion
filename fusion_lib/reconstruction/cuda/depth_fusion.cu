@@ -342,6 +342,80 @@ __global__ void update_map_with_colour_kernel(MapStruct map_struct,
     }
 }
 
+__global__ void update_map_weighted_kernel(
+    MapStruct map_struct,
+    HashEntry *visible_blocks,
+    uint count_visible_block,
+    cv::cuda::PtrStepSz<float> depth,
+    cv::cuda::PtrStepSz<float4> normal,
+    cv::cuda::PtrStepSz<uchar3> image,
+    DeviceMatrix3x4 inv_pose,
+    float fx, float fy,
+    float cx, float cy)
+{
+    if (blockIdx.x >= param.num_total_hash_entries_ || blockIdx.x >= count_visible_block)
+        return;
+
+    HashEntry &current = visible_blocks[blockIdx.x];
+
+    if (current.ptr_ < 0)
+        return;
+
+    int3 voxel_pos = map_struct.block_pos_to_voxel_pos(current.pos_);
+    float dist_thresh = param.truncation_dist();
+    float inv_dist_thresh = 1.0 / dist_thresh;
+
+#pragma unroll
+    for (int block_idx_z = 0; block_idx_z < 8; ++block_idx_z)
+    {
+        int3 local_pos = make_int3(threadIdx.x, threadIdx.y, block_idx_z);
+        float3 pt = inv_pose(map_struct.voxel_pos_to_world_pt(voxel_pos + local_pos));
+
+        int u = __float2int_rd(fx * pt.x / pt.z + cx + 0.5);
+        int v = __float2int_rd(fy * pt.y / pt.z + cy + 0.5);
+        if (u < 0 || v < 0 || u > depth.cols - 1 || v > depth.rows - 1)
+            continue;
+
+        float dist = depth.ptr(v)[u];
+        auto n_c = make_float3(normal.ptr(v)[u]);
+        if (isnan(dist) || isnan(n_c.x) || dist > param.zmax_update || dist < param.zmin_update)
+            continue;
+
+        float sdf = dist - pt.z;
+        if (sdf < -dist_thresh)
+            continue;
+
+        sdf = fmin(1.0f, sdf * inv_dist_thresh);
+        const int local_idx = map_struct.local_pos_to_local_idx(local_pos);
+        Voxel &voxel = map_struct.voxels_[current.ptr_ + local_idx];
+
+        auto sdf_p = voxel.get_sdf();
+        auto weight_p = voxel.get_weight();
+        auto weight = abs(sin(n_c.z)) / (dist * dist);
+
+        // update colour
+        auto colour_new = image.ptr(v)[u];
+        auto colour_p = voxel.rgb;
+
+        if (voxel.weight == 0)
+        {
+            voxel.set_sdf(sdf);
+            voxel.set_weight(weight);
+            voxel.rgb = colour_new;
+            continue;
+        }
+
+        // fuse depth
+        sdf_p = (sdf_p * weight_p + sdf * weight) / (weight_p + weight);
+        voxel.set_sdf(sdf_p);
+        voxel.set_weight(weight_p + weight);
+
+        // fuse colour
+        colour_p = make_uchar3((colour_p * weight_p + colour_new * weight) / (weight_p + weight));
+        voxel.rgb = colour_p;
+    }
+}
+
 void update(MapStruct map_struct,
             const cv::cuda::GpuMat depth,
             const cv::cuda::GpuMat image,
@@ -407,6 +481,80 @@ void update(MapStruct map_struct,
         visible_blocks,
         visible_block_count,
         depth, image,
+        frame_pose.inverse(),
+        K.fx, K.fy,
+        K.cx, K.cy);
+}
+
+void update_weighted(
+    MapStruct map_struct,
+    const cv::cuda::GpuMat depth,
+    const cv::cuda::GpuMat normal,
+    const cv::cuda::GpuMat image,
+    const Sophus::SE3d &frame_pose,
+    const IntrinsicMatrix K,
+    cv::cuda::GpuMat &cv_flag,
+    cv::cuda::GpuMat &cv_pos_array,
+    HashEntry *visible_blocks,
+    uint &visible_block_count)
+{
+    if (cv_flag.empty())
+        cv_flag.create(1, state.num_total_hash_entries_, CV_8UC1);
+    if (cv_pos_array.empty())
+        cv_pos_array.create(1, state.num_total_hash_entries_, CV_32SC1);
+
+    thrust::device_ptr<uchar> flag(cv_flag.ptr<uchar>());
+    thrust::device_ptr<int> pos_array(cv_pos_array.ptr<int>());
+
+    const int cols = depth.cols;
+    const int rows = depth.rows;
+
+    dim3 thread(8, 8);
+    dim3 block(div_up(cols, thread.x), div_up(rows, thread.y));
+
+    create_blocks_kernel<<<block, thread>>>(
+        map_struct,
+        depth,
+        K.invfx,
+        K.invfy,
+        K.cx, K.cy,
+        frame_pose,
+        flag.get());
+
+    thread = dim3(MAX_THREAD);
+    block = dim3(div_up(state.num_total_hash_entries_, thread.x));
+
+    check_visibility_flag_kernel<<<block, thread>>>(
+        map_struct,
+        flag.get(),
+        frame_pose.inverse(),
+        cols, rows,
+        K.fx, K.fy,
+        K.cx, K.cy);
+
+    thrust::exclusive_scan(flag, flag + state.num_total_hash_entries_, pos_array);
+
+    copy_visible_block_kernel<<<block, thread>>>(
+        map_struct.hash_table_,
+        visible_blocks,
+        flag.get(),
+        pos_array.get());
+
+    visible_block_count = pos_array[state.num_total_hash_entries_ - 1];
+
+    if (visible_block_count == 0)
+        return;
+
+    thread = dim3(8, 8);
+    block = dim3(visible_block_count);
+
+    update_map_weighted_kernel<<<block, thread>>>(
+        map_struct,
+        visible_blocks,
+        visible_block_count,
+        depth,
+        normal,
+        image,
         frame_pose.inverse(),
         K.fx, K.fy,
         K.cx, K.cy);

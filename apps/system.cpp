@@ -13,12 +13,15 @@ System::System(IntrinsicMatrix base, const int NUM_PYR)
 {
     mapping = std::make_shared<DenseMapping>(base);
     odometry = std::make_shared<DenseOdometry>(base, NUM_PYR);
+    features = std::make_shared<FeatureGraph>();
+    // feature_thread = std::thread(&FeatureGraph::main_loop, features.get());
 }
 
 void System::initialization()
 {
     is_initialized = true;
     last_tracked_frame = current_keyframe = current_frame;
+    features->add_keyframe(current_keyframe);
 }
 
 void System::process_images(const cv::Mat depth, const cv::Mat image)
@@ -40,7 +43,8 @@ void System::process_images(const cv::Mat depth, const cv::Mat image)
         auto reference_image = odometry->get_reference_image();
         auto reference_frame = reference_image->get_reference_frame();
 
-        mapping->update(reference_image->depth_float, reference_image->get_image(), reference_frame->get_pose());
+        mapping->update(reference_image);
+        // mapping->update(reference_image->depth_float, reference_image->get_image(), reference_frame->get_pose());
         mapping->raycast(reference_image->vmap_pyr[0], reference_image->nmap_pyr[0], reference_frame->get_pose());
 
         reference_image->resize_device_map();
@@ -66,6 +70,13 @@ bool System::keyframe_needed() const
 void System::create_keyframe()
 {
     current_keyframe = last_tracked_frame;
+    features->add_keyframe(current_keyframe);
+}
+
+cv::Mat System::get_shaded_depth()
+{
+    if (odometry->get_current_image())
+        return cv::Mat(odometry->get_current_image()->get_rendered_image());
 }
 
 cv::Mat System::get_rendered_scene() const
@@ -108,10 +119,21 @@ size_t System::fetch_mesh_with_colour(float3 *vertex, uchar3 *colour)
 
 void System::fetch_key_points(float *points, size_t &max_size)
 {
+    features->get_points(points, max_size);
 }
 
 void System::fetch_key_points_with_normal(float *points, float *normal, size_t &max_size)
 {
+}
+
+Eigen::Matrix4f System::get_camera_pose() const
+{
+    Eigen::Matrix4f T;
+    if (odometry->get_reference_image())
+    {
+        T = odometry->get_reference_image()->get_reference_frame()->get_pose().cast<float>().matrix();
+    }
+    return T;
 }
 
 } // namespace fusion

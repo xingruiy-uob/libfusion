@@ -58,7 +58,7 @@ struct RenderingBlock
 
 struct Voxel
 {
-    float sdf;
+    short sdf;
     float weight;
     uchar3 rgb;
 
