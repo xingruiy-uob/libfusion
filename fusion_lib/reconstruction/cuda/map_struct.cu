@@ -1,30 +1,25 @@
 #include "map_struct.h"
 #include "vector_math.h"
 #include "cuda_utils.h"
+#include <fstream>
 
-MapState state;
-bool state_initialised = false;
-__device__ MapState param;
+FUSION_DEVICE MapState param;
 
 template <bool Device>
 MapStruct<Device>::MapStruct()
 {
-    if (!state_initialised)
-    {
-        state.num_total_buckets_ = 200000;
-        state.num_total_hash_entries_ = 250000;
-        state.num_total_voxel_blocks_ = 200000;
-        state.zmax_raycast = 2.f;
-        state.zmin_raycast = 0.3f;
-        state.zmax_update = 2.f;
-        state.zmin_update = 0.3f;
-        state.voxel_size = 0.004f;
-        state.num_max_rendering_blocks_ = 100000;
-        state.num_max_mesh_triangles_ = 20000000;
+    state.num_total_buckets_ = 200000;
+    state.num_total_hash_entries_ = 250000;
+    state.num_total_voxel_blocks_ = 200000;
+    state.zmax_raycast = 2.f;
+    state.zmin_raycast = 0.3f;
+    state.zmax_update = 2.f;
+    state.zmin_update = 0.3f;
+    state.voxel_size = 0.004f;
+    state.num_max_rendering_blocks_ = 100000;
+    state.num_max_mesh_triangles_ = 20000000;
 
-        safe_call(cudaMemcpyToSymbol(param, &state, sizeof(MapState)));
-        state_initialised = true;
-    }
+    safe_call(cudaMemcpyToSymbol(param, &state, sizeof(MapState)));
 }
 
 __global__ void reset_hash_entries_kernel(HashEntry *hash_table, int max_num)
@@ -63,14 +58,14 @@ void MapStruct<Device>::reset()
         dim3 thread(MAX_THREAD);
         dim3 block(div_up(state.num_total_hash_entries_, thread.x));
 
-        reset_hash_entries_kernel<<<block, thread>>>(hash_table_, state.num_total_hash_entries_);
+        reset_hash_entries_kernel<<<block, thread>>>(map.hash_table_, state.num_total_hash_entries_);
 
         block = dim3(div_up(state.num_total_voxel_blocks_, thread.x));
-        reset_heap_memory_kernel<<<block, thread>>>(heap_mem_, heap_mem_counter_);
+        reset_heap_memory_kernel<<<block, thread>>>(map.heap_mem_, map.heap_mem_counter_);
 
-        safe_call(cudaMemset(excess_counter_, 0, sizeof(int)));
-        safe_call(cudaMemset(bucket_mutex_, 0, sizeof(int) * state.num_total_buckets_));
-        safe_call(cudaMemset(voxels_, 0, sizeof(Voxel) * state.num_total_voxels()));
+        safe_call(cudaMemset(map.excess_counter_, 0, sizeof(int)));
+        safe_call(cudaMemset(map.bucket_mutex_, 0, sizeof(int) * state.num_total_buckets_));
+        safe_call(cudaMemset(map.voxels_, 0, sizeof(Voxel) * state.num_total_voxels()));
 #endif
     }
 }
@@ -80,54 +75,53 @@ std::ostream &operator<<(std::ostream &o, MapState &state)
     return o;
 }
 
-__device__ __host__ int MapState::num_total_voxels() const
+FUSION_DEVICE __host__ int MapState::num_total_voxels() const
 {
     return num_total_voxel_blocks_ * BLOCK_SIZE3;
 }
 
-__device__ __host__ float MapState::block_size_metric() const
+FUSION_DEVICE __host__ float MapState::block_size_metric() const
 {
     return BLOCK_SIZE * voxel_size;
 }
 
-__device__ __host__ int MapState::num_total_mesh_vertices() const
+FUSION_DEVICE __host__ int MapState::num_total_mesh_vertices() const
 {
     return 3 * num_max_mesh_triangles_;
 }
 
-__device__ __host__ float MapState::inverse_voxel_size() const
+FUSION_DEVICE __host__ float MapState::inverse_voxel_size() const
 {
     return 1.0f / voxel_size;
 }
 
-__device__ __host__ int MapState::num_excess_entries() const
+FUSION_DEVICE __host__ int MapState::num_excess_entries() const
 {
     return num_total_hash_entries_ - num_total_buckets_;
 }
 
-__device__ __host__ float MapState::truncation_dist() const
+FUSION_DEVICE __host__ float MapState::truncation_dist() const
 {
     return 3.0f * voxel_size;
 }
 
-__device__ __host__ float MapState::raycast_step_scale() const
+FUSION_DEVICE __host__ float MapState::raycast_step_scale() const
 {
     return truncation_dist() * inverse_voxel_size();
 }
-__device__ HashEntry::HashEntry() : ptr_(-1), offset_(-1)
+FUSION_DEVICE HashEntry::HashEntry() : ptr_(-1), offset_(-1)
 {
 }
 
-__device__ HashEntry::HashEntry(int3 pos, int ptr, int offset) : pos_(pos), ptr_(ptr), offset_(offset)
+FUSION_DEVICE HashEntry::HashEntry(int3 pos, int ptr, int offset) : pos_(pos), ptr_(ptr), offset_(offset)
 {
 }
 
-__device__ HashEntry::HashEntry(const HashEntry &other) : pos_(other.pos_), ptr_(other.ptr_), offset_(other.offset_)
+FUSION_DEVICE HashEntry::HashEntry(const HashEntry &other) : pos_(other.pos_), ptr_(other.ptr_), offset_(other.offset_)
 {
 }
 
-__device__ HashEntry &
-HashEntry::operator=(const HashEntry &other)
+FUSION_DEVICE HashEntry &HashEntry::operator=(const HashEntry &other)
 {
     pos_ = other.pos_;
     ptr_ = other.ptr_;
@@ -135,49 +129,49 @@ HashEntry::operator=(const HashEntry &other)
     return *this;
 }
 
-__device__ bool HashEntry::operator==(const int3 &pos) const
+FUSION_DEVICE bool HashEntry::operator==(const int3 &pos) const
 {
     return this->pos_ == pos;
 }
 
-__device__ bool HashEntry::operator==(const HashEntry &other) const
+FUSION_DEVICE bool HashEntry::operator==(const HashEntry &other) const
 {
     return other.pos_ == pos_;
 }
 
-__device__ float unpack_float(short val)
+FUSION_DEVICE float unpack_float(short val)
 {
     return val / (float)32767;
 }
 
-__device__ short pack_float(float val)
+FUSION_DEVICE short pack_float(float val)
 {
     return (short)(val * 32767);
 }
 
-__device__ float Voxel::get_sdf() const
+FUSION_DEVICE float Voxel::get_sdf() const
 {
     return unpack_float(sdf);
 }
 
-__device__ void Voxel::set_sdf(float val)
+FUSION_DEVICE void Voxel::set_sdf(float val)
 {
     sdf = pack_float(val);
 }
 
-__device__ float Voxel::get_weight() const
+FUSION_DEVICE float Voxel::get_weight() const
 {
     // return unpack_float(weight);
     return weight;
 }
 
-__device__ void Voxel::set_weight(float val)
+FUSION_DEVICE void Voxel::set_weight(float val)
 {
     // weight = pack_float(val);
     weight = val;
 }
 
-__device__ bool lock_bucket(int *mutex)
+FUSION_DEVICE bool lock_bucket(int *mutex)
 {
     if (atomicExch(mutex, 1) != 1)
         return true;
@@ -185,12 +179,12 @@ __device__ bool lock_bucket(int *mutex)
         return false;
 }
 
-__device__ void unlock_bucket(int *mutex)
+FUSION_DEVICE void unlock_bucket(int *mutex)
 {
     atomicExch(mutex, 0);
 }
 
-__device__ int compute_hash(const int3 &pos)
+FUSION_DEVICE int compute_hash(const int3 &pos)
 {
     int res = ((pos.x * 73856093) ^ (pos.y * 19349669) ^ (pos.z * 83492791)) % param.num_total_buckets_;
     if (res < 0)
@@ -199,30 +193,28 @@ __device__ int compute_hash(const int3 &pos)
     return res;
 }
 
-template <bool Device>
-__device__ bool MapStruct<Device>::delete_entry(HashEntry &current)
+FUSION_DEVICE bool DeleteHashEntry(MapStorage &map, HashEntry &current)
 {
-    int old = atomicAdd(heap_mem_counter_, 1);
+    int old = atomicAdd(map.heap_mem_counter_, 1);
     if (old < param.num_total_voxel_blocks_ - 1)
     {
-        heap_mem_[old + 1] = current.ptr_ / BLOCK_SIZE3;
+        map.heap_mem_[old + 1] = current.ptr_ / BLOCK_SIZE3;
         current.ptr_ = -1;
         return true;
     }
     else
     {
-        atomicSub(heap_mem_counter_, 1);
+        atomicSub(map.heap_mem_counter_, 1);
         return false;
     }
 }
 
-template <bool Device>
-__device__ bool MapStruct<Device>::create_entry(const int3 &pos, const int &offset, HashEntry *entry)
+FUSION_DEVICE bool CreateHashEntry(MapStorage &map, const int3 &pos, const int &offset, HashEntry *entry)
 {
-    int old = atomicSub(heap_mem_counter_, 1);
+    int old = atomicSub(map.heap_mem_counter_, 1);
     if (old >= 0)
     {
-        int ptr = heap_mem_[old];
+        int ptr = map.heap_mem_[old];
         if (ptr != -1 && entry != nullptr)
         {
             *entry = HashEntry(pos, ptr * BLOCK_SIZE3, offset);
@@ -231,18 +223,17 @@ __device__ bool MapStruct<Device>::create_entry(const int3 &pos, const int &offs
     }
     else
     {
-        atomicAdd(heap_mem_counter_, 1);
+        atomicAdd(map.heap_mem_counter_, 1);
     }
 
     return false;
 }
 
-template <bool Device>
-__device__ void MapStruct<Device>::create_block(const int3 &block_pos, int &bucket_index)
+FUSION_DEVICE void create_block(MapStorage &map, const int3 &block_pos, int &bucket_index)
 {
     bucket_index = compute_hash(block_pos);
-    int *mutex = &bucket_mutex_[bucket_index];
-    HashEntry *current = &hash_table_[bucket_index];
+    int *mutex = &map.bucket_mutex_[bucket_index];
+    HashEntry *current = &map.hash_table_[bucket_index];
     HashEntry *empty_entry = nullptr;
     if (current->pos_ == block_pos && current->ptr_ != -1)
         return;
@@ -253,7 +244,7 @@ __device__ void MapStruct<Device>::create_block(const int3 &block_pos, int &buck
     while (current->offset_ > 0)
     {
         bucket_index = param.num_total_buckets_ + current->offset_ - 1;
-        current = &hash_table_[bucket_index];
+        current = &map.hash_table_[bucket_index];
         if (current->pos_ == block_pos && current->ptr_ != -1)
             return;
 
@@ -265,7 +256,7 @@ __device__ void MapStruct<Device>::create_block(const int3 &block_pos, int &buck
     {
         if (lock_bucket(mutex))
         {
-            create_entry(block_pos, current->offset_, empty_entry);
+            CreateHashEntry(map, block_pos, current->offset_, empty_entry);
             unlock_bucket(mutex);
         }
     }
@@ -273,11 +264,11 @@ __device__ void MapStruct<Device>::create_block(const int3 &block_pos, int &buck
     {
         if (lock_bucket(mutex))
         {
-            int offset = atomicAdd(excess_counter_, 1);
+            int offset = atomicAdd(map.excess_counter_, 1);
             if (offset <= param.num_excess_entries())
             {
-                empty_entry = &hash_table_[param.num_total_buckets_ + offset - 1];
-                if (create_entry(block_pos, 0, empty_entry))
+                empty_entry = &map.hash_table_[param.num_total_buckets_ + offset - 1];
+                if (CreateHashEntry(map, block_pos, 0, empty_entry))
                     current->offset_ = offset;
             }
             unlock_bucket(mutex);
@@ -285,39 +276,36 @@ __device__ void MapStruct<Device>::create_block(const int3 &block_pos, int &buck
     }
 }
 
-template <bool Device>
-__device__ void MapStruct<Device>::delete_block(HashEntry &current)
+FUSION_DEVICE void delete_block(MapStorage &map, HashEntry &current)
 {
-    memset(&voxels_[current.ptr_], 0, sizeof(Voxel) * BLOCK_SIZE3);
+    memset(&map.voxels_[current.ptr_], 0, sizeof(Voxel) * BLOCK_SIZE3);
     int hash_id = compute_hash(current.pos_);
-    int *mutex = &bucket_mutex_[hash_id];
-    HashEntry *reference = &hash_table_[hash_id];
+    int *mutex = &map.bucket_mutex_[hash_id];
+    HashEntry *reference = &map.hash_table_[hash_id];
     HashEntry *link_entry = nullptr;
 
-    // The entry to be deleted is the main entry
     if (reference->pos_ == current.pos_ && reference->ptr_ != -1)
     {
         if (lock_bucket(mutex))
         {
-            delete_entry(current);
+            DeleteHashEntry(map, current);
             unlock_bucket(mutex);
             return;
         }
     }
-    // Search the linked list for the entry
     else
     {
         while (reference->offset_ > 0)
         {
             hash_id = param.num_total_buckets_ + reference->offset_ - 1;
             link_entry = reference;
-            reference = &hash_table_[hash_id];
+            reference = &map.hash_table_[hash_id];
             if (reference->pos_ == current.pos_ && reference->ptr_ != -1)
             {
                 if (lock_bucket(mutex))
                 {
                     link_entry->offset_ = current.offset_;
-                    delete_entry(current);
+                    DeleteHashEntry(map, current);
                     unlock_bucket(mutex);
                     return;
                 }
@@ -326,27 +314,25 @@ __device__ void MapStruct<Device>::delete_block(HashEntry &current)
     }
 }
 
-template <bool Device>
-__device__ void MapStruct<Device>::find_voxel(const int3 &voxel_pos, Voxel *&out) const
+FUSION_DEVICE void find_voxel(const MapStorage &map, const int3 &voxel_pos, Voxel *&out)
 {
     HashEntry *current;
-    find_entry(voxel_pos_to_block_pos(voxel_pos), current);
+    find_entry(map, voxel_pos_to_block_pos(voxel_pos), current);
     if (current != nullptr)
-        out = &voxels_[current->ptr_ + voxel_pos_to_local_idx(voxel_pos)];
+        out = &map.voxels_[current->ptr_ + voxel_pos_to_local_idx(voxel_pos)];
 }
 
-template <bool Device>
-__device__ void MapStruct<Device>::find_entry(const int3 &block_pos, HashEntry *&out) const
+FUSION_DEVICE void find_entry(const MapStorage &map, const int3 &block_pos, HashEntry *&out)
 {
     uint bucket_idx = compute_hash(block_pos);
-    out = &hash_table_[bucket_idx];
+    out = &map.hash_table_[bucket_idx];
     if (out->ptr_ != -1 && out->pos_ == block_pos)
         return;
 
     while (out->offset_ > 0)
     {
         bucket_idx = param.num_total_buckets_ + out->offset_ - 1;
-        out = &hash_table_[bucket_idx];
+        out = &map.hash_table_[bucket_idx];
         if (out->ptr_ != -1 && out->pos_ == block_pos)
             return;
     }
@@ -360,22 +346,22 @@ FUSION_HOST void MapStruct<Device>::create()
     if (Device)
     {
 #ifdef __CUDACC__
-        safe_call(cudaMalloc((void **)&excess_counter_, sizeof(int)));
-        safe_call(cudaMalloc((void **)&heap_mem_counter_, sizeof(int)));
-        safe_call(cudaMalloc((void **)&bucket_mutex_, sizeof(int) * state.num_total_buckets_));
-        safe_call(cudaMalloc((void **)&heap_mem_, sizeof(int) * state.num_total_voxel_blocks_));
-        safe_call(cudaMalloc((void **)&hash_table_, sizeof(HashEntry) * state.num_total_hash_entries_));
-        safe_call(cudaMalloc((void **)&voxels_, sizeof(Voxel) * state.num_total_voxels()));
+        safe_call(cudaMalloc((void **)&map.excess_counter_, sizeof(int)));
+        safe_call(cudaMalloc((void **)&map.heap_mem_counter_, sizeof(int)));
+        safe_call(cudaMalloc((void **)&map.bucket_mutex_, sizeof(int) * state.num_total_buckets_));
+        safe_call(cudaMalloc((void **)&map.heap_mem_, sizeof(int) * state.num_total_voxel_blocks_));
+        safe_call(cudaMalloc((void **)&map.hash_table_, sizeof(HashEntry) * state.num_total_hash_entries_));
+        safe_call(cudaMalloc((void **)&map.voxels_, sizeof(Voxel) * state.num_total_voxels()));
 #endif
     }
     else
     {
-        voxels_ = new Voxel[state.num_total_voxels()];
-        hash_table_ = new HashEntry[state.num_total_hash_entries_];
-        heap_mem_ = new int[state.num_total_voxel_blocks_];
-        bucket_mutex_ = new int[state.num_total_buckets_];
-        heap_mem_counter_ = new int[1];
-        excess_counter_ = new int[1];
+        map.voxels_ = new Voxel[state.num_total_voxels()];
+        map.hash_table_ = new HashEntry[state.num_total_hash_entries_];
+        map.heap_mem_ = new int[state.num_total_voxel_blocks_];
+        map.bucket_mutex_ = new int[state.num_total_buckets_];
+        map.heap_mem_counter_ = new int[1];
+        map.excess_counter_ = new int[1];
     }
 }
 
@@ -385,22 +371,22 @@ FUSION_HOST void MapStruct<Device>::release()
     if (Device)
     {
 #ifdef __CUDACC__
-        safe_call(cudaFree((void *)heap_mem_));
-        safe_call(cudaFree((void *)heap_mem_counter_));
-        safe_call(cudaFree((void *)hash_table_));
-        safe_call(cudaFree((void *)bucket_mutex_));
-        safe_call(cudaFree((void *)excess_counter_));
-        safe_call(cudaFree((void *)voxels_));
+        safe_call(cudaFree((void *)map.heap_mem_));
+        safe_call(cudaFree((void *)map.heap_mem_counter_));
+        safe_call(cudaFree((void *)map.hash_table_));
+        safe_call(cudaFree((void *)map.bucket_mutex_));
+        safe_call(cudaFree((void *)map.excess_counter_));
+        safe_call(cudaFree((void *)map.voxels_));
 #endif
     }
     else
     {
-        delete[] heap_mem_;
-        delete[] heap_mem_counter_;
-        delete[] hash_table_;
-        delete[] bucket_mutex_;
-        delete[] excess_counter_;
-        delete[] voxels_;
+        delete[] map.heap_mem_;
+        delete[] map.heap_mem_counter_;
+        delete[] map.hash_table_;
+        delete[] map.bucket_mutex_;
+        delete[] map.excess_counter_;
+        delete[] map.voxels_;
     }
 }
 
@@ -413,12 +399,12 @@ FUSION_HOST void MapStruct<Device>::copyTo(MapStruct<Device> &other) const
         if (other.empty())
             other.create();
 
-        safe_call(cudaMemcpy(other.excess_counter_, excess_counter_, sizeof(int), cudaMemcpyDeviceToDevice));
-        safe_call(cudaMemcpy(other.heap_mem_counter_, heap_mem_counter_, sizeof(int), cudaMemcpyDeviceToDevice));
-        safe_call(cudaMemcpy(other.bucket_mutex_, bucket_mutex_, sizeof(int) * state.num_total_buckets_, cudaMemcpyDeviceToDevice));
-        safe_call(cudaMemcpy(other.heap_mem_, heap_mem_, sizeof(int) * state.num_total_voxel_blocks_, cudaMemcpyDeviceToDevice));
-        safe_call(cudaMemcpy(other.hash_table_, hash_table_, sizeof(HashEntry) * state.num_total_hash_entries_, cudaMemcpyDeviceToDevice));
-        safe_call(cudaMemcpy(other.voxels_, voxels_, sizeof(Voxel) * state.num_total_voxels(), cudaMemcpyDeviceToDevice));
+        safe_call(cudaMemcpy(other.map.excess_counter_, map.excess_counter_, sizeof(int), cudaMemcpyDeviceToDevice));
+        safe_call(cudaMemcpy(other.map.heap_mem_counter_, map.heap_mem_counter_, sizeof(int), cudaMemcpyDeviceToDevice));
+        safe_call(cudaMemcpy(other.map.bucket_mutex_, map.bucket_mutex_, sizeof(int) * state.num_total_buckets_, cudaMemcpyDeviceToDevice));
+        safe_call(cudaMemcpy(other.map.heap_mem_, map.heap_mem_, sizeof(int) * state.num_total_voxel_blocks_, cudaMemcpyDeviceToDevice));
+        safe_call(cudaMemcpy(other.map.hash_table_, map.hash_table_, sizeof(HashEntry) * state.num_total_hash_entries_, cudaMemcpyDeviceToDevice));
+        safe_call(cudaMemcpy(other.map.voxels_, map.voxels_, sizeof(Voxel) * state.num_total_voxels(), cudaMemcpyDeviceToDevice));
 #endif
     }
     else
@@ -439,12 +425,12 @@ FUSION_HOST void MapStruct<Device>::upload(MapStruct<false> &other)
         if (other.empty())
             return;
 
-        safe_call(cudaMemcpy(excess_counter_, other.excess_counter_, sizeof(int), cudaMemcpyHostToDevice));
-        safe_call(cudaMemcpy(heap_mem_counter_, other.heap_mem_counter_, sizeof(int), cudaMemcpyHostToDevice));
-        safe_call(cudaMemcpy(bucket_mutex_, other.bucket_mutex_, sizeof(int) * state.num_total_buckets_, cudaMemcpyHostToDevice));
-        safe_call(cudaMemcpy(heap_mem_, other.heap_mem_, sizeof(int) * state.num_total_voxel_blocks_, cudaMemcpyHostToDevice));
-        safe_call(cudaMemcpy(hash_table_, other.hash_table_, sizeof(HashEntry) * state.num_total_hash_entries_, cudaMemcpyHostToDevice));
-        safe_call(cudaMemcpy(voxels_, other.voxels_, sizeof(Voxel) * state.num_total_voxels(), cudaMemcpyHostToDevice));
+        safe_call(cudaMemcpy(map.excess_counter_, other.map.excess_counter_, sizeof(int), cudaMemcpyHostToDevice));
+        safe_call(cudaMemcpy(map.heap_mem_counter_, other.map.heap_mem_counter_, sizeof(int), cudaMemcpyHostToDevice));
+        safe_call(cudaMemcpy(map.bucket_mutex_, other.map.bucket_mutex_, sizeof(int) * state.num_total_buckets_, cudaMemcpyHostToDevice));
+        safe_call(cudaMemcpy(map.heap_mem_, other.map.heap_mem_, sizeof(int) * state.num_total_voxel_blocks_, cudaMemcpyHostToDevice));
+        safe_call(cudaMemcpy(map.hash_table_, other.map.hash_table_, sizeof(HashEntry) * state.num_total_hash_entries_, cudaMemcpyHostToDevice));
+        safe_call(cudaMemcpy(map.voxels_, other.map.voxels_, sizeof(Voxel) * state.num_total_voxels(), cudaMemcpyHostToDevice));
 #endif
     }
 }
@@ -462,12 +448,12 @@ FUSION_HOST void MapStruct<Device>::download(MapStruct<false> &other) const
         if (other.empty())
             other.create();
 
-        safe_call(cudaMemcpy(other.excess_counter_, excess_counter_, sizeof(int), cudaMemcpyDeviceToHost));
-        safe_call(cudaMemcpy(other.heap_mem_counter_, heap_mem_counter_, sizeof(int), cudaMemcpyDeviceToHost));
-        safe_call(cudaMemcpy(other.bucket_mutex_, bucket_mutex_, sizeof(int) * state.num_total_buckets_, cudaMemcpyDeviceToHost));
-        safe_call(cudaMemcpy(other.heap_mem_, heap_mem_, sizeof(int) * state.num_total_voxel_blocks_, cudaMemcpyDeviceToHost));
-        safe_call(cudaMemcpy(other.hash_table_, hash_table_, sizeof(HashEntry) * state.num_total_hash_entries_, cudaMemcpyDeviceToHost));
-        safe_call(cudaMemcpy(other.voxels_, voxels_, sizeof(Voxel) * state.num_total_voxels(), cudaMemcpyDeviceToHost));
+        safe_call(cudaMemcpy(other.map.excess_counter_, map.excess_counter_, sizeof(int), cudaMemcpyDeviceToHost));
+        safe_call(cudaMemcpy(other.map.heap_mem_counter_, map.heap_mem_counter_, sizeof(int), cudaMemcpyDeviceToHost));
+        safe_call(cudaMemcpy(other.map.bucket_mutex_, map.bucket_mutex_, sizeof(int) * state.num_total_buckets_, cudaMemcpyDeviceToHost));
+        safe_call(cudaMemcpy(other.map.heap_mem_, map.heap_mem_, sizeof(int) * state.num_total_voxel_blocks_, cudaMemcpyDeviceToHost));
+        safe_call(cudaMemcpy(other.map.hash_table_, map.hash_table_, sizeof(HashEntry) * state.num_total_hash_entries_, cudaMemcpyDeviceToHost));
+        safe_call(cudaMemcpy(other.map.voxels_, map.voxels_, sizeof(Voxel) * state.num_total_voxels(), cudaMemcpyDeviceToHost));
 #endif
     }
 }
@@ -475,17 +461,76 @@ FUSION_HOST void MapStruct<Device>::download(MapStruct<false> &other) const
 template <bool Device>
 FUSION_HOST bool MapStruct<Device>::empty()
 {
-    return voxels_ == NULL;
+    return map.voxels_ == NULL;
+}
+
+template <bool Device>
+FUSION_HOST void MapStruct<Device>::exportModel(std::string file_name) const
+{
+    if (Device)
+    {
+        return;
+    }
 }
 
 template <bool Device>
 FUSION_HOST void MapStruct<Device>::writeToDisk(std::string file_name, const bool binary) const
 {
+    if (Device)
+    {
+        return;
+    }
+
+    std::ofstream file;
+    if (binary)
+    {
+        file.open(file_name, std::ios_base::out | std::ios_base::binary);
+    }
+    else
+    {
+        file.open(file_name, std::ios_base::out);
+    }
+
+    if (file.is_open())
+    {
+        file.write((const char *)map.voxels_, sizeof(Voxel) * state.num_total_voxels());
+        file.write((const char *)map.hash_table_, sizeof(HashEntry) * state.num_total_hash_entries_);
+        file.write((const char *)map.heap_mem_, sizeof(int) * state.num_total_voxel_blocks_);
+        file.write((const char *)map.bucket_mutex_, sizeof(int) * state.num_total_buckets_);
+        file.write((const char *)map.heap_mem_counter_, sizeof(int));
+        file.write((const char *)map.excess_counter_, sizeof(int));
+        std::cout << "file wrote to disk." << std::endl;
+    }
 }
 
 template <bool Device>
 FUSION_HOST void MapStruct<Device>::readFromDisk(std::string file_name, const bool binary)
 {
+    if (Device)
+    {
+        return;
+    }
+
+    std::ifstream file;
+    if (binary)
+    {
+        file.open(file_name, std::ios_base::in | std::ios_base::binary);
+    }
+    else
+    {
+        file.open(file_name, std::ios_base::in);
+    }
+
+    if (file.is_open())
+    {
+        file.read((char *)map.voxels_, sizeof(Voxel) * state.num_total_voxels());
+        file.read((char *)map.hash_table_, sizeof(HashEntry) * state.num_total_hash_entries_);
+        file.read((char *)map.heap_mem_, sizeof(int) * state.num_total_voxel_blocks_);
+        file.read((char *)map.bucket_mutex_, sizeof(int) * state.num_total_buckets_);
+        file.read((char *)map.heap_mem_counter_, sizeof(int));
+        file.read((char *)map.excess_counter_, sizeof(int));
+        std::cout << "file read from disk." << std::endl;
+    }
 }
 
 FUSION_DEVICE int3 world_pt_to_voxel_pos(float3 pt)

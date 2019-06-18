@@ -219,7 +219,6 @@ __global__ void split_and_fill_rendering_blocks_kernel(const RenderingBlockDeleg
 }
 
 void create_rendering_blocks(
-    MapStruct<true> map_struct,
     uint count_visible_block,
     uint &count_rendering_block,
     HashEntry *visible_blocks,
@@ -278,7 +277,7 @@ void create_rendering_blocks(
 struct MapRenderingDelegate
 {
     int width, height;
-    MapStruct<true> map_struct;
+    MapStorage map_struct;
     mutable cv::cuda::PtrStep<float4> vmap;
     mutable cv::cuda::PtrStep<float4> nmap;
     cv::cuda::PtrStepSz<float> zrange_x;
@@ -289,7 +288,7 @@ struct MapRenderingDelegate
     __device__ __forceinline__ float read_sdf(const float3 &pt3d, bool &valid)
     {
         Voxel *voxel = NULL;
-        map_struct.find_voxel(make_int3(pt3d), voxel);
+        find_voxel(map_struct, make_int3(pt3d), voxel);
         if (voxel && voxel->weight != 0)
         {
             valid = true;
@@ -425,7 +424,7 @@ struct MapRenderingDelegate
     __device__ __forceinline__ uchar3 read_colour(float3 pt3d, bool &valid)
     {
         Voxel *voxel = NULL;
-        map_struct.find_voxel(make_int3(pt3d), voxel);
+        find_voxel(map_struct, make_int3(pt3d), voxel);
         if (voxel && voxel->weight != 0)
         {
             valid = true;
@@ -572,7 +571,8 @@ __global__ void __launch_bounds__(32, 16) raycast_with_colour_kernel(MapRenderin
     delegate.raycast_with_colour();
 }
 
-void raycast(MapStruct<true> map_struct,
+void raycast(MapStorage map_struct,
+             MapState state,
              cv::cuda::GpuMat vmap,
              cv::cuda::GpuMat nmap,
              cv::cuda::GpuMat zrange_x,
@@ -605,7 +605,8 @@ void raycast(MapStruct<true> map_struct,
     raycast_kernel<<<block, thread>>>(delegate);
 }
 
-void raycast_with_colour(MapStruct<true> map_struct,
+void raycast_with_colour(MapStorage map_struct,
+                         MapState state,
                          cv::cuda::GpuMat vmap,
                          cv::cuda::GpuMat nmap,
                          cv::cuda::GpuMat image,

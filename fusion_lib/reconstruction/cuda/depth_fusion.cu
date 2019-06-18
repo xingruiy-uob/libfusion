@@ -39,7 +39,7 @@ __device__ bool is_block_visible(const int3 &block_pos,
     return false;
 }
 
-__global__ void check_visibility_flag_kernel(MapStruct<true> map_struct, uchar *flag, DeviceMatrix3x4 inv_pose,
+__global__ void check_visibility_flag_kernel(MapStorage map_struct, uchar *flag, DeviceMatrix3x4 inv_pose,
                                              int cols, int rows, float fx, float fy, float cx, float cy)
 {
     const int idx = threadIdx.x + blockDim.x * blockIdx.x;
@@ -100,14 +100,14 @@ __device__ float3 unproject_world(int x, int y, float z, float invfx,
     return pose(unproject(x, y, z, invfx, invfy, cx, cy));
 }
 
-__device__ __inline__ int create_block(MapStruct<true> &map_struct, const int3 block_pos)
+__device__ __inline__ int create_block(MapStorage &map_struct, const int3 block_pos)
 {
     int hash_index;
-    map_struct.create_block(block_pos, hash_index);
+    create_block(map_struct, block_pos, hash_index);
     return hash_index;
 }
 
-__global__ void create_blocks_kernel(MapStruct<true> map_struct, cv::cuda::PtrStepSz<float> depth,
+__global__ void create_blocks_kernel(MapStorage map_struct, cv::cuda::PtrStepSz<float> depth,
                                      float invfx, float invfy, float cx, float cy,
                                      DeviceMatrix3x4 pose, uchar *flag)
 {
@@ -216,7 +216,7 @@ __global__ void create_blocks_kernel(MapStruct<true> map_struct, cv::cuda::PtrSt
     }
 }
 
-__global__ void update_map_kernel(MapStruct<true> map_struct,
+__global__ void update_map_kernel(MapStorage map_struct,
                                   HashEntry *visible_blocks,
                                   uint count_visible_block,
                                   cv::cuda::PtrStepSz<float> depth,
@@ -274,7 +274,7 @@ __global__ void update_map_kernel(MapStruct<true> map_struct,
     }
 }
 
-__global__ void update_map_with_colour_kernel(MapStruct<true> map_struct,
+__global__ void update_map_with_colour_kernel(MapStorage map_struct,
                                               HashEntry *visible_blocks,
                                               uint count_visible_block,
                                               cv::cuda::PtrStepSz<float> depth,
@@ -343,7 +343,7 @@ __global__ void update_map_with_colour_kernel(MapStruct<true> map_struct,
 }
 
 __global__ void update_map_weighted_kernel(
-    MapStruct<true> map_struct,
+    MapStorage map_struct,
     HashEntry *visible_blocks,
     uint count_visible_block,
     cv::cuda::PtrStepSz<float> depth,
@@ -416,7 +416,8 @@ __global__ void update_map_weighted_kernel(
     }
 }
 
-void update(MapStruct<true> map_struct,
+void update(MapStorage map_struct,
+            MapState state,
             const cv::cuda::GpuMat depth,
             const cv::cuda::GpuMat image,
             const Sophus::SE3d &frame_pose,
@@ -487,7 +488,8 @@ void update(MapStruct<true> map_struct,
 }
 
 void update_weighted(
-    MapStruct<true> map_struct,
+    MapStorage map_struct,
+    MapState state,
     const cv::cuda::GpuMat depth,
     const cv::cuda::GpuMat normal,
     const cv::cuda::GpuMat image,

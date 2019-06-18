@@ -12,7 +12,7 @@ DenseMapping::DenseMapping(IntrinsicMatrix cam_params) : cam_params(cam_params)
   zrange_x.create(cam_params.height / 8, cam_params.width / 8, CV_32FC1);
   zrange_y.create(cam_params.height / 8, cam_params.width / 8, CV_32FC1);
 
-  safe_call(cudaMalloc((void **)&visible_blocks, sizeof(HashEntry) * state.num_total_hash_entries_));
+  safe_call(cudaMalloc((void **)&visible_blocks, sizeof(HashEntry) * device_map.state.num_total_hash_entries_));
   safe_call(cudaMalloc((void **)&rendering_blocks, sizeof(RenderingBlock) * 100000));
 
   reset_mapping();
@@ -35,7 +35,8 @@ void DenseMapping::update(RgbdImagePtr frame)
   count_visible_block = 0;
 
   cuda::update_weighted(
-      device_map,
+      device_map.map,
+      device_map.state,
       depth,
       normal,
       image,
@@ -55,7 +56,8 @@ void DenseMapping::update(
   count_visible_block = 0;
 
   cuda::update(
-      device_map,
+      device_map.map,
+      device_map.state,
       depth,
       image,
       pose,
@@ -75,7 +77,6 @@ void DenseMapping::raycast(
     return;
 
   cuda::create_rendering_blocks(
-      device_map,
       count_visible_block,
       count_rendering_block,
       visible_blocks,
@@ -89,7 +90,8 @@ void DenseMapping::raycast(
   {
 
     cuda::raycast_with_colour(
-        device_map,
+        device_map.map,
+        device_map.state,
         vmap,
         vmap,
         image,
@@ -110,7 +112,8 @@ size_t DenseMapping::fetch_mesh_vertex_only(float3 *vertex)
   uint count_triangle = 0;
 
   cuda::create_mesh_vertex_only(
-      device_map,
+      device_map.map,
+      device_map.state,
       count_visible_block,
       visible_blocks,
       count_triangle,
@@ -124,7 +127,8 @@ size_t DenseMapping::fetch_mesh_with_normal(float3 *vertex, float3 *normal)
   uint count_triangle = 0;
 
   cuda::create_mesh_with_normal(
-      device_map,
+      device_map.map,
+      device_map.state,
       count_visible_block,
       visible_blocks,
       count_triangle,
@@ -139,7 +143,8 @@ size_t DenseMapping::fetch_mesh_with_colour(float3 *vertex, uchar3 *colour)
   uint count_triangle = 0;
 
   cuda::create_mesh_with_colour(
-      device_map,
+      device_map.map,
+      device_map.state,
       count_visible_block,
       visible_blocks,
       count_triangle,

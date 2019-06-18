@@ -1,5 +1,5 @@
-#ifndef __MAP_STRUCT__
-#define __MAP_STRUCT__
+#ifndef FUSION_MAP_STRUCT_H
+#define FUSION_MAP_STRUCT_H
 
 #include <cuda.h>
 #include <cuda_runtime.h>
@@ -66,10 +66,7 @@ struct MapState
     FUSION_HOST_AND_DEVICE float raycast_step_scale() const;
 };
 
-extern MapState state;
 FUSION_DEVICE extern MapState param;
-extern bool state_initialised;
-void update_device_map_state();
 std::ostream &operator<<(std::ostream &o, MapState &state);
 
 struct RenderingBlock
@@ -105,6 +102,16 @@ struct HashEntry
     int3 pos_;
 };
 
+struct MapStorage
+{
+    int *heap_mem_;
+    int *excess_counter_;
+    int *heap_mem_counter_;
+    int *bucket_mutex_;
+    Voxel *voxels_;
+    HashEntry *hash_table_;
+};
+
 template <bool Device>
 struct MapStruct
 {
@@ -115,26 +122,21 @@ struct MapStruct
     FUSION_HOST void copyTo(MapStruct<Device> &) const;
     FUSION_HOST void upload(MapStruct<false> &);
     FUSION_HOST void download(MapStruct<false> &) const;
-    FUSION_HOST void writeToDisk(std::string, bool) const;
-    FUSION_HOST void readFromDisk(std::string, bool);
+    FUSION_HOST void writeToDisk(std::string, bool binary = true) const;
+    FUSION_HOST void exportModel(std::string) const;
+    FUSION_HOST void readFromDisk(std::string, bool binary = true);
     FUSION_HOST void reset();
 
-    FUSION_DEVICE bool delete_entry(HashEntry &current);
-    FUSION_DEVICE void create_block(const int3 &blockPos, int &bucket_index);
-    FUSION_DEVICE void delete_block(HashEntry &current);
-    FUSION_DEVICE bool create_entry(const int3 &pos, const int &offset, HashEntry *entry);
-    FUSION_DEVICE void find_voxel(const int3 &voxel_pos, Voxel *&out) const;
-    FUSION_DEVICE void find_entry(const int3 &block_pos, HashEntry *&out) const;
-
-    int *heap_mem_;
-    int *excess_counter_;
-    int *heap_mem_counter_;
-    int *bucket_mutex_;
-
-    Voxel *voxels_;
-    HashEntry *hash_table_;
+    MapStorage map;
+    MapState state;
 };
 
+FUSION_DEVICE bool DeleteHashEntry(MapStorage &map, HashEntry &current);
+FUSION_DEVICE void create_block(MapStorage &map, const int3 &blockPos, int &bucket_index);
+FUSION_DEVICE void delete_block(MapStorage &map, HashEntry &current);
+FUSION_DEVICE bool CreateHashEntry(MapStorage &map, const int3 &pos, const int &offset, HashEntry *entry);
+FUSION_DEVICE void find_voxel(const MapStorage &map, const int3 &voxel_pos, Voxel *&out);
+FUSION_DEVICE void find_entry(const MapStorage &map, const int3 &block_pos, HashEntry *&out);
 FUSION_DEVICE int compute_hash(const int3 &pos);
 FUSION_DEVICE bool lock_bucket(int *mutex);
 FUSION_DEVICE void unlock_bucket(int *mutex);

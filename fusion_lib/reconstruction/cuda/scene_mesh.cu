@@ -11,7 +11,7 @@ namespace cuda
 
 struct BuildVertexArray
 {
-    MapStruct<true> map_struct;
+    MapStorage map_struct;
 
     float3 *triangles;
     HashEntry *block_array;
@@ -52,7 +52,7 @@ struct BuildVertexArray
     __device__ __forceinline__ float read_sdf(float3 pt, bool &valid) const
     {
         Voxel *voxel = NULL;
-        map_struct.find_voxel(make_int3(pt), voxel);
+        find_voxel(map_struct, make_int3(pt), voxel);
         if (voxel && voxel->weight != 0)
         {
             valid = true;
@@ -256,7 +256,8 @@ __global__ void generate_vertex_array_kernel(BuildVertexArray bva)
 }
 
 void create_mesh_vertex_only(
-    MapStruct<true> map_struct,
+    MapStorage map_struct,
+    MapState state,
     uint &block_count,
     HashEntry *block_list,
     uint &triangle_count,
@@ -303,7 +304,8 @@ __global__ void generate_vertex_and_normal_array_kernel(BuildVertexArray bva)
 }
 
 void create_mesh_with_normal(
-    MapStruct<true> map_struct,
+    MapStorage map_struct,
+    MapState state,
     uint &block_count,
     HashEntry *block_list,
     uint &triangle_count,
@@ -348,7 +350,7 @@ void create_mesh_with_normal(
 
 struct BuildVertexAndColourArray
 {
-    MapStruct<true> map_struct;
+    MapStorage map_struct;
 
     float3 *triangles;
     HashEntry *block_array;
@@ -389,7 +391,7 @@ struct BuildVertexAndColourArray
     __device__ __forceinline__ void read_sdf_and_colour(float3 pt, bool &valid, float &sdf, uchar3 &colour) const
     {
         Voxel *vx = NULL;
-        map_struct.find_voxel(make_int3(pt), vx);
+        find_voxel(map_struct, make_int3(pt), vx);
         if (vx && vx->get_weight() > 1e-3)
         {
             valid = true;
@@ -594,7 +596,8 @@ __global__ void generate_vertex_and_colour_array_kernel(BuildVertexAndColourArra
 }
 
 void create_mesh_with_colour(
-    MapStruct<true> map_struct,
+    MapStorage map_struct,
+    MapState state,
     uint &block_count,
     HashEntry *block_list,
     uint &triangle_count,
