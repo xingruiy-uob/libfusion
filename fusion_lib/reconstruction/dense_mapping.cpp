@@ -8,7 +8,7 @@ namespace fusion
 
 DenseMapping::DenseMapping(IntrinsicMatrix cam_params) : cam_params(cam_params)
 {
-  device_map.allocate_memory(true);
+  device_map.create();
   zrange_x.create(cam_params.height / 8, cam_params.width / 8, CV_32FC1);
   zrange_y.create(cam_params.height / 8, cam_params.width / 8, CV_32FC1);
 
@@ -20,7 +20,7 @@ DenseMapping::DenseMapping(IntrinsicMatrix cam_params) : cam_params(cam_params)
 
 DenseMapping::~DenseMapping()
 {
-  device_map.release_memory(true);
+  device_map.release();
   safe_call(cudaFree((void *)visible_blocks));
   safe_call(cudaFree((void *)rendering_blocks));
 }
@@ -102,7 +102,7 @@ void DenseMapping::raycast(
 
 void DenseMapping::reset_mapping()
 {
-  device_map.reset_map_struct();
+  device_map.reset();
 }
 
 size_t DenseMapping::fetch_mesh_vertex_only(float3 *vertex)

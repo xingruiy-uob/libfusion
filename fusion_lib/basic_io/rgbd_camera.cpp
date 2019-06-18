@@ -3,11 +3,7 @@
 namespace fusion
 {
 
-RgbdCamera::RgbdCamera() : RgbdCamera(640, 480, 30)
-{
-}
-
-RgbdCamera::RgbdCamera(size_t cols, size_t rows, int fps)
+RgbdCamera::RgbdCamera(int cols, int rows, int fps)
     : width(cols), height(rows), fps(fps)
 {
     // openni context initialization
@@ -25,47 +21,44 @@ RgbdCamera::RgbdCamera(size_t cols, size_t rows, int fps)
     }
 
     // create depth stream
-    if (depth_stream.create(device, openni::SENSOR_DEPTH) != openni::STATUS_OK)
+    if (depthStream.create(device, openni::SENSOR_DEPTH) != openni::STATUS_OK)
     {
         std::cout << openni::OpenNI::getExtendedError() << std::endl;
         exit(0);
     }
 
     // create colour stream
-    if (color_stream.create(device, openni::SENSOR_COLOR) != openni::STATUS_OK)
+    if (rgbStream.create(device, openni::SENSOR_COLOR) != openni::STATUS_OK)
     {
         std::cout << openni::OpenNI::getExtendedError() << std::endl;
         exit(0);
     }
 
-    // NOTE: not recommended
-    auto vm_depth = depth_stream.getVideoMode();
-    vm_depth.setResolution(width, height);
-    vm_depth.setFps(fps);
-    vm_depth.setPixelFormat(openni::PIXEL_FORMAT_DEPTH_1_MM);
+    auto videoModeDepth = openni::VideoMode();
+    videoModeDepth.setResolution(width, height);
+    videoModeDepth.setFps(fps);
+    videoModeDepth.setPixelFormat(openni::PIXEL_FORMAT_DEPTH_1_MM);
+    depthStream.setVideoMode(videoModeDepth);
 
-    // NOTE: not recommended
-    auto vm_colour = color_stream.getVideoMode();
-    vm_colour.setResolution(width, height);
-    vm_colour.setFps(fps);
-    vm_colour.setPixelFormat(openni::PIXEL_FORMAT_RGB888);
-
-    depth_stream.setVideoMode(vm_depth);
-    color_stream.setVideoMode(vm_colour);
+    auto videoModeRGB = openni::VideoMode();
+    videoModeRGB.setResolution(width, height);
+    videoModeRGB.setFps(fps);
+    videoModeRGB.setPixelFormat(openni::PIXEL_FORMAT_RGB888);
+    rgbStream.setVideoMode(videoModeRGB);
 
     if (device.isImageRegistrationModeSupported(openni::IMAGE_REGISTRATION_DEPTH_TO_COLOR))
         device.setImageRegistrationMode(openni::IMAGE_REGISTRATION_DEPTH_TO_COLOR);
 
-    depth_stream.setMirroringEnabled(false);
-    color_stream.setMirroringEnabled(false);
+    rgbStream.setMirroringEnabled(false);
+    depthStream.setMirroringEnabled(false);
 
-    if (depth_stream.start() != openni::STATUS_OK)
+    if (depthStream.start() != openni::STATUS_OK)
     {
         std::cout << openni::OpenNI::getExtendedError() << std::endl;
         exit(0);
     }
 
-    if (color_stream.start() != openni::STATUS_OK)
+    if (rgbStream.start() != openni::STATUS_OK)
     {
         std::cout << openni::OpenNI::getExtendedError() << std::endl;
         exit(0);
@@ -76,10 +69,10 @@ RgbdCamera::RgbdCamera(size_t cols, size_t rows, int fps)
 
 RgbdCamera::~RgbdCamera()
 {
-    color_stream.stop();
-    color_stream.destroy();
-    depth_stream.stop();
-    depth_stream.destroy();
+    rgbStream.stop();
+    rgbStream.destroy();
+    depthStream.stop();
+    depthStream.destroy();
     device.close();
     openni::OpenNI::shutdown();
 
@@ -89,7 +82,7 @@ RgbdCamera::~RgbdCamera()
 
 bool RgbdCamera::get_image()
 {
-    openni::VideoStream *streams[] = {&depth_stream, &color_stream};
+    openni::VideoStream *streams[] = {&depthStream, &rgbStream};
 
     int stream_ready = -1;
     auto last_state = openni::STATUS_OK;
@@ -103,14 +96,14 @@ bool RgbdCamera::get_image()
             switch (stream_ready)
             {
             case 0: //depth ready
-                if (depth_stream.readFrame(&depth_ref) == openni::STATUS_OK)
-                    depth = cv::Mat(height, width, CV_16UC1, const_cast<void *>(depth_ref.getData()));
+                if (depthStream.readFrame(&depthFrame) == openni::STATUS_OK)
+                    depth = cv::Mat(height, width, CV_16UC1, const_cast<void *>(depthFrame.getData()));
                 break;
 
             case 1: // color ready
-                if (color_stream.readFrame(&color_ref) == openni::STATUS_OK)
+                if (rgbStream.readFrame(&rgbFrame) == openni::STATUS_OK)
                 {
-                    image = cv::Mat(height, width, CV_8UC3, const_cast<void *>(color_ref.getData()));
+                    image = cv::Mat(height, width, CV_8UC3, const_cast<void *>(rgbFrame.getData()));
                     // cv::cvtColor(image, image, cv::COLOR_RGB2BGR);
                 }
                 break;
@@ -121,7 +114,7 @@ bool RgbdCamera::get_image()
         }
     }
 
-    if (!depth_ref.isValid() || !color_ref.isValid())
+    if (!depthFrame.isValid() || !rgbFrame.isValid())
         return false;
 
     return true;

@@ -39,7 +39,7 @@ __device__ bool is_block_visible(const int3 &block_pos,
     return false;
 }
 
-__global__ void check_visibility_flag_kernel(MapStruct map_struct, uchar *flag, DeviceMatrix3x4 inv_pose,
+__global__ void check_visibility_flag_kernel(MapStruct<true> map_struct, uchar *flag, DeviceMatrix3x4 inv_pose,
                                              int cols, int rows, float fx, float fy, float cx, float cy)
 {
     const int idx = threadIdx.x + blockDim.x * blockIdx.x;
@@ -100,14 +100,14 @@ __device__ float3 unproject_world(int x, int y, float z, float invfx,
     return pose(unproject(x, y, z, invfx, invfy, cx, cy));
 }
 
-__device__ __inline__ int create_block(MapStruct &map_struct, const int3 block_pos)
+__device__ __inline__ int create_block(MapStruct<true> &map_struct, const int3 block_pos)
 {
     int hash_index;
     map_struct.create_block(block_pos, hash_index);
     return hash_index;
 }
 
-__global__ void create_blocks_kernel(MapStruct map_struct, cv::cuda::PtrStepSz<float> depth,
+__global__ void create_blocks_kernel(MapStruct<true> map_struct, cv::cuda::PtrStepSz<float> depth,
                                      float invfx, float invfy, float cx, float cy,
                                      DeviceMatrix3x4 pose, uchar *flag)
 {
@@ -126,8 +126,8 @@ __global__ void create_blocks_kernel(MapStruct map_struct, cv::cuda::PtrStepSz<f
     if (z_near >= z_far)
         return;
 
-    int3 block_near = map_struct.voxel_pos_to_block_pos(map_struct.world_pt_to_voxel_pos(unproject_world(x, y, z_near, invfx, invfy, cx, cy, pose)));
-    int3 block_far = map_struct.voxel_pos_to_block_pos(map_struct.world_pt_to_voxel_pos(unproject_world(x, y, z_far, invfx, invfy, cx, cy, pose)));
+    int3 block_near = voxel_pos_to_block_pos(world_pt_to_voxel_pos(unproject_world(x, y, z_near, invfx, invfy, cx, cy, pose)));
+    int3 block_far = voxel_pos_to_block_pos(world_pt_to_voxel_pos(unproject_world(x, y, z_far, invfx, invfy, cx, cy, pose)));
 
     int3 d = block_far - block_near;
     int3 increment = make_int3(d.x < 0 ? -1 : 1, d.y < 0 ? -1 : 1, d.z < 0 ? -1 : 1);
@@ -216,7 +216,7 @@ __global__ void create_blocks_kernel(MapStruct map_struct, cv::cuda::PtrStepSz<f
     }
 }
 
-__global__ void update_map_kernel(MapStruct map_struct,
+__global__ void update_map_kernel(MapStruct<true> map_struct,
                                   HashEntry *visible_blocks,
                                   uint count_visible_block,
                                   cv::cuda::PtrStepSz<float> depth,
@@ -229,7 +229,7 @@ __global__ void update_map_kernel(MapStruct map_struct,
 
     HashEntry &current = visible_blocks[blockIdx.x];
 
-    int3 voxel_pos = map_struct.block_pos_to_voxel_pos(current.pos_);
+    int3 voxel_pos = block_pos_to_voxel_pos(current.pos_);
     float dist_thresh = param.truncation_dist();
     float inv_dist_thresh = 1.0 / dist_thresh;
 
@@ -237,7 +237,7 @@ __global__ void update_map_kernel(MapStruct map_struct,
     for (int block_idx_z = 0; block_idx_z < 8; ++block_idx_z)
     {
         int3 local_pos = make_int3(threadIdx.x, threadIdx.y, block_idx_z);
-        float3 pt = inv_pose(map_struct.voxel_pos_to_world_pt(voxel_pos + local_pos));
+        float3 pt = inv_pose(voxel_pos_to_world_pt(voxel_pos + local_pos));
 
         int u = __float2int_rd(fx * pt.x / pt.z + cx + 0.5);
         int v = __float2int_rd(fy * pt.y / pt.z + cy + 0.5);
@@ -253,7 +253,7 @@ __global__ void update_map_kernel(MapStruct map_struct,
             continue;
 
         sdf = fmin(1.0f, sdf * inv_dist_thresh);
-        const int local_idx = map_struct.local_pos_to_local_idx(local_pos);
+        const int local_idx = local_pos_to_local_idx(local_pos);
         Voxel &voxel = map_struct.voxels_[current.ptr_ + local_idx];
 
         auto sdf_p = voxel.get_sdf();
@@ -274,7 +274,7 @@ __global__ void update_map_kernel(MapStruct map_struct,
     }
 }
 
-__global__ void update_map_with_colour_kernel(MapStruct map_struct,
+__global__ void update_map_with_colour_kernel(MapStruct<true> map_struct,
                                               HashEntry *visible_blocks,
                                               uint count_visible_block,
                                               cv::cuda::PtrStepSz<float> depth,
@@ -288,7 +288,7 @@ __global__ void update_map_with_colour_kernel(MapStruct map_struct,
 
     HashEntry &current = visible_blocks[blockIdx.x];
 
-    int3 voxel_pos = map_struct.block_pos_to_voxel_pos(current.pos_);
+    int3 voxel_pos = block_pos_to_voxel_pos(current.pos_);
     float dist_thresh = param.truncation_dist();
     float inv_dist_thresh = 1.0 / dist_thresh;
 
@@ -296,7 +296,7 @@ __global__ void update_map_with_colour_kernel(MapStruct map_struct,
     for (int block_idx_z = 0; block_idx_z < 8; ++block_idx_z)
     {
         int3 local_pos = make_int3(threadIdx.x, threadIdx.y, block_idx_z);
-        float3 pt = inv_pose(map_struct.voxel_pos_to_world_pt(voxel_pos + local_pos));
+        float3 pt = inv_pose(voxel_pos_to_world_pt(voxel_pos + local_pos));
 
         int u = __float2int_rd(fx * pt.x / pt.z + cx + 0.5);
         int v = __float2int_rd(fy * pt.y / pt.z + cy + 0.5);
@@ -312,7 +312,7 @@ __global__ void update_map_with_colour_kernel(MapStruct map_struct,
             continue;
 
         sdf = fmin(1.0f, sdf * inv_dist_thresh);
-        const int local_idx = map_struct.local_pos_to_local_idx(local_pos);
+        const int local_idx = local_pos_to_local_idx(local_pos);
         Voxel &voxel = map_struct.voxels_[current.ptr_ + local_idx];
 
         auto sdf_p = voxel.get_sdf();
@@ -343,7 +343,7 @@ __global__ void update_map_with_colour_kernel(MapStruct map_struct,
 }
 
 __global__ void update_map_weighted_kernel(
-    MapStruct map_struct,
+    MapStruct<true> map_struct,
     HashEntry *visible_blocks,
     uint count_visible_block,
     cv::cuda::PtrStepSz<float> depth,
@@ -361,7 +361,7 @@ __global__ void update_map_weighted_kernel(
     if (current.ptr_ < 0)
         return;
 
-    int3 voxel_pos = map_struct.block_pos_to_voxel_pos(current.pos_);
+    int3 voxel_pos = block_pos_to_voxel_pos(current.pos_);
     float dist_thresh = param.truncation_dist();
     float inv_dist_thresh = 1.0 / dist_thresh;
 
@@ -369,7 +369,7 @@ __global__ void update_map_weighted_kernel(
     for (int block_idx_z = 0; block_idx_z < 8; ++block_idx_z)
     {
         int3 local_pos = make_int3(threadIdx.x, threadIdx.y, block_idx_z);
-        float3 pt = inv_pose(map_struct.voxel_pos_to_world_pt(voxel_pos + local_pos));
+        float3 pt = inv_pose(voxel_pos_to_world_pt(voxel_pos + local_pos));
 
         int u = __float2int_rd(fx * pt.x / pt.z + cx + 0.5);
         int v = __float2int_rd(fy * pt.y / pt.z + cy + 0.5);
@@ -386,7 +386,7 @@ __global__ void update_map_weighted_kernel(
             continue;
 
         sdf = fmin(1.0f, sdf * inv_dist_thresh);
-        const int local_idx = map_struct.local_pos_to_local_idx(local_pos);
+        const int local_idx = local_pos_to_local_idx(local_pos);
         Voxel &voxel = map_struct.voxels_[current.ptr_ + local_idx];
 
         auto sdf_p = voxel.get_sdf();
@@ -416,7 +416,7 @@ __global__ void update_map_weighted_kernel(
     }
 }
 
-void update(MapStruct map_struct,
+void update(MapStruct<true> map_struct,
             const cv::cuda::GpuMat depth,
             const cv::cuda::GpuMat image,
             const Sophus::SE3d &frame_pose,
@@ -487,7 +487,7 @@ void update(MapStruct map_struct,
 }
 
 void update_weighted(
-    MapStruct map_struct,
+    MapStruct<true> map_struct,
     const cv::cuda::GpuMat depth,
     const cv::cuda::GpuMat normal,
     const cv::cuda::GpuMat image,

@@ -6,7 +6,8 @@ MapState state;
 bool state_initialised = false;
 __device__ MapState param;
 
-MapStruct::MapStruct()
+template <bool Device>
+MapStruct<Device>::MapStruct()
 {
     if (!state_initialised)
     {
@@ -23,35 +24,6 @@ MapStruct::MapStruct()
 
         safe_call(cudaMemcpyToSymbol(param, &state, sizeof(MapState)));
         state_initialised = true;
-    }
-}
-
-void MapStruct::allocate_memory(const bool &on_device)
-{
-    if (on_device)
-    {
-        safe_call(cudaMalloc((void **)&excess_counter_, sizeof(int)));
-        safe_call(cudaMalloc((void **)&heap_mem_counter_, sizeof(int)));
-        safe_call(cudaMalloc((void **)&bucket_mutex_, sizeof(int) * state.num_total_buckets_));
-        safe_call(cudaMalloc((void **)&heap_mem_, sizeof(int) * state.num_total_voxel_blocks_));
-        safe_call(cudaMalloc((void **)&hash_table_, sizeof(HashEntry) * state.num_total_hash_entries_));
-        safe_call(cudaMalloc((void **)&voxels_, sizeof(Voxel) * state.num_total_voxels()));
-    }
-    else
-    {
-    }
-}
-
-void MapStruct::release_memory(const bool &on_device)
-{
-    if (on_device)
-    {
-        safe_call(cudaFree((void *)heap_mem_));
-        safe_call(cudaFree((void *)heap_mem_counter_));
-        safe_call(cudaFree((void *)hash_table_));
-        safe_call(cudaFree((void *)bucket_mutex_));
-        safe_call(cudaFree((void *)excess_counter_));
-        safe_call(cudaFree((void *)voxels_));
     }
 }
 
@@ -81,19 +53,26 @@ __global__ void reset_heap_memory_kernel(int *heap, int *heap_counter)
     }
 }
 
-void MapStruct::reset_map_struct()
+template <bool Device>
+void MapStruct<Device>::reset()
 {
-    dim3 thread(MAX_THREAD);
-    dim3 block(div_up(state.num_total_hash_entries_, thread.x));
+    if (Device)
+    {
+#ifdef __CUDACC__
 
-    reset_hash_entries_kernel<<<block, thread>>>(hash_table_, state.num_total_hash_entries_);
+        dim3 thread(MAX_THREAD);
+        dim3 block(div_up(state.num_total_hash_entries_, thread.x));
 
-    block = dim3(div_up(state.num_total_voxel_blocks_, thread.x));
-    reset_heap_memory_kernel<<<block, thread>>>(heap_mem_, heap_mem_counter_);
+        reset_hash_entries_kernel<<<block, thread>>>(hash_table_, state.num_total_hash_entries_);
 
-    safe_call(cudaMemset(excess_counter_, 0, sizeof(int)));
-    safe_call(cudaMemset(bucket_mutex_, 0, sizeof(int) * state.num_total_buckets_));
-    safe_call(cudaMemset(voxels_, 0, sizeof(Voxel) * state.num_total_voxels()));
+        block = dim3(div_up(state.num_total_voxel_blocks_, thread.x));
+        reset_heap_memory_kernel<<<block, thread>>>(heap_mem_, heap_mem_counter_);
+
+        safe_call(cudaMemset(excess_counter_, 0, sizeof(int)));
+        safe_call(cudaMemset(bucket_mutex_, 0, sizeof(int) * state.num_total_buckets_));
+        safe_call(cudaMemset(voxels_, 0, sizeof(Voxel) * state.num_total_voxels()));
+#endif
+    }
 }
 
 std::ostream &operator<<(std::ostream &o, MapState &state)
@@ -198,7 +177,7 @@ __device__ void Voxel::set_weight(float val)
     weight = val;
 }
 
-__device__ bool MapStruct::lock_bucket(int *mutex)
+__device__ bool lock_bucket(int *mutex)
 {
     if (atomicExch(mutex, 1) != 1)
         return true;
@@ -206,12 +185,12 @@ __device__ bool MapStruct::lock_bucket(int *mutex)
         return false;
 }
 
-__device__ void MapStruct::unlock_bucket(int *mutex)
+__device__ void unlock_bucket(int *mutex)
 {
     atomicExch(mutex, 0);
 }
 
-__device__ int MapStruct::compute_hash(const int3 &pos) const
+__device__ int compute_hash(const int3 &pos)
 {
     int res = ((pos.x * 73856093) ^ (pos.y * 19349669) ^ (pos.z * 83492791)) % param.num_total_buckets_;
     if (res < 0)
@@ -220,7 +199,8 @@ __device__ int MapStruct::compute_hash(const int3 &pos) const
     return res;
 }
 
-__device__ bool MapStruct::delete_entry(HashEntry &current)
+template <bool Device>
+__device__ bool MapStruct<Device>::delete_entry(HashEntry &current)
 {
     int old = atomicAdd(heap_mem_counter_, 1);
     if (old < param.num_total_voxel_blocks_ - 1)
@@ -236,7 +216,8 @@ __device__ bool MapStruct::delete_entry(HashEntry &current)
     }
 }
 
-__device__ bool MapStruct::create_entry(const int3 &pos, const int &offset, HashEntry *entry)
+template <bool Device>
+__device__ bool MapStruct<Device>::create_entry(const int3 &pos, const int &offset, HashEntry *entry)
 {
     int old = atomicSub(heap_mem_counter_, 1);
     if (old >= 0)
@@ -256,7 +237,8 @@ __device__ bool MapStruct::create_entry(const int3 &pos, const int &offset, Hash
     return false;
 }
 
-__device__ void MapStruct::create_block(const int3 &block_pos, int &bucket_index)
+template <bool Device>
+__device__ void MapStruct<Device>::create_block(const int3 &block_pos, int &bucket_index)
 {
     bucket_index = compute_hash(block_pos);
     int *mutex = &bucket_mutex_[bucket_index];
@@ -303,7 +285,8 @@ __device__ void MapStruct::create_block(const int3 &block_pos, int &bucket_index
     }
 }
 
-__device__ void MapStruct::delete_block(HashEntry &current)
+template <bool Device>
+__device__ void MapStruct<Device>::delete_block(HashEntry &current)
 {
     memset(&voxels_[current.ptr_], 0, sizeof(Voxel) * BLOCK_SIZE3);
     int hash_id = compute_hash(current.pos_);
@@ -343,7 +326,8 @@ __device__ void MapStruct::delete_block(HashEntry &current)
     }
 }
 
-__device__ void MapStruct::find_voxel(const int3 &voxel_pos, Voxel *&out) const
+template <bool Device>
+__device__ void MapStruct<Device>::find_voxel(const int3 &voxel_pos, Voxel *&out) const
 {
     HashEntry *current;
     find_entry(voxel_pos_to_block_pos(voxel_pos), current);
@@ -351,7 +335,8 @@ __device__ void MapStruct::find_voxel(const int3 &voxel_pos, Voxel *&out) const
         out = &voxels_[current->ptr_ + voxel_pos_to_local_idx(voxel_pos)];
 }
 
-__device__ void MapStruct::find_entry(const int3 &block_pos, HashEntry *&out) const
+template <bool Device>
+__device__ void MapStruct<Device>::find_entry(const int3 &block_pos, HashEntry *&out) const
 {
     uint bucket_idx = compute_hash(block_pos);
     out = &hash_table_[bucket_idx];
@@ -369,23 +354,152 @@ __device__ void MapStruct::find_entry(const int3 &block_pos, HashEntry *&out) co
     out = nullptr;
 }
 
-__device__ int3 MapStruct::world_pt_to_voxel_pos(float3 pt) const
+template <bool Device>
+FUSION_HOST void MapStruct<Device>::create()
+{
+    if (Device)
+    {
+#ifdef __CUDACC__
+        safe_call(cudaMalloc((void **)&excess_counter_, sizeof(int)));
+        safe_call(cudaMalloc((void **)&heap_mem_counter_, sizeof(int)));
+        safe_call(cudaMalloc((void **)&bucket_mutex_, sizeof(int) * state.num_total_buckets_));
+        safe_call(cudaMalloc((void **)&heap_mem_, sizeof(int) * state.num_total_voxel_blocks_));
+        safe_call(cudaMalloc((void **)&hash_table_, sizeof(HashEntry) * state.num_total_hash_entries_));
+        safe_call(cudaMalloc((void **)&voxels_, sizeof(Voxel) * state.num_total_voxels()));
+#endif
+    }
+    else
+    {
+        voxels_ = new Voxel[state.num_total_voxels()];
+        hash_table_ = new HashEntry[state.num_total_hash_entries_];
+        heap_mem_ = new int[state.num_total_voxel_blocks_];
+        bucket_mutex_ = new int[state.num_total_buckets_];
+        heap_mem_counter_ = new int[1];
+        excess_counter_ = new int[1];
+    }
+}
+
+template <bool Device>
+FUSION_HOST void MapStruct<Device>::release()
+{
+    if (Device)
+    {
+#ifdef __CUDACC__
+        safe_call(cudaFree((void *)heap_mem_));
+        safe_call(cudaFree((void *)heap_mem_counter_));
+        safe_call(cudaFree((void *)hash_table_));
+        safe_call(cudaFree((void *)bucket_mutex_));
+        safe_call(cudaFree((void *)excess_counter_));
+        safe_call(cudaFree((void *)voxels_));
+#endif
+    }
+    else
+    {
+        delete[] heap_mem_;
+        delete[] heap_mem_counter_;
+        delete[] hash_table_;
+        delete[] bucket_mutex_;
+        delete[] excess_counter_;
+        delete[] voxels_;
+    }
+}
+
+template <bool Device>
+FUSION_HOST void MapStruct<Device>::copyTo(MapStruct<Device> &other) const
+{
+    if (Device)
+    {
+#ifdef __CUDACC__
+        if (other.empty())
+            other.create();
+
+        safe_call(cudaMemcpy(other.excess_counter_, excess_counter_, sizeof(int), cudaMemcpyDeviceToDevice));
+        safe_call(cudaMemcpy(other.heap_mem_counter_, heap_mem_counter_, sizeof(int), cudaMemcpyDeviceToDevice));
+        safe_call(cudaMemcpy(other.bucket_mutex_, bucket_mutex_, sizeof(int) * state.num_total_buckets_, cudaMemcpyDeviceToDevice));
+        safe_call(cudaMemcpy(other.heap_mem_, heap_mem_, sizeof(int) * state.num_total_voxel_blocks_, cudaMemcpyDeviceToDevice));
+        safe_call(cudaMemcpy(other.hash_table_, hash_table_, sizeof(HashEntry) * state.num_total_hash_entries_, cudaMemcpyDeviceToDevice));
+        safe_call(cudaMemcpy(other.voxels_, voxels_, sizeof(Voxel) * state.num_total_voxels(), cudaMemcpyDeviceToDevice));
+#endif
+    }
+    else
+    {
+    }
+}
+
+template <bool Device>
+FUSION_HOST void MapStruct<Device>::upload(MapStruct<false> &other)
+{
+    if (!Device)
+    {
+        exit(0);
+    }
+    else
+    {
+#ifdef __CUDACC__
+        if (other.empty())
+            return;
+
+        safe_call(cudaMemcpy(excess_counter_, other.excess_counter_, sizeof(int), cudaMemcpyHostToDevice));
+        safe_call(cudaMemcpy(heap_mem_counter_, other.heap_mem_counter_, sizeof(int), cudaMemcpyHostToDevice));
+        safe_call(cudaMemcpy(bucket_mutex_, other.bucket_mutex_, sizeof(int) * state.num_total_buckets_, cudaMemcpyHostToDevice));
+        safe_call(cudaMemcpy(heap_mem_, other.heap_mem_, sizeof(int) * state.num_total_voxel_blocks_, cudaMemcpyHostToDevice));
+        safe_call(cudaMemcpy(hash_table_, other.hash_table_, sizeof(HashEntry) * state.num_total_hash_entries_, cudaMemcpyHostToDevice));
+        safe_call(cudaMemcpy(voxels_, other.voxels_, sizeof(Voxel) * state.num_total_voxels(), cudaMemcpyHostToDevice));
+#endif
+    }
+}
+
+template <bool Device>
+FUSION_HOST void MapStruct<Device>::download(MapStruct<false> &other) const
+{
+    if (!Device)
+    {
+        exit(0);
+    }
+    else
+    {
+#ifdef __CUDACC__
+        if (other.empty())
+            other.create();
+
+        safe_call(cudaMemcpy(other.excess_counter_, excess_counter_, sizeof(int), cudaMemcpyDeviceToHost));
+        safe_call(cudaMemcpy(other.heap_mem_counter_, heap_mem_counter_, sizeof(int), cudaMemcpyDeviceToHost));
+        safe_call(cudaMemcpy(other.bucket_mutex_, bucket_mutex_, sizeof(int) * state.num_total_buckets_, cudaMemcpyDeviceToHost));
+        safe_call(cudaMemcpy(other.heap_mem_, heap_mem_, sizeof(int) * state.num_total_voxel_blocks_, cudaMemcpyDeviceToHost));
+        safe_call(cudaMemcpy(other.hash_table_, hash_table_, sizeof(HashEntry) * state.num_total_hash_entries_, cudaMemcpyDeviceToHost));
+        safe_call(cudaMemcpy(other.voxels_, voxels_, sizeof(Voxel) * state.num_total_voxels(), cudaMemcpyDeviceToHost));
+#endif
+    }
+}
+
+template <bool Device>
+FUSION_HOST bool MapStruct<Device>::empty()
+{
+    return voxels_ == NULL;
+}
+
+template <bool Device>
+FUSION_HOST void MapStruct<Device>::writeToDisk(std::string file_name, const bool binary) const
+{
+}
+
+template <bool Device>
+FUSION_HOST void MapStruct<Device>::readFromDisk(std::string file_name, const bool binary)
+{
+}
+
+FUSION_DEVICE int3 world_pt_to_voxel_pos(float3 pt)
 {
     pt = pt / param.voxel_size;
     return make_int3(pt);
 }
 
-__device__ int MapStruct::voxel_pos_to_local_idx(const int3 &pos) const
-{
-    return local_pos_to_local_idx(voxel_pos_to_local_pos(pos));
-}
-
-__device__ float3 MapStruct::voxel_pos_to_world_pt(const int3 &voxel_pos) const
+FUSION_DEVICE float3 voxel_pos_to_world_pt(const int3 &voxel_pos)
 {
     return (voxel_pos)*param.voxel_size;
 }
 
-__device__ int3 MapStruct::voxel_pos_to_block_pos(int3 voxel_pos) const
+FUSION_DEVICE int3 voxel_pos_to_block_pos(int3 voxel_pos)
 {
     if (voxel_pos.x < 0)
         voxel_pos.x -= BLOCK_SIZE_SUB_1;
@@ -397,12 +511,12 @@ __device__ int3 MapStruct::voxel_pos_to_block_pos(int3 voxel_pos) const
     return voxel_pos / BLOCK_SIZE;
 }
 
-__device__ int3 MapStruct::block_pos_to_voxel_pos(const int3 &block_pos) const
+FUSION_DEVICE int3 block_pos_to_voxel_pos(const int3 &block_pos)
 {
     return block_pos * BLOCK_SIZE;
 }
 
-__device__ int3 MapStruct::voxel_pos_to_local_pos(int3 pos) const
+FUSION_DEVICE int3 voxel_pos_to_local_pos(int3 pos)
 {
     pos = pos % BLOCK_SIZE;
 
@@ -416,15 +530,23 @@ __device__ int3 MapStruct::voxel_pos_to_local_pos(int3 pos) const
     return pos;
 }
 
-__device__ int MapStruct::local_pos_to_local_idx(const int3 &pos) const
+FUSION_DEVICE int local_pos_to_local_idx(const int3 &pos)
 {
     return pos.z * BLOCK_SIZE * BLOCK_SIZE + pos.y * BLOCK_SIZE + pos.x;
 }
 
-__device__ int3 MapStruct::local_idx_to_local_pos(const int &idx) const
+FUSION_DEVICE int3 local_idx_to_local_pos(const int &idx)
 {
     uint x = idx % BLOCK_SIZE;
     uint y = idx % (BLOCK_SIZE * BLOCK_SIZE) / BLOCK_SIZE;
     uint z = idx / (BLOCK_SIZE * BLOCK_SIZE);
     return make_int3(x, y, z);
 }
+
+FUSION_DEVICE int voxel_pos_to_local_idx(const int3 &pos)
+{
+    return local_pos_to_local_idx(voxel_pos_to_local_pos(pos));
+}
+
+template class MapStruct<true>;
+template class MapStruct<false>;

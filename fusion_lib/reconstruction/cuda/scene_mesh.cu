@@ -11,7 +11,7 @@ namespace cuda
 
 struct BuildVertexArray
 {
-    MapStruct map_struct;
+    MapStruct<true> map_struct;
 
     float3 *triangles;
     HashEntry *block_array;
@@ -256,7 +256,7 @@ __global__ void generate_vertex_array_kernel(BuildVertexArray bva)
 }
 
 void create_mesh_vertex_only(
-    MapStruct map_struct,
+    MapStruct<true> map_struct,
     uint &block_count,
     HashEntry *block_list,
     uint &triangle_count,
@@ -303,7 +303,7 @@ __global__ void generate_vertex_and_normal_array_kernel(BuildVertexArray bva)
 }
 
 void create_mesh_with_normal(
-    MapStruct map_struct,
+    MapStruct<true> map_struct,
     uint &block_count,
     HashEntry *block_list,
     uint &triangle_count,
@@ -348,7 +348,7 @@ void create_mesh_with_normal(
 
 struct BuildVertexAndColourArray
 {
-    MapStruct map_struct;
+    MapStruct<true> map_struct;
 
     float3 *triangles;
     HashEntry *block_array;
@@ -594,7 +594,7 @@ __global__ void generate_vertex_and_colour_array_kernel(BuildVertexAndColourArra
 }
 
 void create_mesh_with_colour(
-    MapStruct map_struct,
+    MapStruct<true> map_struct,
     uint &block_count,
     HashEntry *block_list,
     uint &triangle_count,

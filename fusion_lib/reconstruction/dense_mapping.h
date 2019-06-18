@@ -27,7 +27,7 @@ public:
 
 private:
   IntrinsicMatrix cam_params;
-  MapStruct device_map;
+  MapStruct<true> device_map;
 
   // for map udate
   cv::cuda::GpuMat flag;

@@ -29,7 +29,7 @@ int main(int argc, char **argv)
                 window.mbFlagUpdateMesh = true;
             }
 
-            if (window.IsPaused() && window.mbFlagUpdateMesh)
+            if (window.mbFlagUpdateMesh)
             {
                 float3 *vertex = window.GetMappedVertexBuffer();
                 float3 *normal = window.GetMappedNormalBuffer();

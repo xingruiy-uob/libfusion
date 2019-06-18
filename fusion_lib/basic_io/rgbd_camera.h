@@ -10,27 +10,24 @@ namespace fusion
 class RgbdCamera
 {
 public:
-    RgbdCamera();
-    RgbdCamera(size_t cols, size_t rows, int fps);
-    // stop and destroy streams
     ~RgbdCamera();
+    RgbdCamera(int cols = 640, int rows = 480, int fps = 30);
 
     bool get_image();
     RgbdCamera(const RgbdCamera &) = delete;
     RgbdCamera &operator=(const RgbdCamera &) = delete;
-
     cv::Mat image, depth;
 
 private:
     int fps;
-    size_t width;
-    size_t height;
+    int width;
+    int height;
 
     openni::Device device;
-    openni::VideoStream depth_stream;
-    openni::VideoStream color_stream;
-    openni::VideoFrameRef depth_ref;
-    openni::VideoFrameRef color_ref;
+    openni::VideoStream depthStream;
+    openni::VideoStream rgbStream;
+    openni::VideoFrameRef depthFrame;
+    openni::VideoFrameRef rgbFrame;
 };
 
 } // namespace fusion

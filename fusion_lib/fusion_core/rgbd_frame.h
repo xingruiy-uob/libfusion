@@ -1,6 +1,7 @@
-#ifndef __RGBD_FRAME__
-#define __RGBD_FRAME__
+#ifndef FUSION_RGBD_FRAME_H
+#define FUSION_RGBD_FRAME_H
 
+#include <mutex>
 #include <memory>
 #include <Eigen/Core>
 #include <sophus/se3.hpp>
@@ -55,6 +56,9 @@ public:
 
   void set_scene_data(cv::cuda::GpuMat vmap, cv::cuda::GpuMat nmap);
 
+  bool lock();
+  void unlock();
+
   struct Point3d
   {
     bool visited;
@@ -76,6 +80,7 @@ private:
   double time_stamp;
   Sophus::SE3d pose;
   RgbdFramePtr reference;
+  std::mutex frame_lock;
 };
 
 } // namespace fusion
