@@ -1,7 +1,6 @@
 #include "rgbd_tracker.h"
 #include "rgbd_frame.h"
 #include "device_image.h"
-#include "cuda_utils.h"
 #include "revertable_var.h"
 #include "pose_estimator.h"
 
@@ -12,10 +11,6 @@ DenseTracking::DenseTracking()
 {
   sum_se3.create(96, 29, CV_32FC1);
   out_se3.create(1, 29, CV_32FC1);
-  safe_call(cudaMalloc(&transformed_points, sizeof(float4) * 640 * 480));
-  safe_call(cudaMalloc(&image_corresp_data, sizeof(float4) * 640 * 480));
-  safe_call(cudaMalloc(&error_term_array, sizeof(float) * 640 * 480));
-  safe_call(cudaMalloc(&variance_term_array, sizeof(float) * 640 * 480));
 }
 
 TrackingResult DenseTracking::compute_transform(const RgbdImagePtr reference, const RgbdImagePtr current, const TrackingContext &c)

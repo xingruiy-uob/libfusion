@@ -12,8 +12,6 @@ target_sources(fusion_lib
 PRIVATE
     # Core module
     fusion_core/rgbd_frame.cpp
-    fusion_core/intrinsic_matrix.cpp
-    fusion_core/cuda_imgproc.cu
     fusion_core/device_image.cpp
 
     # Basic IO module
@@ -22,20 +20,13 @@ PRIVATE
     # Tracking module
     icp_trackers/rgbd_tracker.cpp
     icp_trackers/dense_odometry.cpp
-    icp_trackers/pose_estimator.cu
-    icp_trackers/robust_estimator.cu
 
     # Reconstruction module
     reconstruction/dense_mapping.cpp
-    reconstruction/cuda/map_struct.cu
-    reconstruction/cuda/depth_fusion.cu
-    reconstruction/cuda/ray_tracing.cu
-    reconstruction/cuda/scene_mesh.cu
 
     # Relocalization module
     relocalization/relocalizer.cpp
     relocalization/feature_point.cpp
-
     feature_graph/feature_graph.cpp
 )
 
@@ -55,6 +46,13 @@ PUBLIC
     ${PROJECT_SOURCE_DIR}/relocalization
     ${PROJECT_SOURCE_DIR}/reconstruction
     ${PROJECT_SOURCE_DIR}/reconstruction/cuda
+    /home/xyang/workspace/fusion_lib/include/
+    /home/xyang/workspace/fusion_lib/include/fusion
+    /home/xyang/workspace/fusion_lib/include/fusion/math
+    /home/xyang/workspace/fusion_lib/include/fusion/define
+    /home/xyang/workspace/fusion_lib/include/fusion/core
+    /home/xyang/workspace/fusion_lib/include/fusion/icp
+    /home/xyang/workspace/fusion_lib/include/fusion/mapping
     ${CUDA_INCLUDE_DIRS}
     ${OpenCV_INCLUDE_DIRS}
 )
@@ -62,7 +60,9 @@ PUBLIC
 target_link_libraries(fusion_lib
 PUBLIC
     Eigen3::Eigen
+    /home/xyang/workspace/fusion_lib/build/libfusion.a
     /usr/lib/libOpenNI2.so
     ${OpenCV_LIBRARIES}
     ${OpenNI_LIBRARIES}
+    ${CUDA_LIBRARIES}
 )

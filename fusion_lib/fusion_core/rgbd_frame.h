@@ -7,7 +7,7 @@
 #include <sophus/se3.hpp>
 #include <opencv2/opencv.hpp>
 #include <opencv2/cudaarithm.hpp>
-#include "intrinsic_matrix.h"
+#include <fusion.h>
 
 namespace fusion
 {

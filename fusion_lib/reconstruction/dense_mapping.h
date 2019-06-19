@@ -21,9 +21,12 @@ public:
 
   void reset_mapping();
 
-  size_t fetch_mesh_vertex_only(float3 *vertex);
-  size_t fetch_mesh_with_normal(float3 *vertex, float3 *normal);
-  size_t fetch_mesh_with_colour(float3 *vertex, uchar3 *normal);
+  size_t fetch_mesh_vertex_only(void *vertex);
+  size_t fetch_mesh_with_normal(void *vertex, void *normal);
+  size_t fetch_mesh_with_colour(void *vertex, void *normal);
+
+  void writeMapToDisk(std::string file_name);
+  void readMapFromDisk(std::string file_name);
 
 private:
   IntrinsicMatrix cam_params;

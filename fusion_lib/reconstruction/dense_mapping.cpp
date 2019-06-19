@@ -1,6 +1,5 @@
 #include "dense_mapping.h"
 #include "map_struct.h"
-#include "cuda_utils.h"
 #include "map_proc.h"
 
 namespace fusion
@@ -12,8 +11,8 @@ DenseMapping::DenseMapping(IntrinsicMatrix cam_params) : cam_params(cam_params)
   zrange_x.create(cam_params.height / 8, cam_params.width / 8, CV_32FC1);
   zrange_y.create(cam_params.height / 8, cam_params.width / 8, CV_32FC1);
 
-  safe_call(cudaMalloc((void **)&visible_blocks, sizeof(HashEntry) * device_map.state.num_total_hash_entries_));
-  safe_call(cudaMalloc((void **)&rendering_blocks, sizeof(RenderingBlock) * 100000));
+  cudaMalloc((void **)&visible_blocks, sizeof(HashEntry) * device_map.state.num_total_hash_entries_);
+  cudaMalloc((void **)&rendering_blocks, sizeof(RenderingBlock) * 100000);
 
   reset_mapping();
 }
@@ -21,8 +20,8 @@ DenseMapping::DenseMapping(IntrinsicMatrix cam_params) : cam_params(cam_params)
 DenseMapping::~DenseMapping()
 {
   device_map.release();
-  safe_call(cudaFree((void *)visible_blocks));
-  safe_call(cudaFree((void *)rendering_blocks));
+  cudaFree((void *)visible_blocks);
+  cudaFree((void *)rendering_blocks);
 }
 
 void DenseMapping::update(RgbdImagePtr frame)
@@ -107,7 +106,7 @@ void DenseMapping::reset_mapping()
   device_map.reset();
 }
 
-size_t DenseMapping::fetch_mesh_vertex_only(float3 *vertex)
+size_t DenseMapping::fetch_mesh_vertex_only(void *vertex)
 {
   uint count_triangle = 0;
 
@@ -122,7 +121,7 @@ size_t DenseMapping::fetch_mesh_vertex_only(float3 *vertex)
   return (size_t)count_triangle;
 }
 
-size_t DenseMapping::fetch_mesh_with_normal(float3 *vertex, float3 *normal)
+size_t DenseMapping::fetch_mesh_with_normal(void *vertex, void *normal)
 {
   uint count_triangle = 0;
 
@@ -138,7 +137,7 @@ size_t DenseMapping::fetch_mesh_with_normal(float3 *vertex, float3 *normal)
   return (size_t)count_triangle;
 }
 
-size_t DenseMapping::fetch_mesh_with_colour(float3 *vertex, uchar3 *colour)
+size_t DenseMapping::fetch_mesh_with_colour(void *vertex, void *colour)
 {
   uint count_triangle = 0;
 
@@ -152,6 +151,14 @@ size_t DenseMapping::fetch_mesh_with_colour(float3 *vertex, uchar3 *colour)
       colour);
 
   return (size_t)count_triangle;
+}
+
+void DenseMapping::writeMapToDisk(std::string file_name)
+{
+}
+
+void DenseMapping::readMapFromDisk(std::string file_name)
+{
 }
 
 } // namespace fusion
