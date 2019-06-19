@@ -2,7 +2,7 @@
 #include "rgbd_frame.h"
 #include "device_image.h"
 #include "revertable_var.h"
-#include "pose_estimator.h"
+#include <fusion/icp/pose_estimator.h>
 
 namespace fusion
 {

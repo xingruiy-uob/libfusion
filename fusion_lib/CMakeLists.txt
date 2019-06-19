@@ -5,6 +5,7 @@ set(CMAKE_CXX_STANDARD 11)
 
 find_package(OpenCV 3.4 REQUIRED)
 find_package(Eigen3 3.3 REQUIRED)
+find_package(fusion REQUIRED)
 
 add_library(fusion_lib STATIC "")
 
@@ -46,13 +47,6 @@ PUBLIC
     ${PROJECT_SOURCE_DIR}/relocalization
     ${PROJECT_SOURCE_DIR}/reconstruction
     ${PROJECT_SOURCE_DIR}/reconstruction/cuda
-    /home/xyang/workspace/fusion_lib/include/
-    /home/xyang/workspace/fusion_lib/include/fusion
-    /home/xyang/workspace/fusion_lib/include/fusion/math
-    /home/xyang/workspace/fusion_lib/include/fusion/define
-    /home/xyang/workspace/fusion_lib/include/fusion/core
-    /home/xyang/workspace/fusion_lib/include/fusion/icp
-    /home/xyang/workspace/fusion_lib/include/fusion/mapping
     ${CUDA_INCLUDE_DIRS}
     ${OpenCV_INCLUDE_DIRS}
 )
@@ -60,7 +54,7 @@ PUBLIC
 target_link_libraries(fusion_lib
 PUBLIC
     Eigen3::Eigen
-    /home/xyang/workspace/fusion_lib/build/libfusion.a
+    fusion
     /usr/lib/libOpenNI2.so
     ${OpenCV_LIBRARIES}
     ${OpenNI_LIBRARIES}

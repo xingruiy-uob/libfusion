@@ -1,5 +1,5 @@
 #include "device_image.h"
-#include "cuda_imgproc.h"
+#include <fusion/core/cuda_imgproc.h>
 
 namespace fusion
 {

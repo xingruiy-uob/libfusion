@@ -7,7 +7,6 @@
 #include <sophus/se3.hpp>
 #include <opencv2/opencv.hpp>
 #include <opencv2/cudaarithm.hpp>
-#include <fusion.h>
 
 namespace fusion
 {

@@ -6,6 +6,7 @@
 #include "thread_queue.h"
 #include <mutex>
 #include <queue>
+#include <fusion/core/intrinsic_matrix.h>
 #include <opencv2/features2d.hpp>
 #include <opencv2/xfeatures2d.hpp>
 

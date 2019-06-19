@@ -3,8 +3,8 @@
 
 #include <memory>
 #include <cuda_runtime.h>
+#include <fusion/mapping/map_struct.h>
 #include "rgbd_frame.h"
-#include "map_struct.h"
 #include "device_image.h"
 
 namespace fusion

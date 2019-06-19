@@ -2,7 +2,7 @@
 #define SYSTEM_H
 
 #include "rgbd_frame.h"
-#include "intrinsic_matrix.h"
+#include "fusion/core/intrinsic_matrix.h"
 #include "dense_mapping.h"
 #include "dense_odometry.h"
 #include "feature_graph.h"

@@ -1,5 +1,5 @@
 #include "system.h"
-#include "cuda_imgproc.h"
+#include "fusion/core/cuda_imgproc.h"
 
 namespace fusion
 {
@@ -26,6 +26,8 @@ void System::initialization()
 
 void System::process_images(const cv::Mat depth, const cv::Mat image)
 {
+    std::chrono::high_resolution_clock clock;
+    auto t_s = clock.now();
     cv::Mat depth_float;
     depth.convertTo(depth_float, CV_32FC1, 1 / 1000.f);
 
@@ -56,6 +58,8 @@ void System::process_images(const cv::Mat depth, const cv::Mat image)
         last_tracked_frame = current_frame;
         frame_id += 1;
     }
+
+    std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(clock.now() - t_s).count() << std::endl;
 }
 
 bool System::keyframe_needed() const

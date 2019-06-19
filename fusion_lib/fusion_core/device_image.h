@@ -6,8 +6,8 @@
 #include <sophus/se3.hpp>
 #include <opencv2/opencv.hpp>
 #include <opencv2/cudaarithm.hpp>
+#include <fusion/fusion.h>
 #include "rgbd_frame.h"
-#include "intrinsic_matrix.h"
 
 namespace fusion
 {
