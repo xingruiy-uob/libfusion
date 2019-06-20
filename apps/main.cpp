@@ -1,11 +1,12 @@
 #include "system.h"
 #include "window.h"
-#include "rgbd_camera.h"
 #include "cuda_runtime.h"
+#include <xutils/IOWrapper/rgbd_camera.h>
+#include <xutils/DataStruct/stop_watch.h>
 
 int main(int argc, char **argv)
 {
-    fusion::RgbdCamera camera(640, 480, 30);
+    xutils::RgbdCamera camera(640, 480, 30);
     fusion::IntrinsicMatrix K(640, 480, 570, 570, 319.5, 239.5);
     fusion::System slam(K, 5);
 
@@ -14,6 +15,8 @@ int main(int argc, char **argv)
 
     while (!pangolin::ShouldQuit())
     {
+        xutils::StopWatch swatch(true);
+
         if (camera.get_image())
         {
             window.SetRGBSource(camera.image);
@@ -40,5 +43,7 @@ int main(int argc, char **argv)
         }
 
         window.Render();
+
+        std::cout << swatch << std::endl;
     }
 }

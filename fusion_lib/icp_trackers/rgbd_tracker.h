@@ -1,5 +1,5 @@
-#ifndef __DENSE_TRACKING__
-#define __DENSE_TRACKING__
+#ifndef FUSION_ICP_TRACKER_H
+#define FUSION_ICP_TRACKER_H
 
 #include <memory>
 #include <sophus/se3.hpp>

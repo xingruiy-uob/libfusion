@@ -4,7 +4,6 @@
 #include "rgbd_frame.h"
 #include "device_image.h"
 #include "rgbd_tracker.h"
-#include "revertable_var.h"
 #include <fusion/core/cuda_imgproc.h>
 #include <memory>
 
@@ -15,9 +14,11 @@ class DenseOdometry
 {
 public:
   DenseOdometry(IntrinsicMatrix base, int NUM_PYR);
+  DenseOdometry(const DenseOdometry &) = delete;
+  DenseOdometry &operator=(const DenseOdometry &) = delete;
+
   void track_frame(RgbdFramePtr current_frame);
   bool keyframe_needed() const;
-  // TODO: not yet implemented
   bool is_tracking_lost() const;
   void create_keyframe();
   void reset_tracking();

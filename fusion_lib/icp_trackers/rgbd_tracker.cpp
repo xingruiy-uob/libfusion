@@ -1,7 +1,7 @@
 #include "rgbd_tracker.h"
 #include "rgbd_frame.h"
 #include "device_image.h"
-#include "revertable_var.h"
+#include <xutils/DataStruct/revertable.h>
 #include <fusion/icp/icp_reduction.h>
 
 namespace fusion
@@ -15,10 +15,10 @@ DenseTracking::DenseTracking()
 
 TrackingResult DenseTracking::compute_transform(const RgbdImagePtr reference, const RgbdImagePtr current, const TrackingContext &c)
 {
-  Revertable<Sophus::SE3d> estimate = Revertable<Sophus::SE3d>(Sophus::SE3d());
+  xutils::Revertable<Sophus::SE3d> estimate = xutils::Revertable<Sophus::SE3d>(Sophus::SE3d());
 
   if (c.use_initial_guess_)
-    estimate = Revertable<Sophus::SE3d>(c.initial_estimate_);
+    estimate = xutils::Revertable<Sophus::SE3d>(c.initial_estimate_);
 
   for (int level = c.max_iterations_.size() - 1; level >= 0; --level)
   {
@@ -39,7 +39,7 @@ TrackingResult DenseTracking::compute_transform(const RgbdImagePtr reference, co
 
     for (int iter = 0; iter < c.max_iterations_[level]; ++iter)
     {
-      auto last_estimate = estimate.value();
+      auto last_estimate = estimate.get();
       auto last_icp_error = icp_error;
       auto last_rgb_error = rgb_error;
 
@@ -120,12 +120,12 @@ TrackingResult DenseTracking::compute_transform(const RgbdImagePtr reference, co
     }
   }
 
-  if (estimate.value().log().transpose().norm() > 0.1)
-    std::cout << estimate.value().log().transpose().norm() << std::endl;
+  if (estimate.get().log().transpose().norm() > 0.1)
+    std::cout << estimate.get().log().transpose().norm() << std::endl;
 
   TrackingResult result;
   result.sucess = true;
-  result.update = estimate.value().inverse();
+  result.update = estimate.get().inverse();
   return result;
 }
 

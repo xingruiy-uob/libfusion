@@ -14,7 +14,7 @@ System::System(IntrinsicMatrix base, const int NUM_PYR)
     mapping = std::make_shared<DenseMapping>(base);
     odometry = std::make_shared<DenseOdometry>(base, NUM_PYR);
     features = std::make_shared<FeatureGraph>();
-    odom = std::make_shared<RgbdOdometry>(base, NUM_PYR);
+    // odom = std::make_shared<RgbdOdometry>(base, NUM_PYR);
     // feature_thread = std::thread(&FeatureGraph::main_loop, features.get());
 }
 
@@ -27,8 +27,6 @@ void System::initialization()
 
 void System::process_images(const cv::Mat depth, const cv::Mat image)
 {
-    std::chrono::high_resolution_clock clock;
-    auto t_s = clock.now();
     cv::Mat depth_float;
     depth.convertTo(depth_float, CV_32FC1, 1 / 1000.f);
 
@@ -60,7 +58,7 @@ void System::process_images(const cv::Mat depth, const cv::Mat image)
         frame_id += 1;
     }
 
-    std::cout << std::chrono::duration_cast<std::chrono::milliseconds>(clock.now() - t_s).count() << std::endl;
+    cudaDeviceSynchronize();
 }
 
 bool System::keyframe_needed() const

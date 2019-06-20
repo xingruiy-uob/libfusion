@@ -6,6 +6,7 @@ set(CMAKE_CXX_STANDARD 11)
 find_package(OpenCV 3.4 REQUIRED)
 find_package(Eigen3 3.3 REQUIRED)
 find_package(fusion REQUIRED)
+find_package(XUtils REQUIRED)
 
 add_library(slam_lib STATIC "")
 
@@ -16,7 +17,6 @@ PRIVATE
     fusion_core/device_image.cpp
 
     # Basic IO module
-    basic_io/rgbd_camera.cpp
 
     # Tracking module
     icp_trackers/rgbd_tracker.cpp
@@ -55,6 +55,7 @@ target_link_libraries(slam_lib
 PUBLIC
     Eigen3::Eigen
     fusion
+    XUtils
     /usr/lib/libOpenNI2.so
     ${OpenCV_LIBRARIES}
     ${OpenNI_LIBRARIES}
