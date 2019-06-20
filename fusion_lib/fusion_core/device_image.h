@@ -28,7 +28,7 @@ public:
     void resize_pyramid(const int &max_level);
 
     void resize_device_map();
-    void upload(const RgbdFramePtr frame, const IntrinsicMatrixPyramidPtr intrinsics_pyr);
+    void upload(const RgbdFramePtr frame, const std::vector<IntrinsicMatrix> intrinsics_pyr);
 
     RgbdFramePtr get_reference_frame() const;
     cv::cuda::GpuMat get_rendered_image();

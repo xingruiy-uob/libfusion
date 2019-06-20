@@ -33,9 +33,9 @@ public:
     // create mesh and store in the address
     // users are reponsible for allocating
     // the adresses in CUDA using `cudaMalloc`
-    size_t fetch_mesh_vertex_only(float3 *vertex);
-    size_t fetch_mesh_with_normal(float3 *vertex, float3 *normal);
-    size_t fetch_mesh_with_colour(float3 *vertex, uchar3 *colour);
+    size_t fetch_mesh_vertex_only(float *vertex);
+    size_t fetch_mesh_with_normal(float *vertex, float *normal);
+    size_t fetch_mesh_with_colour(float *vertex, unsigned char *colour);
 
     // key points
     void fetch_key_points(float *points, size_t &max_size);
@@ -47,6 +47,9 @@ public:
     void change_colour_mode(int colour_mode = 0);
     void change_run_mode(int run_mode = 0);
     void restart();
+
+    void writeMapToDisk(std::string file_name) const;
+    void readMapFromDisk(std::string file_name);
 
     Eigen::Matrix4f get_camera_pose() const;
 
@@ -61,6 +64,7 @@ private:
     std::shared_ptr<DenseMapping> mapping;
     std::shared_ptr<DenseOdometry> odometry;
     std::shared_ptr<FeatureGraph> features;
+    std::shared_ptr<RgbdOdometry> odom;
     std::thread feature_thread;
 
     // Return TRUE if a new key frame is desired

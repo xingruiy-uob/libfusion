@@ -1,6 +1,7 @@
 #ifndef GL_WINDOW_H
 #define GL_WINDOW_H
 
+#include "system.h"
 #include <pangolin/pangolin.h>
 #include <pangolin/gl/glcuda.h>
 #include <cuda_runtime_api.h>
@@ -10,7 +11,7 @@ class MainWindow
 {
 public:
     ~MainWindow();
-    MainWindow(const char *name, size_t width, size_t height);
+    MainWindow(const char *name = "Untitled", size_t width = 640, size_t height = 480);
 
     //! Do not copy this class
     MainWindow(const MainWindow &) = delete;
@@ -26,14 +27,15 @@ public:
     void SetRenderScene(cv::Mat SceneImage);
     void SetCurrentCamera(Eigen::Matrix4f T);
     void AddKeyCamera(Eigen::Matrix4f T);
+    void SetSystem(fusion::System *sys);
 
     bool IsPaused();
     bool mbFlagRestart;
     bool mbFlagUpdateMesh;
 
-    float3 *GetMappedVertexBuffer();
-    float3 *GetMappedNormalBuffer();
-    uchar3 *GetMappedColourBuffer();
+    float *GetMappedVertexBuffer();
+    float *GetMappedNormalBuffer();
+    unsigned char *GetMappedColourBuffer();
 
     size_t VERTEX_COUNT;
     size_t MAX_VERTEX_COUNT;
@@ -67,6 +69,8 @@ private:
 
     //! GUI buttons and checkboxes
     std::shared_ptr<pangolin::Var<bool>> BtnReset;
+    std::shared_ptr<pangolin::Var<bool>> BtnSaveMap;
+    std::shared_ptr<pangolin::Var<bool>> BtnReadMap;
     std::shared_ptr<pangolin::Var<bool>> BoxPaused;
     std::shared_ptr<pangolin::Var<bool>> BoxDisplayImage;
     std::shared_ptr<pangolin::Var<bool>> BoxDisplayDepth;
@@ -74,6 +78,9 @@ private:
     std::shared_ptr<pangolin::Var<bool>> BoxDisplayMesh;
     std::shared_ptr<pangolin::Var<bool>> BoxDisplayCamera;
     std::shared_ptr<pangolin::Var<bool>> BoxDisplayKeyCameras;
+
+    //! Acquire Mehs Functions
+    void UpdateMeshWithNormal();
 
     //! Draw Mesh Functions
     void DrawMeshShaded();
@@ -102,6 +109,9 @@ private:
 
     //! Key Frame Poses
     std::vector<Eigen::Matrix4f> ListOfKeyCameras;
+
+    //! system ref
+    fusion::System *slam;
 };
 
 #endif

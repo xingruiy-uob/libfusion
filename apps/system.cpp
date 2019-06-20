@@ -14,6 +14,7 @@ System::System(IntrinsicMatrix base, const int NUM_PYR)
     mapping = std::make_shared<DenseMapping>(base);
     odometry = std::make_shared<DenseOdometry>(base, NUM_PYR);
     features = std::make_shared<FeatureGraph>();
+    odom = std::make_shared<RgbdOdometry>(base, NUM_PYR);
     // feature_thread = std::thread(&FeatureGraph::main_loop, features.get());
 }
 
@@ -106,17 +107,17 @@ void System::save_mesh_to_file(const char *str)
 {
 }
 
-size_t System::fetch_mesh_vertex_only(float3 *vertex)
+size_t System::fetch_mesh_vertex_only(float *vertex)
 {
     return mapping->fetch_mesh_vertex_only(vertex);
 }
 
-size_t System::fetch_mesh_with_normal(float3 *vertex, float3 *normal)
+size_t System::fetch_mesh_with_normal(float *vertex, float *normal)
 {
     return mapping->fetch_mesh_with_normal(vertex, normal);
 }
 
-size_t System::fetch_mesh_with_colour(float3 *vertex, uchar3 *colour)
+size_t System::fetch_mesh_with_colour(float *vertex, unsigned char *colour)
 {
     return mapping->fetch_mesh_with_colour(vertex, colour);
 }
@@ -138,6 +139,16 @@ Eigen::Matrix4f System::get_camera_pose() const
         T = odometry->get_reference_image()->get_reference_frame()->get_pose().cast<float>().matrix();
     }
     return T;
+}
+
+void System::writeMapToDisk(std::string file_name) const
+{
+    mapping->writeMapToDisk(file_name);
+}
+
+void System::readMapFromDisk(std::string file_name)
+{
+    mapping->readMapFromDisk(file_name);
 }
 
 } // namespace fusion

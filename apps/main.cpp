@@ -10,6 +10,7 @@ int main(int argc, char **argv)
     fusion::System slam(K, 5);
 
     MainWindow window("Untitled", 1920, 920);
+    window.SetSystem(&slam);
 
     while (!pangolin::ShouldQuit())
     {
@@ -31,8 +32,8 @@ int main(int argc, char **argv)
 
             if (window.mbFlagUpdateMesh)
             {
-                float3 *vertex = window.GetMappedVertexBuffer();
-                float3 *normal = window.GetMappedNormalBuffer();
+                auto *vertex = window.GetMappedVertexBuffer();
+                auto *normal = window.GetMappedNormalBuffer();
                 window.VERTEX_COUNT = slam.fetch_mesh_with_normal(vertex, normal);
                 window.mbFlagUpdateMesh = false;
             }

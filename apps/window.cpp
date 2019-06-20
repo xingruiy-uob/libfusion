@@ -146,6 +146,8 @@ void MainWindow::SetupDisplays()
     pangolin::CreatePanel("Menu").SetBounds(0, 1, 0, MenuDividerLeft);
 
     BtnReset = std::make_shared<pangolin::Var<bool>>("Menu.RESET", false, false);
+    BtnSaveMap = std::make_shared<pangolin::Var<bool>>("Menu.Save Map", false, false);
+    BtnReadMap = std::make_shared<pangolin::Var<bool>>("Menu.Read Map", false, false);
     BoxPaused = std::make_shared<pangolin::Var<bool>>("Menu.PAUSE", true, true);
     BoxDisplayImage = std::make_shared<pangolin::Var<bool>>("Menu.Display Image", true, true);
     BoxDisplayDepth = std::make_shared<pangolin::Var<bool>>("Menu.Display Depth", true, true);
@@ -210,7 +212,23 @@ void MainWindow::Render()
     glClearColor(0.f, 0.f, 0.f, 1.f);
 
     if (pangolin::Pushed(*BtnReset))
-        mbFlagRestart = true;
+    {
+        slam->restart();
+        if (IsPaused())
+            UpdateMeshWithNormal();
+    }
+
+    if (pangolin::Pushed(*BtnSaveMap))
+    {
+        slam->writeMapToDisk("map.data");
+    }
+
+    if (pangolin::Pushed(*BtnReadMap))
+    {
+        slam->readMapFromDisk("map.data");
+        if (IsPaused())
+            UpdateMeshWithNormal();
+    }
 
     if (*BoxDisplayImage)
     {
@@ -256,6 +274,13 @@ void MainWindow::Render()
     pangolin::FinishFrame();
 }
 
+void MainWindow::UpdateMeshWithNormal()
+{
+    auto *vertex = GetMappedVertexBuffer();
+    auto *normal = GetMappedNormalBuffer();
+    VERTEX_COUNT = slam->fetch_mesh_with_normal(vertex, normal);
+}
+
 void MainWindow::DrawMeshShaded()
 {
     if (VERTEX_COUNT == 0)
@@ -284,6 +309,11 @@ void MainWindow::AddKeyCamera(Eigen::Matrix4f T)
     ListOfKeyCameras.push_back(T);
 }
 
+void MainWindow::SetSystem(fusion::System *sys)
+{
+    slam = sys;
+}
+
 void MainWindow::DrawMeshColoured()
 {
 }
@@ -292,17 +322,17 @@ void MainWindow::DrawMeshNormalMapped()
 {
 }
 
-float3 *MainWindow::GetMappedVertexBuffer()
+float *MainWindow::GetMappedVertexBuffer()
 {
-    return (float3 *)**MappedVertex;
+    return (float *)**MappedVertex;
 }
 
-float3 *MainWindow::GetMappedNormalBuffer()
+float *MainWindow::GetMappedNormalBuffer()
 {
-    return (float3 *)**MappedNormal;
+    return (float *)**MappedNormal;
 }
 
-uchar3 *MainWindow::GetMappedColourBuffer()
+unsigned char *MainWindow::GetMappedColourBuffer()
 {
-    return (uchar3 *)**MappedColour;
+    return (unsigned char *)**MappedColour;
 }

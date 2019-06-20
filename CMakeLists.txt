@@ -27,7 +27,7 @@ PRIVATE
 
 target_link_libraries(app
 PRIVATE
-    fusion_lib
+    slam_lib
     OpenGL::GL
     ${Pangolin_LIBRARIES}
 )

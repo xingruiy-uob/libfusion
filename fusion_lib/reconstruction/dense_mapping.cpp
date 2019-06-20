@@ -155,10 +155,20 @@ size_t DenseMapping::fetch_mesh_with_colour(void *vertex, void *colour)
 
 void DenseMapping::writeMapToDisk(std::string file_name)
 {
+  MapStruct<false> host_map;
+  host_map.create();
+  device_map.download(host_map);
+  host_map.writeToDisk(file_name);
+  host_map.release();
 }
 
 void DenseMapping::readMapFromDisk(std::string file_name)
 {
+  MapStruct<false> host_map;
+  host_map.create();
+  host_map.readFromDisk(file_name);
+  device_map.upload(host_map);
+  host_map.release();
 }
 
 } // namespace fusion
