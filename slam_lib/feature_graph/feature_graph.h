@@ -1,7 +1,7 @@
 #ifndef FEATURE_GRAPH_H
 #define FEATURE_GRAPH_H
 
-#include "rgbd_frame.h"
+#include "fusion_core/rgbd_frame.h"
 #include <Eigen/Core>
 #include <unordered_map>
 #include <opencv2/opencv.hpp>

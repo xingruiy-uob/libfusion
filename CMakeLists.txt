@@ -11,6 +11,7 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 find_package(OpenGL REQUIRED)
+find_package(CUDA 10.1 REQUIRED)
 find_package(Pangolin REQUIRED)
 
 add_subdirectory(slam_lib)
@@ -25,11 +26,17 @@ PRIVATE
     apps/window.cpp
 )
 
+target_include_directories(app
+PRIVATE
+    ${CUDA_INCLUDE_DIRS}
+)
+
 target_link_libraries(app
 PRIVATE
-    slam_lib
+    SLAM
     OpenGL::GL
     ${Pangolin_LIBRARIES}
+    ${CUDA_LIBRARIES}
 )
 
 file (GLOB_RECURSE resources "shaders/*.*")

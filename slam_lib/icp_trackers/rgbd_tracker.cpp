@@ -1,6 +1,6 @@
-#include "rgbd_tracker.h"
-#include "rgbd_frame.h"
-#include "device_image.h"
+#include "icp_trackers/rgbd_tracker.h"
+#include "fusion_core/rgbd_frame.h"
+#include "fusion_core/device_image.h"
 #include <xfusion/icp/icp_reduction.h>
 #include <xutils/DataStruct/revertable.h>
 

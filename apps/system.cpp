@@ -13,6 +13,7 @@ System::System(IntrinsicMatrix base, const int NUM_PYR)
     mapping = std::make_shared<DenseMapping>(base);
     odometry = std::make_shared<DenseOdometry>(base, NUM_PYR);
     features = std::make_shared<FeatureGraph>();
+    extractor = std::make_shared<FeatureExtraction>();
 }
 
 void System::initialization()
@@ -24,6 +25,9 @@ void System::initialization()
 
 void System::process_images(const cv::Mat depth, const cv::Mat image)
 {
+    extractor->setImage(image);
+    auto extThread = extractor->spawnThread();
+
     cv::Mat depth_float;
     depth.convertTo(depth_float, CV_32FC1, 1 / 1000.f);
 
@@ -55,7 +59,7 @@ void System::process_images(const cv::Mat depth, const cv::Mat image)
         frame_id += 1;
     }
 
-    cudaDeviceSynchronize();
+    extThread.join();
 }
 
 bool System::keyframe_needed() const

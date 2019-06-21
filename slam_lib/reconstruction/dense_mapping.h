@@ -2,10 +2,9 @@
 #define DENSE_MAPPING_H
 
 #include <memory>
-#include <cuda_runtime.h>
 #include <xfusion/mapping/map_struct.h>
-#include "rgbd_frame.h"
-#include "device_image.h"
+#include "fusion_core/rgbd_frame.h"
+#include "fusion_core/device_image.h"
 
 namespace fusion
 {

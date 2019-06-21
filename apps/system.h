@@ -1,14 +1,15 @@
 #ifndef SYSTEM_H
 #define SYSTEM_H
 
-#include "rgbd_frame.h"
-#include "dense_mapping.h"
-#include "dense_odometry.h"
-#include "feature_graph.h"
 #include <thread>
 #include <eigen3/Eigen/Core>
 #include <opencv2/opencv.hpp>
 #include <xfusion/core/intrinsic_matrix.h>
+#include "fusion_core/rgbd_frame.h"
+#include "reconstruction/dense_mapping.h"
+#include "icp_trackers/dense_odometry.h"
+#include "feature_graph/feature_graph.h"
+#include "utils/feature_extraction.h"
 
 namespace fusion
 {
@@ -64,7 +65,7 @@ private:
     std::shared_ptr<DenseMapping> mapping;
     std::shared_ptr<DenseOdometry> odometry;
     std::shared_ptr<FeatureGraph> features;
-    std::shared_ptr<RgbdOdometry> odom;
+    std::shared_ptr<FeatureExtraction> extractor;
     std::thread feature_thread;
 
     // Return TRUE if a new key frame is desired

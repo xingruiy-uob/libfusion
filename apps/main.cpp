@@ -14,8 +14,6 @@ int main(int argc, char **argv)
 
     while (!pangolin::ShouldQuit())
     {
-        xutils::StopWatch swatch(true);
-
         if (camera.get_image())
         {
             window.SetRGBSource(camera.image);
@@ -39,7 +37,5 @@ int main(int argc, char **argv)
         }
 
         window.Render();
-
-        std::cout << swatch << std::endl;
     }
 }
