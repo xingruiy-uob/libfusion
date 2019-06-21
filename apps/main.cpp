@@ -14,13 +14,14 @@ int main(int argc, char **argv)
 
     while (!pangolin::ShouldQuit())
     {
+
         if (camera.get_image())
         {
             window.SetRGBSource(camera.image);
-
             if (!window.IsPaused())
             {
                 slam.process_images(camera.depth, camera.image);
+
                 // window.SetDepthSource(slam.get_shaded_depth());
                 window.SetRenderScene(slam.get_rendered_scene());
                 window.SetCurrentCamera(slam.get_camera_pose());

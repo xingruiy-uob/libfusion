@@ -25,8 +25,8 @@ public:
     void SetRGBSource(cv::Mat RgbImage);
     void SetDepthSource(cv::Mat DepthImage);
     void SetRenderScene(cv::Mat SceneImage);
+    void SetFeatureImage(cv::Mat featureImage);
     void SetCurrentCamera(Eigen::Matrix4f T);
-    void AddKeyCamera(Eigen::Matrix4f T);
     void SetSystem(fusion::System *sys);
 
     bool IsPaused();

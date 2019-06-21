@@ -204,6 +204,10 @@ void MainWindow::SetRenderScene(cv::Mat SceneImage)
     TextureScene.Upload(SceneImage.data, GL_RGBA, GL_UNSIGNED_BYTE);
 }
 
+void MainWindow::SetFeatureImage(cv::Mat featureImage)
+{
+}
+
 void MainWindow::Render()
 {
     ResetAllFlags();
@@ -302,11 +306,6 @@ void MainWindow::SetCurrentCamera(Eigen::Matrix4f T)
     CameraPose = T;
     // pangolin::OpenGlMatrix ViewMat(CameraPose.inverse().eval());
     // CameraView->SetModelViewMatrix(ViewMat);
-}
-
-void MainWindow::AddKeyCamera(Eigen::Matrix4f T)
-{
-    ListOfKeyCameras.push_back(T);
 }
 
 void MainWindow::SetSystem(fusion::System *sys)

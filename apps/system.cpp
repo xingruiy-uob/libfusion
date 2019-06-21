@@ -1,4 +1,5 @@
 #include "system.h"
+#include <xutils/DataStruct/stop_watch.h>
 
 namespace fusion
 {
@@ -25,8 +26,9 @@ void System::initialization()
 
 void System::process_images(const cv::Mat depth, const cv::Mat image)
 {
-    extractor->setImage(image);
-    auto extThread = extractor->spawnThread();
+    // extractor->setImage(image);
+    // auto extThread = extractor->spawnThread();
+    xutils::StopWatch sw(true);
 
     cv::Mat depth_float;
     depth.convertTo(depth_float, CV_32FC1, 1 / 1000.f);
@@ -58,8 +60,13 @@ void System::process_images(const cv::Mat depth, const cv::Mat image)
         last_tracked_frame = current_frame;
         frame_id += 1;
     }
-
-    extThread.join();
+    std::cout << sw << std::endl;
+    // extThread.join();
+    // cv::Mat outImage;
+    // auto keypoints = extractor->getKeyPoints();
+    // cv::drawKeypoints(image, keypoints, outImage);
+    // cv::imshow("outImage", outImage);
+    // cv::waitKey(1);
 }
 
 bool System::keyframe_needed() const
