@@ -1,8 +1,8 @@
 #include "rgbd_tracker.h"
 #include "rgbd_frame.h"
 #include "device_image.h"
-#include <xutils/DataStruct/revertable.h>
 #include <xfusion/icp/icp_reduction.h>
+#include <xutils/DataStruct/revertable.h>
 
 namespace fusion
 {

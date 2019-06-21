@@ -1,5 +1,5 @@
-#ifndef __DENSE_ODOMETRY__
-#define __DENSE_ODOMETRY__
+#ifndef SLAM_LIB_DENSE_ODOMETRY_H
+#define SLAM_LIB_DENSE_ODOMETRY_H
 
 #include "rgbd_frame.h"
 #include "device_image.h"

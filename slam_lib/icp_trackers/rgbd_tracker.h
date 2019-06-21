@@ -3,7 +3,6 @@
 
 #include <memory>
 #include <sophus/se3.hpp>
-#include <cuda_runtime_api.h>
 #include <opencv2/opencv.hpp>
 #include "rgbd_frame.h"
 #include "device_image.h"

@@ -13,7 +13,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 find_package(OpenGL REQUIRED)
 find_package(Pangolin REQUIRED)
 
-add_subdirectory(fusion_lib)
+add_subdirectory(slam_lib)
 
 # app gui
 add_executable(app "")
