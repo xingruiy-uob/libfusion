@@ -78,6 +78,7 @@ private:
     std::shared_ptr<pangolin::Var<bool>> BoxDisplayMesh;
     std::shared_ptr<pangolin::Var<bool>> BoxDisplayCamera;
     std::shared_ptr<pangolin::Var<bool>> BoxDisplayKeyCameras;
+    std::shared_ptr<pangolin::Var<bool>> BoxDisplayKeyPoint;
 
     //! Acquire Mehs Functions
     void UpdateMeshWithNormal();
@@ -112,6 +113,11 @@ private:
 
     //! system ref
     fusion::System *slam;
+
+    //! key point array
+    float *keypoints;
+    size_t sizeKeyPoint;
+    size_t maxSizeKeyPoint;
 };
 
 #endif

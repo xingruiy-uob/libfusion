@@ -6,30 +6,30 @@ namespace fusion
 
 System::~System()
 {
+    features->terminate();
+    feature_thread.join();
 }
 
 System::System(IntrinsicMatrix base, const int NUM_PYR)
-    : frame_id(0), is_initialized(false)
+    : frame_id(0), is_initialized(false), hasNewKeyFrame(false)
 {
     mapping = std::make_shared<DenseMapping>(base);
     odometry = std::make_shared<DenseOdometry>(base, NUM_PYR);
     features = std::make_shared<FeatureGraph>();
     extractor = std::make_shared<FeatureExtraction>();
+    feature_thread = std::thread(&FeatureGraph::main_loop, features.get());
 }
 
 void System::initialization()
 {
     is_initialized = true;
     last_tracked_frame = current_keyframe = current_frame;
-    features->add_keyframe(current_keyframe);
+    // features->add_keyframe(current_keyframe);
+    hasNewKeyFrame = true;
 }
 
 void System::process_images(const cv::Mat depth, const cv::Mat image)
 {
-    // extractor->setImage(image);
-    // auto extThread = extractor->spawnThread();
-    xutils::StopWatch sw(true);
-
     cv::Mat depth_float;
     depth.convertTo(depth_float, CV_32FC1, 1 / 1000.f);
 
@@ -52,7 +52,7 @@ void System::process_images(const cv::Mat depth, const cv::Mat image)
         mapping->raycast(reference_image->vmap_pyr[0], reference_image->nmap_pyr[0], reference_frame->get_pose());
 
         reference_image->resize_device_map();
-        reference_frame->set_scene_data(reference_image->get_vmap(), reference_image->get_nmap());
+        // reference_frame->set_scene_data(reference_image->get_vmap(), reference_image->get_nmap());
 
         if (keyframe_needed())
             create_keyframe();
@@ -60,13 +60,16 @@ void System::process_images(const cv::Mat depth, const cv::Mat image)
         last_tracked_frame = current_frame;
         frame_id += 1;
     }
-    std::cout << sw << std::endl;
-    // extThread.join();
-    // cv::Mat outImage;
-    // auto keypoints = extractor->getKeyPoints();
-    // cv::drawKeypoints(image, keypoints, outImage);
-    // cv::imshow("outImage", outImage);
-    // cv::waitKey(1);
+
+    if (hasNewKeyFrame)
+    {
+        auto reference_image = odometry->get_reference_image();
+        auto reference_frame = reference_image->get_reference_frame();
+        reference_frame->set_scene_data(reference_image->get_vmap(), reference_image->get_nmap());
+        // reference_frame->cv_key_points = extractor->getKeyPoints();
+        features->add_keyframe(reference_frame);
+        hasNewKeyFrame = false;
+    }
 }
 
 bool System::keyframe_needed() const
@@ -81,7 +84,8 @@ bool System::keyframe_needed() const
 void System::create_keyframe()
 {
     current_keyframe = last_tracked_frame;
-    features->add_keyframe(current_keyframe);
+    // features->add_keyframe(current_keyframe);
+    hasNewKeyFrame = true;
 }
 
 cv::Mat System::get_shaded_depth()
@@ -107,6 +111,7 @@ void System::restart()
 
     mapping->reset_mapping();
     odometry->reset_tracking();
+    features->reset();
 }
 
 void System::save_mesh_to_file(const char *str)
@@ -128,9 +133,9 @@ size_t System::fetch_mesh_with_colour(float *vertex, unsigned char *colour)
     return mapping->fetch_mesh_with_colour(vertex, colour);
 }
 
-void System::fetch_key_points(float *points, size_t &max_size)
+void System::fetch_key_points(float *points, size_t &count, size_t max)
 {
-    features->get_points(points, max_size);
+    features->get_points(points, count, max);
 }
 
 void System::fetch_key_points_with_normal(float *points, float *normal, size_t &max_size)

@@ -39,7 +39,7 @@ public:
     size_t fetch_mesh_with_colour(float *vertex, unsigned char *colour);
 
     // key points
-    void fetch_key_points(float *points, size_t &max_size);
+    void fetch_key_points(float *points, size_t &count, size_t max);
     void fetch_key_points_with_normal(float *points, float *normal, size_t &max_size);
 
     bool is_initialized;
@@ -67,6 +67,7 @@ private:
     std::shared_ptr<FeatureGraph> features;
     std::shared_ptr<FeatureExtraction> extractor;
     std::thread feature_thread;
+    std::thread extThread;
 
     // Return TRUE if a new key frame is desired
     // return FALSE otherwise
@@ -74,6 +75,7 @@ private:
     bool keyframe_needed() const;
     void create_keyframe();
     void initialization();
+    bool hasNewKeyFrame;
 
     cv::cuda::GpuMat device_depth_float;
     cv::cuda::GpuMat device_image_uchar;

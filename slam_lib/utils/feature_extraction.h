@@ -10,13 +10,11 @@ class FeatureExtraction
 {
 public:
     FeatureExtraction();
-    std::thread spawnThread();
-    void extractFeatures();
-    void setImage(cv::Mat image);
+    std::thread spawnThread(cv::Mat image);
+    void extractFeatures(cv::Mat image);
     std::vector<cv::KeyPoint> getKeyPoints() const;
 
 private:
-    cv::Mat image;
     std::vector<cv::KeyPoint> keypoints;
     cv::Ptr<cv::BRISK> BRISK;
     cv::Ptr<cv::xfeatures2d::SURF> SURF;

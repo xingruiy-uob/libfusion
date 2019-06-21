@@ -3,7 +3,12 @@
 namespace fusion
 {
 
-FeatureGraph::FeatureGraph()
+FeatureGraph::~FeatureGraph()
+{
+    std::cout << "feature graph released." << std::endl;
+}
+
+FeatureGraph::FeatureGraph() : should_quit(false)
 {
     SURF = cv::xfeatures2d::SURF::create();
     BRISK = cv::BRISK::create();
@@ -31,31 +36,32 @@ void FeatureGraph::set_all_points_unvisited()
     }
 }
 
-void FeatureGraph::get_points(float *pt3d, size_t &max_size)
+void FeatureGraph::get_points(float *pt3d, size_t &count, size_t max_size)
 {
-    max_size = 0;
+    count = 0;
     set_all_points_unvisited();
 
     for (const auto &kf : keyframe_graph)
     {
         for (const auto &point : kf->key_points)
         {
+            if (count >= max_size - 1)
+                return;
+
             if (point != NULL)
             {
                 if (point->observations <= 0 || point->visited)
                     continue;
 
-                pt3d[max_size * 3 + 0] = point->pos(0);
-                pt3d[max_size * 3 + 1] = point->pos(1);
-                pt3d[max_size * 3 + 2] = point->pos(2);
-                max_size++;
+                pt3d[count * 3 + 0] = point->pos(0);
+                pt3d[count * 3 + 1] = point->pos(1);
+                pt3d[count * 3 + 2] = point->pos(2);
+                count++;
 
                 point->visited = true;
             }
         }
     }
-
-    std::cout << max_size << std::endl;
 }
 
 void FeatureGraph::add_keyframe(std::shared_ptr<RgbdFrame> keyframe)
@@ -75,10 +81,8 @@ void FeatureGraph::extract_features(RgbdFramePtr keyframe)
 
     keyframe->cv_key_points.clear();
     keyframe->key_points.clear();
-
     if (keyframe->has_scene_data())
     {
-        std::cout << keyframe->get_id() << std::endl;
         cv::Mat vmap = keyframe->get_vmap();
         cv::Mat nmap = keyframe->get_nmap();
 
@@ -116,6 +120,8 @@ void FeatureGraph::extract_features(RgbdFramePtr keyframe)
         keyframe->key_points.resize(keypoints.size());
     }
 
+    keyframe->get_vmap().release();
+    keyframe->get_nmap().release();
     keyframe_graph.push_back(keyframe);
 }
 
@@ -123,18 +129,24 @@ void FeatureGraph::search_correspondence()
 {
 }
 
+void FeatureGraph::reset()
+{
+    keyframe_graph.clear();
+    raw_keyframe_queue.clear();
+}
+
+void FeatureGraph::terminate()
+{
+    should_quit = true;
+}
+
 void FeatureGraph::main_loop()
 {
     while (!should_quit)
     {
-        if (raw_keyframe_queue.size_safe() != 0)
-        {
-            auto keyframe = raw_keyframe_queue.front_safe();
-
+        std::shared_ptr<RgbdFrame> keyframe;
+        if (raw_keyframe_queue.pop(keyframe) && keyframe != NULL)
             extract_features(keyframe);
-
-            raw_keyframe_queue.pop_safe();
-        }
     }
 }
 

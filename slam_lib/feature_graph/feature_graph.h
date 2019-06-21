@@ -3,6 +3,8 @@
 
 #include "fusion_core/rgbd_frame.h"
 #include <Eigen/Core>
+#include <queue>
+#include <mutex>
 #include <unordered_map>
 #include <opencv2/opencv.hpp>
 #include <opencv2/xfeatures2d.hpp>
@@ -17,20 +19,23 @@ using RgbdFramePtr = std::shared_ptr<RgbdFrame>;
 class FeatureGraph
 {
 public:
+    ~FeatureGraph();
     FeatureGraph();
     FeatureGraph(const FeatureGraph &) = delete;
     FeatureGraph &operator=(const FeatureGraph &) = delete;
 
     void add_keyframe(RgbdFramePtr keyframe);
-    void get_points(float *pt3d, size_t &max_size);
+    void get_points(float *pt3d, size_t &count, size_t max_size);
     void main_loop();
-
-    bool should_quit;
+    void terminate();
+    void reset();
 
 private:
     cv::Ptr<cv::BRISK> BRISK;
     cv::Ptr<cv::xfeatures2d::SURF> SURF;
     std::vector<RgbdFramePtr> keyframe_graph;
+
+    bool should_quit;
 
     void set_all_points_unvisited();
     void search_correspondence();

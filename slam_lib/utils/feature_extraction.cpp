@@ -6,19 +6,14 @@ FeatureExtraction::FeatureExtraction()
     SURF = cv::xfeatures2d::SURF::create();
 }
 
-std::thread FeatureExtraction::spawnThread()
+std::thread FeatureExtraction::spawnThread(cv::Mat image)
 {
-    return std::thread(&FeatureExtraction::extractFeatures, this);
+    return std::thread(&FeatureExtraction::extractFeatures, this, image);
 }
 
-void FeatureExtraction::extractFeatures()
+void FeatureExtraction::extractFeatures(cv::Mat image)
 {
     SURF->detect(image, keypoints);
-}
-
-void FeatureExtraction::setImage(cv::Mat image)
-{
-    this->image = image;
 }
 
 std::vector<cv::KeyPoint> FeatureExtraction::getKeyPoints() const

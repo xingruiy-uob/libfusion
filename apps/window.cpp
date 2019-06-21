@@ -8,16 +8,20 @@ pangolin::OpenGlMatrix ConvertEigenToGL(const Eigen::Matrix4f T)
 
 MainWindow::~MainWindow()
 {
+    delete keypoints;
     pangolin::DestroyWindow(WindowName);
+    std::cout << "opengl released. " << std::endl;
 }
 
 MainWindow::MainWindow(const char *name, size_t width, size_t height)
     : mbFlagRestart(false), WindowName(name), mbFlagUpdateMesh(false),
-      VERTEX_COUNT(0), MAX_VERTEX_COUNT(20000000)
+      VERTEX_COUNT(0), MAX_VERTEX_COUNT(20000000), sizeKeyPoint(0),
+      maxSizeKeyPoint(8000000)
 {
     ResetAllFlags();
 
     pangolin::CreateWindowAndBind(WindowName, width, height);
+    keypoints = (float *)malloc(sizeof(float) * maxSizeKeyPoint);
 
     SetupGLFlags();
     SetupDisplays();
@@ -155,6 +159,7 @@ void MainWindow::SetupDisplays()
     BoxDisplayMesh = std::make_shared<pangolin::Var<bool>>("Menu.Display Mesh", false, true);
     BoxDisplayCamera = std::make_shared<pangolin::Var<bool>>("Menu.Display Camera", false, true);
     BoxDisplayKeyCameras = std::make_shared<pangolin::Var<bool>>("Menu.Display KeyFrame", false, true);
+    BoxDisplayKeyPoint = std::make_shared<pangolin::Var<bool>>("Menu.Display KeyPoint", false, true);
 
     mpViewSideBar = &pangolin::Display("Right Side Bar");
     mpViewSideBar->SetBounds(0, 1, RightSideBarDividerLeft, 1);
@@ -272,6 +277,16 @@ void MainWindow::Render()
                 pangolin::glDrawFrustum(K.inverse().eval(), 640, 480, pose, 0.1f);
                 pangolin::glDrawAxis(pose, 0.1f);
             }
+        }
+
+        if (*BoxDisplayKeyPoint)
+        {
+            slam->fetch_key_points(&keypoints[0], sizeKeyPoint, maxSizeKeyPoint);
+            glColor4f(0, 0, 1.f, 1.f);
+            glPointSize(5);
+            pangolin::glDrawVertices(sizeKeyPoint, &keypoints[0], GL_POINTS, 3);
+            glPointSize(1);
+            glColor4f(1.f, 1.f, 1.f, 1.f);
         }
     }
 
