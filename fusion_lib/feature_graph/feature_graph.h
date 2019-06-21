@@ -2,11 +2,11 @@
 #define FEATURE_GRAPH_H
 
 #include "rgbd_frame.h"
-#include "safe_queue.h"
 #include <Eigen/Core>
 #include <unordered_map>
 #include <opencv2/opencv.hpp>
 #include <opencv2/xfeatures2d.hpp>
+#include <xutils/DataStruct/safe_queue.h>
 
 namespace fusion
 {
@@ -36,7 +36,7 @@ private:
     void search_correspondence();
     void extract_features(RgbdFramePtr keyframe);
 
-    SafeQueue<RgbdFramePtr> raw_keyframe_queue;
+    xutils::SafeQueue<RgbdFramePtr> raw_keyframe_queue;
 };
 
 } // namespace fusion

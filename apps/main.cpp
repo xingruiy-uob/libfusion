@@ -1,13 +1,12 @@
 #include "system.h"
 #include "window.h"
-#include "cuda_runtime.h"
 #include <xutils/IOWrapper/rgbd_camera.h>
 #include <xutils/DataStruct/stop_watch.h>
 
 int main(int argc, char **argv)
 {
     xutils::RgbdCamera camera(640, 480, 30);
-    fusion::IntrinsicMatrix K(640, 480, 570, 570, 319.5, 239.5);
+    fusion::IntrinsicMatrix K(640, 480, 580, 580, 319.5, 239.5);
     fusion::System slam(K, 5);
 
     MainWindow window("Untitled", 1920, 920);
@@ -21,9 +20,6 @@ int main(int argc, char **argv)
         {
             window.SetRGBSource(camera.image);
 
-            if (window.mbFlagRestart)
-                slam.restart();
-
             if (!window.IsPaused())
             {
                 slam.process_images(camera.depth, camera.image);
@@ -33,7 +29,7 @@ int main(int argc, char **argv)
                 window.mbFlagUpdateMesh = true;
             }
 
-            if (window.mbFlagUpdateMesh)
+            if (window.IsPaused() && window.mbFlagUpdateMesh)
             {
                 auto *vertex = window.GetMappedVertexBuffer();
                 auto *normal = window.GetMappedNormalBuffer();

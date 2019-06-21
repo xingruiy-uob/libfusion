@@ -3,7 +3,7 @@
 
 #include <memory>
 #include <cuda_runtime.h>
-#include <fusion/mapping/map_struct.h>
+#include <xfusion/mapping/map_struct.h>
 #include "rgbd_frame.h"
 #include "device_image.h"
 

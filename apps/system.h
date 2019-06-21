@@ -2,13 +2,13 @@
 #define SYSTEM_H
 
 #include "rgbd_frame.h"
-#include "fusion/core/intrinsic_matrix.h"
 #include "dense_mapping.h"
 #include "dense_odometry.h"
 #include "feature_graph.h"
 #include <thread>
 #include <eigen3/Eigen/Core>
 #include <opencv2/opencv.hpp>
+#include <xfusion/core/intrinsic_matrix.h>
 
 namespace fusion
 {

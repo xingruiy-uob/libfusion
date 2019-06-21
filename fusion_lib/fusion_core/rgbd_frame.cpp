@@ -1,5 +1,5 @@
 #include "rgbd_frame.h"
-#include <fusion/core/cuda_imgproc.h>
+#include <xfusion/core/cuda_imgproc.h>
 
 namespace fusion
 {

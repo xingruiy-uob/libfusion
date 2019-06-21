@@ -1,5 +1,4 @@
 #include "system.h"
-#include "fusion/core/cuda_imgproc.h"
 
 namespace fusion
 {
@@ -14,8 +13,6 @@ System::System(IntrinsicMatrix base, const int NUM_PYR)
     mapping = std::make_shared<DenseMapping>(base);
     odometry = std::make_shared<DenseOdometry>(base, NUM_PYR);
     features = std::make_shared<FeatureGraph>();
-    // odom = std::make_shared<RgbdOdometry>(base, NUM_PYR);
-    // feature_thread = std::thread(&FeatureGraph::main_loop, features.get());
 }
 
 void System::initialization()

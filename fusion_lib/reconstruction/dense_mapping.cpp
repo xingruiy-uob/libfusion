@@ -1,6 +1,6 @@
 #include "dense_mapping.h"
-#include "fusion/mapping/map_struct.h"
-#include "fusion/mapping/map_proc.h"
+#include "xfusion/mapping/map_struct.h"
+#include "xfusion/mapping/map_proc.h"
 
 namespace fusion
 {

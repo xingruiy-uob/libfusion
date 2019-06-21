@@ -2,7 +2,7 @@
 #include "rgbd_frame.h"
 #include "device_image.h"
 #include <xutils/DataStruct/revertable.h>
-#include <fusion/icp/icp_reduction.h>
+#include <xfusion/icp/icp_reduction.h>
 
 namespace fusion
 {

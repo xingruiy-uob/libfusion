@@ -5,10 +5,10 @@ set(CMAKE_CXX_STANDARD 11)
 
 find_package(OpenCV 3.4 REQUIRED)
 find_package(Eigen3 3.3 REQUIRED)
-find_package(fusion REQUIRED)
 find_package(XUtils REQUIRED)
+find_package(XFusion REQUIRED)
 
-add_library(slam_lib STATIC "")
+add_library(slam_lib SHARED)
 
 target_sources(slam_lib 
 PRIVATE
@@ -25,9 +25,7 @@ PRIVATE
     # Reconstruction module
     reconstruction/dense_mapping.cpp
 
-    # Relocalization module
-    relocalization/relocalizer.cpp
-    relocalization/feature_point.cpp
+    # feature module
     feature_graph/feature_graph.cpp
 )
 

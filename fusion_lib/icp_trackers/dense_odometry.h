@@ -4,7 +4,7 @@
 #include "rgbd_frame.h"
 #include "device_image.h"
 #include "rgbd_tracker.h"
-#include <fusion/core/cuda_imgproc.h>
+#include <xfusion/core/cuda_imgproc.h>
 #include <memory>
 
 namespace fusion
