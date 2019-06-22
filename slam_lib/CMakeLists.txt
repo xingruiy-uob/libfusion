@@ -26,6 +26,7 @@ PRIVATE
 
     # feature module
     feature_graph/feature_graph.cpp
+    feature_graph/graph_optimizer.cpp
     utils/feature_extraction.cpp
 )
 

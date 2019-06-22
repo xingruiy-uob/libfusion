@@ -6,6 +6,7 @@
 #include <opencv2/opencv.hpp>
 #include <xfusion/core/intrinsic_matrix.h>
 #include "fusion_core/rgbd_frame.h"
+#include "feature_graph/graph_optimizer.h"
 #include "reconstruction/dense_mapping.h"
 #include "icp_trackers/dense_odometry.h"
 #include "feature_graph/feature_graph.h"
@@ -41,6 +42,7 @@ public:
     // key points
     void fetch_key_points(float *points, size_t &count, size_t max);
     void fetch_key_points_with_normal(float *points, float *normal, size_t &max_size);
+    std::vector<Eigen::Matrix<float, 4, 4>> getKeyFramePoses() const;
 
     bool is_initialized;
 
@@ -66,8 +68,9 @@ private:
     std::shared_ptr<DenseOdometry> odometry;
     std::shared_ptr<FeatureGraph> features;
     std::shared_ptr<FeatureExtraction> extractor;
+    std::shared_ptr<GraphOptimizer> optimizer;
     std::thread feature_thread;
-    std::thread extThread;
+    std::thread threadOpt;
 
     // Return TRUE if a new key frame is desired
     // return FALSE otherwise

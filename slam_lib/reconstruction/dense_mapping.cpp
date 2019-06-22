@@ -2,6 +2,7 @@
 #include <cuda_runtime_api.h>
 #include <xfusion/mapping/map_struct.h>
 #include <xfusion/mapping/map_proc.h>
+#include <xutils/DataStruct/stop_watch.h>
 
 namespace fusion
 {

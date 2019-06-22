@@ -156,7 +156,7 @@ void MainWindow::SetupDisplays()
     BoxDisplayImage = std::make_shared<pangolin::Var<bool>>("Menu.Display Image", true, true);
     BoxDisplayDepth = std::make_shared<pangolin::Var<bool>>("Menu.Display Depth", true, true);
     BoxDisplayScene = std::make_shared<pangolin::Var<bool>>("Menu.Display Scene", true, true);
-    BoxDisplayMesh = std::make_shared<pangolin::Var<bool>>("Menu.Display Mesh", false, true);
+    BoxDisplayMesh = std::make_shared<pangolin::Var<bool>>("Menu.Display Mesh", true, true);
     BoxDisplayCamera = std::make_shared<pangolin::Var<bool>>("Menu.Display Camera", false, true);
     BoxDisplayKeyCameras = std::make_shared<pangolin::Var<bool>>("Menu.Display KeyFrame", false, true);
     BoxDisplayKeyPoint = std::make_shared<pangolin::Var<bool>>("Menu.Display KeyPoint", false, true);
@@ -259,7 +259,11 @@ void MainWindow::Render()
     else
     {
         mpViewMesh->Activate(*CameraView);
-        DrawMeshShaded();
+
+        if (*BoxDisplayMesh)
+        {
+            DrawMeshShaded();
+        }
 
         Eigen::Matrix3f K;
         K << 580, 0, 320, 0, 580, 240, 0, 0, 1;
@@ -272,17 +276,18 @@ void MainWindow::Render()
 
         if (*BoxDisplayKeyCameras)
         {
-            for (const auto &pose : ListOfKeyCameras)
+            auto keyframe_poses = slam->getKeyFramePoses();
+            for (const auto &pose : keyframe_poses)
             {
-                pangolin::glDrawFrustum(K.inverse().eval(), 640, 480, pose, 0.1f);
-                pangolin::glDrawAxis(pose, 0.1f);
+                pangolin::glDrawFrustum(K.inverse().eval(), 640, 480, pose, 0.05f);
+                pangolin::glDrawAxis(pose, 0.05f);
             }
         }
 
         if (*BoxDisplayKeyPoint)
         {
             slam->fetch_key_points(&keypoints[0], sizeKeyPoint, maxSizeKeyPoint);
-            glColor4f(0, 0, 1.f, 1.f);
+            glColor4f(0.f, 1.f, 0.f, 1.f);
             glPointSize(5);
             pangolin::glDrawVertices(sizeKeyPoint, &keypoints[0], GL_POINTS, 3);
             glPointSize(1);

@@ -58,19 +58,9 @@ Sophus::SE3d RgbdFrame::get_pose() const
     return pose;
 }
 
-RgbdFramePtr RgbdFrame::get_reference_frame() const
-{
-    reference;
-}
-
 void RgbdFrame::set_pose(const Sophus::SE3d &pose)
 {
     this->pose = pose;
-}
-
-void RgbdFrame::set_reference_frame(RgbdFramePtr reference)
-{
-    this->reference = reference;
 }
 
 void RgbdFrame::set_scene_data(cv::cuda::GpuMat vmap, cv::cuda::GpuMat nmap)

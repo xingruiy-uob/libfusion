@@ -15,8 +15,10 @@ System::System(IntrinsicMatrix base, const int NUM_PYR)
 {
     mapping = std::make_shared<DenseMapping>(base);
     odometry = std::make_shared<DenseOdometry>(base, NUM_PYR);
-    features = std::make_shared<FeatureGraph>();
+    features = std::make_shared<FeatureGraph>(base);
     extractor = std::make_shared<FeatureExtraction>();
+    optimizer = std::make_shared<GraphOptimizer>();
+    threadOpt = std::thread(&GraphOptimizer::main_loop, optimizer.get());
     feature_thread = std::thread(&FeatureGraph::main_loop, features.get());
 }
 
@@ -160,6 +162,11 @@ void System::writeMapToDisk(std::string file_name) const
 void System::readMapFromDisk(std::string file_name)
 {
     mapping->readMapFromDisk(file_name);
+}
+
+std::vector<Eigen::Matrix<float, 4, 4>> System::getKeyFramePoses() const
+{
+    return features->getKeyFramePoses();
 }
 
 } // namespace fusion

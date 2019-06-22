@@ -8,7 +8,8 @@ FeatureGraph::~FeatureGraph()
     std::cout << "feature graph released." << std::endl;
 }
 
-FeatureGraph::FeatureGraph() : should_quit(false)
+FeatureGraph::FeatureGraph(const IntrinsicMatrix K)
+    : should_quit(false), cam_param(K)
 {
     SURF = cv::xfeatures2d::SURF::create();
     BRISK = cv::BRISK::create();
@@ -36,6 +37,18 @@ void FeatureGraph::set_all_points_unvisited()
     }
 }
 
+std::vector<Eigen::Matrix<float, 4, 4>> FeatureGraph::getKeyFramePoses() const
+{
+    std::vector<Eigen::Matrix<float, 4, 4>> poses;
+    for (const auto &kf : keyframe_graph)
+    {
+        Eigen::Matrix<float, 4, 4> pose = kf->get_pose().cast<float>().matrix();
+        poses.emplace_back(std::move(pose));
+    }
+
+    return poses;
+}
+
 void FeatureGraph::get_points(float *pt3d, size_t &count, size_t max_size)
 {
     count = 0;
@@ -50,7 +63,7 @@ void FeatureGraph::get_points(float *pt3d, size_t &count, size_t max_size)
 
             if (point != NULL)
             {
-                if (point->observations <= 0 || point->visited)
+                if (point->observations <= 1 || point->visited)
                     continue;
 
                 pt3d[count * 3 + 0] = point->pos(0);
@@ -81,6 +94,8 @@ void FeatureGraph::extract_features(RgbdFramePtr keyframe)
 
     keyframe->cv_key_points.clear();
     keyframe->key_points.clear();
+    keyframe->descriptors.release();
+
     if (keyframe->has_scene_data())
     {
         cv::Mat vmap = keyframe->get_vmap();
@@ -109,24 +124,113 @@ void FeatureGraph::extract_features(RgbdFramePtr keyframe)
             point->vec_normal << n(0), n(1), n(2);
             keyframe->cv_key_points.push_back(*iter);
             keyframe->key_points.emplace_back(point);
+            keyframe->descriptors.push_back(descriptors.row(std::distance(keypoints.begin(), iter)));
         }
     }
     else
     {
-        // only the first frame will trigger this branch
-        if (keyframe->get_id() != 0)
-            std::cout << "control flow should not reach here!" << std::endl;
+        std::cout << "control flow should not reach here!" << std::endl;
         keyframe->cv_key_points = keypoints;
         keyframe->key_points.resize(keypoints.size());
     }
-
-    keyframe->get_vmap().release();
-    keyframe->get_nmap().release();
-    keyframe_graph.push_back(keyframe);
 }
 
-void FeatureGraph::search_correspondence()
+// TODO : more sophisticated match filter
+std::vector<bool> validate_matches(
+    const std::vector<cv::KeyPoint> &src,
+    const std::vector<cv::KeyPoint> &dst,
+    const std::vector<cv::DMatch> &matches)
 {
+    const auto SizeMatches = matches.size();
+    std::vector<bool> validation(SizeMatches);
+    std::fill(validation.begin(), validation.end(), true);
+
+    return validation;
+}
+
+void FeatureGraph::search_correspondence(RgbdFramePtr keyframe)
+{
+    if (referenceFrame == NULL)
+        return;
+
+    const auto &fx = cam_param.fx;
+    const auto &fy = cam_param.fy;
+    const auto &cx = cam_param.cx;
+    const auto &cy = cam_param.cy;
+    const auto &cols = cam_param.width;
+    const auto &rows = cam_param.height;
+    auto poseInvRef = referenceFrame->get_pose().cast<float>().inverse();
+
+    std::vector<cv::DMatch> matches;
+
+    for (int i = 0; i < keyframe->key_points.size(); ++i)
+    {
+        const auto &desc_src = keyframe->descriptors.row(i);
+        auto pt_in_ref = poseInvRef * keyframe->key_points[i]->pos;
+        auto x = fx * pt_in_ref(0) / pt_in_ref(2) + cx;
+        auto y = fy * pt_in_ref(1) / pt_in_ref(2) + cy;
+
+        auto th_dist = 0.1f;
+        auto min_dist = 64;
+        int best_idx = -1;
+
+        if (x >= 0 && y >= 0 && x < cols - 1 && y < rows - 1)
+        {
+            for (int j = 0; j < referenceFrame->key_points.size(); ++j)
+            {
+                if (referenceFrame->key_points[j] == NULL)
+                    continue;
+
+                auto dist = (referenceFrame->key_points[j]->pos - keyframe->key_points[i]->pos).norm();
+
+                if (dist < th_dist)
+                {
+                    const auto &desc_ref = referenceFrame->descriptors.row(j);
+                    auto desc_dist = cv::norm(desc_src, desc_ref, cv::NormTypes::NORM_HAMMING);
+                    if (desc_dist < min_dist)
+                    {
+                        min_dist = desc_dist;
+                        best_idx = j;
+                    }
+                }
+            }
+        }
+
+        if (best_idx >= 0)
+        {
+            cv::DMatch match;
+            match.queryIdx = i;
+            match.trainIdx = best_idx;
+            matches.push_back(std::move(match));
+        }
+    }
+
+    auto validation = validate_matches(keyframe->cv_key_points, referenceFrame->cv_key_points, matches);
+
+    std::vector<cv::DMatch> refined_matches;
+    for (int i = 0; i < validation.size(); ++i)
+    {
+        if (validation[i])
+        {
+            const auto &match = matches[i];
+            const auto query_id = match.queryIdx;
+            const auto train_id = match.trainIdx;
+
+            keyframe->key_points[query_id]->observations += referenceFrame->key_points[train_id]->observations;
+            referenceFrame->key_points[train_id] = keyframe->key_points[query_id];
+
+            refined_matches.push_back(std::move(match));
+        }
+    }
+
+    // cv::Mat outImg;
+    // cv::Mat src_image = keyframe->get_image();
+    // cv::Mat ref_image = referenceFrame->get_image();
+    // cv::drawMatches(src_image, keyframe->cv_key_points,
+    //                 ref_image, referenceFrame->cv_key_points,
+    //                 refined_matches, outImg, cv::Scalar(0, 255, 0));
+    // cv::imshow("outImg", outImg);
+    // cv::waitKey(1);
 }
 
 void FeatureGraph::reset()
@@ -146,7 +250,16 @@ void FeatureGraph::main_loop()
     {
         std::shared_ptr<RgbdFrame> keyframe;
         if (raw_keyframe_queue.pop(keyframe) && keyframe != NULL)
+        {
             extract_features(keyframe);
+            search_correspondence(keyframe);
+
+            referenceFrame = keyframe;
+
+            keyframe->get_vmap().release();
+            keyframe->get_nmap().release();
+            keyframe_graph.push_back(keyframe);
+        }
     }
 }
 

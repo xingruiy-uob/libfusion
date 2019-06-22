@@ -68,6 +68,7 @@ public:
 
   std::vector<cv::KeyPoint> cv_key_points;
   std::vector<std::shared_ptr<Point3d>> key_points;
+  cv::Mat descriptors;
 
 private:
   cv::Mat source_image;
@@ -78,8 +79,6 @@ private:
   size_t frame_id;
   double time_stamp;
   Sophus::SE3d pose;
-  RgbdFramePtr reference;
-  std::mutex frame_lock;
 };
 
 } // namespace fusion
