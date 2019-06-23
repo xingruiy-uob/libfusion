@@ -1,6 +1,6 @@
-#include "icp_trackers/rgbd_tracker.h"
-#include "fusion_core/rgbd_frame.h"
-#include "fusion_core/device_image.h"
+#include "Frame.h"
+#include "ICPTracker.h"
+#include "PointCloud.h"
 #include <xfusion/icp/icp_reduction.h>
 #include <xutils/DataStruct/revertable.h>
 

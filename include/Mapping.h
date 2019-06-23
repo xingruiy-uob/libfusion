@@ -3,8 +3,8 @@
 
 #include <memory>
 #include <xfusion/mapping/map_struct.h>
-#include "fusion_core/rgbd_frame.h"
-#include "fusion_core/device_image.h"
+#include "Frame.h"
+#include "PointCloud.h"
 
 namespace fusion
 {

@@ -4,8 +4,8 @@
 #include <memory>
 #include <sophus/se3.hpp>
 #include <opencv2/opencv.hpp>
-#include "fusion_core/rgbd_frame.h"
-#include "fusion_core/device_image.h"
+#include "Frame.h"
+#include "PointCloud.h"
 
 namespace fusion
 {

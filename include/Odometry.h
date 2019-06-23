@@ -1,9 +1,9 @@
 #ifndef SLAM_LIB_DENSE_ODOMETRY_H
 #define SLAM_LIB_DENSE_ODOMETRY_H
 
-#include "fusion_core/rgbd_frame.h"
-#include "fusion_core/device_image.h"
-#include "icp_trackers/rgbd_tracker.h"
+#include "Frame.h"
+#include "PointCloud.h"
+#include "ICPTracker.h"
 #include <xfusion/core/cuda_imgproc.h>
 #include <memory>
 

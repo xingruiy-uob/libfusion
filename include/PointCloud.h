@@ -7,7 +7,7 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/cudaarithm.hpp>
 #include <xfusion/core/intrinsic_matrix.h>
-#include "rgbd_frame.h"
+#include "Frame.h"
 
 namespace fusion
 {

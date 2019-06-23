@@ -7,7 +7,7 @@
 #include <opencv2/xfeatures2d.hpp>
 #include <xfusion/core/intrinsic_matrix.h>
 #include <xutils/DataStruct/safe_queue.h>
-#include "fusion_core/rgbd_frame.h"
+#include "Frame.h"
 
 namespace fusion
 {
@@ -38,8 +38,10 @@ private:
     RgbdFramePtr referenceFrame;
     IntrinsicMatrix cam_param;
 
-    bool should_quit;
+    bool FlagShouldQuit;
+    bool FlagNeedOpt;
 
+    void optimize();
     void set_all_points_unvisited();
     void search_correspondence(RgbdFramePtr keyframe);
     void extract_features(RgbdFramePtr keyframe);

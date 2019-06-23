@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.1)
-project(reloc_fusion CXX CUDA)
+project(XFusion VERSION 0.1 LANGUAGES CXX CUDA)
 
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -13,30 +13,51 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 find_package(OpenGL REQUIRED)
 find_package(CUDA 10.1 REQUIRED)
 find_package(Pangolin REQUIRED)
+find_package(OpenCV 3.4 REQUIRED)
+find_package(Eigen3 3.3 REQUIRED)
+find_package(XUtils REQUIRED)
+find_package(XFusion REQUIRED)
 
-add_subdirectory(slam_lib)
+# add_subdirectory(slam_lib)
 
-# app gui
 add_executable(app "")
 
 target_sources(app
 PRIVATE
-    apps/system.cpp
-    apps/main.cpp
-    apps/window.cpp
+    src/Frame.cpp
+    src/ICPTracker.cpp
+    src/KeyFrameGraph.cpp
+    src/Main.cpp
+    src/Mapping.cpp
+    src/Odometry.cpp
+    src/PointCloud.cpp
+    src/System.cpp
+    src/Window.cpp
+)
+
+set_target_properties(app
+PROPERTIES 
+    CUDA_SEPARABLE_COMPILATION ON
+    POSITION_INDEPENDENT_CODE ON
+    CUDA_STANDARD 11
 )
 
 target_include_directories(app
+PUBLIC
+    ${PROJECT_SOURCE_DIR}/include
 PRIVATE
     ${CUDA_INCLUDE_DIRS}
 )
 
 target_link_libraries(app
 PRIVATE
-    SLAM
     OpenGL::GL
-    ${Pangolin_LIBRARIES}
+    Eigen3::Eigen
+    XUtils::XUtils
+    XFusion::XFusion
+    ${OpenCV_LIBRARIES}
     ${CUDA_LIBRARIES}
+    ${Pangolin_LIBRARIES}
 )
 
 file (GLOB_RECURSE resources "shaders/*.*")

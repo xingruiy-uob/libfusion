@@ -1,4 +1,5 @@
-#include "feature_graph.h"
+#include "KeyFrameGraph.h"
+#include <ceres/ceres.h>
 
 namespace fusion
 {
@@ -9,7 +10,7 @@ FeatureGraph::~FeatureGraph()
 }
 
 FeatureGraph::FeatureGraph(const IntrinsicMatrix K)
-    : should_quit(false), cam_param(K)
+    : FlagShouldQuit(false), cam_param(K), FlagNeedOpt(false)
 {
     SURF = cv::xfeatures2d::SURF::create();
     BRISK = cv::BRISK::create();
@@ -42,7 +43,7 @@ std::vector<Eigen::Matrix<float, 4, 4>> FeatureGraph::getKeyFramePoses() const
     std::vector<Eigen::Matrix<float, 4, 4>> poses;
     for (const auto &kf : keyframe_graph)
     {
-        Eigen::Matrix<float, 4, 4> pose = kf->get_pose().cast<float>().matrix();
+        Eigen::Matrix<float, 4, 4> pose = kf->pose.cast<float>().matrix();
         poses.emplace_back(std::move(pose));
     }
 
@@ -84,8 +85,8 @@ void FeatureGraph::add_keyframe(std::shared_ptr<RgbdFrame> keyframe)
 
 void FeatureGraph::extract_features(RgbdFramePtr keyframe)
 {
-    cv::Mat source_image = keyframe->get_image();
-    auto frame_pose = keyframe->get_pose().cast<float>();
+    cv::Mat source_image = keyframe->image;
+    auto frame_pose = keyframe->pose.cast<float>();
 
     cv::Mat descriptors;
     std::vector<cv::KeyPoint> keypoints;
@@ -96,10 +97,10 @@ void FeatureGraph::extract_features(RgbdFramePtr keyframe)
     keyframe->key_points.clear();
     keyframe->descriptors.release();
 
-    if (keyframe->has_scene_data())
+    if (!keyframe->vmap.empty())
     {
-        cv::Mat vmap = keyframe->get_vmap();
-        cv::Mat nmap = keyframe->get_nmap();
+        cv::Mat vmap = keyframe->vmap;
+        cv::Mat nmap = keyframe->nmap;
 
         auto ibegin = keypoints.begin();
         auto iend = keypoints.end();
@@ -159,7 +160,7 @@ void FeatureGraph::search_correspondence(RgbdFramePtr keyframe)
     const auto &cy = cam_param.cy;
     const auto &cols = cam_param.width;
     const auto &rows = cam_param.height;
-    auto poseInvRef = referenceFrame->get_pose().cast<float>().inverse();
+    auto poseInvRef = referenceFrame->pose.cast<float>().inverse();
 
     std::vector<cv::DMatch> matches;
 
@@ -224,8 +225,8 @@ void FeatureGraph::search_correspondence(RgbdFramePtr keyframe)
     }
 
     // cv::Mat outImg;
-    // cv::Mat src_image = keyframe->get_image();
-    // cv::Mat ref_image = referenceFrame->get_image();
+    // cv::Mat src_image = keyframe->image;
+    // cv::Mat ref_image = referenceFrame->image;
     // cv::drawMatches(src_image, keyframe->cv_key_points,
     //                 ref_image, referenceFrame->cv_key_points,
     //                 refined_matches, outImg, cv::Scalar(0, 255, 0));
@@ -241,12 +242,16 @@ void FeatureGraph::reset()
 
 void FeatureGraph::terminate()
 {
-    should_quit = true;
+    FlagShouldQuit = true;
+}
+
+void FeatureGraph::optimize()
+{
 }
 
 void FeatureGraph::main_loop()
 {
-    while (!should_quit)
+    while (!FlagShouldQuit)
     {
         std::shared_ptr<RgbdFrame> keyframe;
         if (raw_keyframe_queue.pop(keyframe) && keyframe != NULL)
@@ -256,9 +261,15 @@ void FeatureGraph::main_loop()
 
             referenceFrame = keyframe;
 
-            keyframe->get_vmap().release();
-            keyframe->get_nmap().release();
+            keyframe->vmap.release();
+            keyframe->nmap.release();
             keyframe_graph.push_back(keyframe);
+        }
+
+        if (FlagNeedOpt)
+        {
+            optimize();
+            FlagNeedOpt = false;
         }
     }
 }

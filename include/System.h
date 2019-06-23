@@ -5,12 +5,10 @@
 #include <eigen3/Eigen/Core>
 #include <opencv2/opencv.hpp>
 #include <xfusion/core/intrinsic_matrix.h>
-#include "fusion_core/rgbd_frame.h"
-#include "feature_graph/graph_optimizer.h"
-#include "reconstruction/dense_mapping.h"
-#include "icp_trackers/dense_odometry.h"
-#include "feature_graph/feature_graph.h"
-#include "utils/feature_extraction.h"
+#include "Frame.h"
+#include "Mapping.h"
+#include "Odometry.h"
+#include "KeyFrameGraph.h"
 
 namespace fusion
 {
@@ -67,10 +65,7 @@ private:
     std::shared_ptr<DenseMapping> mapping;
     std::shared_ptr<DenseOdometry> odometry;
     std::shared_ptr<FeatureGraph> features;
-    std::shared_ptr<FeatureExtraction> extractor;
-    std::shared_ptr<GraphOptimizer> optimizer;
     std::thread feature_thread;
-    std::thread threadOpt;
 
     // Return TRUE if a new key frame is desired
     // return FALSE otherwise

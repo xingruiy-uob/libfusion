@@ -1,4 +1,4 @@
-#include "dense_mapping.h"
+#include "Mapping.h"
 #include <cuda_runtime_api.h>
 #include <xfusion/mapping/map_struct.h>
 #include <xfusion/mapping/map_proc.h>
@@ -31,7 +31,7 @@ void DenseMapping::update(RgbdImagePtr frame)
   auto image = frame->get_image();
   auto depth = frame->get_raw_depth();
   auto normal = frame->get_nmap();
-  auto pose = frame->get_reference_frame()->get_pose();
+  auto pose = frame->get_reference_frame()->pose;
 
   count_visible_block = 0;
 

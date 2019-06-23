@@ -1,4 +1,4 @@
-#include "system.h"
+#include "System.h"
 #include <xutils/DataStruct/stop_watch.h>
 
 namespace fusion
@@ -16,9 +16,7 @@ System::System(IntrinsicMatrix base, const int NUM_PYR)
     mapping = std::make_shared<DenseMapping>(base);
     odometry = std::make_shared<DenseOdometry>(base, NUM_PYR);
     features = std::make_shared<FeatureGraph>(base);
-    extractor = std::make_shared<FeatureExtraction>();
-    optimizer = std::make_shared<GraphOptimizer>();
-    threadOpt = std::thread(&GraphOptimizer::main_loop, optimizer.get());
+    // threadOpt = std::thread(&GraphOptimizer::main_loop, optimizer.get());
     feature_thread = std::thread(&FeatureGraph::main_loop, features.get());
 }
 
@@ -51,7 +49,7 @@ void System::process_images(const cv::Mat depth, const cv::Mat image)
 
         mapping->update(reference_image);
         // mapping->update(reference_image->depth_float, reference_image->get_image(), reference_frame->get_pose());
-        mapping->raycast(reference_image->vmap_pyr[0], reference_image->nmap_pyr[0], reference_frame->get_pose());
+        mapping->raycast(reference_image->vmap_pyr[0], reference_image->nmap_pyr[0], reference_frame->pose);
 
         reference_image->resize_device_map();
         // reference_frame->set_scene_data(reference_image->get_vmap(), reference_image->get_nmap());
@@ -67,7 +65,10 @@ void System::process_images(const cv::Mat depth, const cv::Mat image)
     {
         auto reference_image = odometry->get_reference_image();
         auto reference_frame = reference_image->get_reference_frame();
-        reference_frame->set_scene_data(reference_image->get_vmap(), reference_image->get_nmap());
+        reference_image->get_vmap().download(reference_frame->vmap);
+        reference_image->get_nmap().download(reference_frame->nmap);
+
+        // reference_frame->set_scene_data(reference_image->get_vmap(), reference_image->get_nmap());
         // reference_frame->cv_key_points = extractor->getKeyPoints();
         features->add_keyframe(reference_frame);
         hasNewKeyFrame = false;
@@ -76,8 +77,8 @@ void System::process_images(const cv::Mat depth, const cv::Mat image)
 
 bool System::keyframe_needed() const
 {
-    auto pose = current_frame->get_pose();
-    auto ref_pose = current_keyframe->get_pose();
+    auto pose = current_frame->pose;
+    auto ref_pose = current_keyframe->pose;
     if ((pose.inverse() * ref_pose).translation().norm() > 0.1f)
         return true;
     return false;
@@ -149,7 +150,7 @@ Eigen::Matrix4f System::get_camera_pose() const
     Eigen::Matrix4f T;
     if (odometry->get_reference_image())
     {
-        T = odometry->get_reference_image()->get_reference_frame()->get_pose().cast<float>().matrix();
+        T = odometry->get_reference_image()->get_reference_frame()->pose.cast<float>().matrix();
     }
     return T;
 }

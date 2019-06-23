@@ -1,5 +1,5 @@
-#include "dense_odometry.h"
-#include "rgbd_tracker.h"
+#include "Odometry.h"
+#include "ICPTracker.h"
 
 namespace fusion
 {
@@ -34,10 +34,10 @@ void DenseOdometry::track_frame(RgbdFramePtr current_frame)
 
   if (result.sucess)
   {
-    auto pose = reference_frame->get_pose() * result.update;
+    auto pose = reference_frame->pose * result.update;
 
     // current_frame->set_reference_frame(reference_frame);
-    current_frame->set_pose(pose);
+    current_frame->pose = pose;
 
     reference_frame = current_frame;
     current_image_.swap(reference_image_);
@@ -62,7 +62,7 @@ Eigen::Matrix4f DenseOdometry::get_current_pose_matrix() const
 {
   if (current_image_ && current_image_->get_reference_frame())
   {
-    return current_image_->get_reference_frame()->get_pose().matrix().cast<float>();
+    return current_image_->get_reference_frame()->pose.matrix().cast<float>();
   }
   else
     return Eigen::Matrix4f::Identity();

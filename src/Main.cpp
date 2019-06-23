@@ -1,5 +1,5 @@
-#include "system.h"
-#include "window.h"
+#include "System.h"
+#include "Window.h"
 #include <xutils/IOWrapper/rgbd_camera.h>
 #include <xutils/DataStruct/stop_watch.h>
 

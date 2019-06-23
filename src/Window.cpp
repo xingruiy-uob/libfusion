@@ -1,10 +1,6 @@
-#include "window.h"
+#include "Window.h"
 
 #define ENTER_KEY 13
-
-pangolin::OpenGlMatrix ConvertEigenToGL(const Eigen::Matrix4f T)
-{
-}
 
 MainWindow::~MainWindow()
 {
@@ -129,7 +125,7 @@ void MainWindow::InitGlSlPrograms()
 {
     ShadingProg.AddShaderFromFile(
         pangolin::GlSlShaderType::GlSlVertexShader,
-        "./shaders/phong_vertex.shader");
+        "./shaders/phong.shader");
 
     ShadingProg.AddShaderFromFile(
         pangolin::GlSlShaderType::GlSlFragmentShader,
@@ -186,6 +182,12 @@ void MainWindow::RegisterKeyCallback()
     //! Display keyframes
     pangolin::RegisterKeyPressCallback('c', pangolin::ToggleVarFunctor("Menu.Display KeyFrame"));
     pangolin::RegisterKeyPressCallback('C', pangolin::ToggleVarFunctor("Menu.Display KeyFrame"));
+    //! Save Maps
+    pangolin::RegisterKeyPressCallback('s', pangolin::SetVarFunctor<bool>("Menu.Save Map", true));
+    pangolin::RegisterKeyPressCallback('S', pangolin::SetVarFunctor<bool>("Menu.Save Map", true));
+    //! Load Maps
+    pangolin::RegisterKeyPressCallback('l', pangolin::SetVarFunctor<bool>("Menu.Read Map", true));
+    pangolin::RegisterKeyPressCallback('L', pangolin::SetVarFunctor<bool>("Menu.Read Map", true));
 }
 
 void MainWindow::ResetAllFlags()
@@ -277,11 +279,15 @@ void MainWindow::Render()
         if (*BoxDisplayKeyCameras)
         {
             auto keyframe_poses = slam->getKeyFramePoses();
+            std::vector<Eigen::Matrix<float, 3, 1>> camera_centers;
             for (const auto &pose : keyframe_poses)
             {
-                pangolin::glDrawFrustum(K.inverse().eval(), 640, 480, pose, 0.05f);
-                pangolin::glDrawAxis(pose, 0.05f);
+                camera_centers.push_back(pose.topRightCorner(3, 1));
+                pangolin::glDrawFrustum(K.inverse().eval(), 640, 480, pose, 0.02f);
+                pangolin::glDrawAxis(pose, 0.02f);
             }
+
+            pangolin::glDrawVertices(camera_centers, GL_LINE_STRIP);
         }
 
         if (*BoxDisplayKeyPoint)

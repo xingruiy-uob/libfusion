@@ -1,4 +1,4 @@
-#include "device_image.h"
+#include "PointCloud.h"
 #include <xfusion/core/cuda_imgproc.h>
 
 namespace fusion
@@ -105,8 +105,8 @@ void DeviceImage::upload(const RgbdFramePtr frame, const std::vector<IntrinsicMa
     if (max_level != this->depth_pyr.size())
         resize_pyramid(max_level);
 
-    cv::Mat image = frame->get_image();
-    cv::Mat depth = frame->get_depth();
+    cv::Mat image = frame->image;
+    cv::Mat depth = frame->depth;
 
     this->image.upload(image);
     depth_float.upload(depth);

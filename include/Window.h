@@ -1,7 +1,7 @@
 #ifndef GL_WINDOW_H
 #define GL_WINDOW_H
 
-#include "system.h"
+#include "System.h"
 #include <pangolin/pangolin.h>
 #include <pangolin/gl/glcuda.h>
 #include <cuda_runtime_api.h>
