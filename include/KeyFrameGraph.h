@@ -12,17 +12,14 @@
 namespace fusion
 {
 
-class RgbdFrame;
-using RgbdFramePtr = std::shared_ptr<RgbdFrame>;
-
-class FeatureGraph
+class KeyFrameGraph
 {
 public:
-    ~FeatureGraph();
-    FeatureGraph(const IntrinsicMatrix K);
-    FeatureGraph(const FeatureGraph &) = delete;
-    FeatureGraph(const FeatureGraph &&) = delete;
-    FeatureGraph &operator=(const FeatureGraph &) = delete;
+    ~KeyFrameGraph();
+    KeyFrameGraph(const IntrinsicMatrix K);
+
+    KeyFrameGraph(const KeyFrameGraph &) = delete;
+    KeyFrameGraph &operator=(KeyFrameGraph) = delete;
 
     void add_keyframe(RgbdFramePtr keyframe);
     void get_points(float *pt3d, size_t &count, size_t max_size);
@@ -34,6 +31,8 @@ public:
 private:
     cv::Ptr<cv::BRISK> BRISK;
     cv::Ptr<cv::xfeatures2d::SURF> SURF;
+    cv::Ptr<cv::DescriptorMatcher> Matcher;
+
     std::vector<RgbdFramePtr> keyframe_graph;
     RgbdFramePtr referenceFrame;
     IntrinsicMatrix cam_param;
@@ -42,8 +41,9 @@ private:
     bool FlagNeedOpt;
 
     void optimize();
-    void set_all_points_unvisited();
+    void SetAllPointsUnvisited();
     void search_correspondence(RgbdFramePtr keyframe);
+    void SearchLoop(RgbdFramePtr keyframe);
     void extract_features(RgbdFramePtr keyframe);
 
     xutils::SafeQueue<RgbdFramePtr> raw_keyframe_queue;

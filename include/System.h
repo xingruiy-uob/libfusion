@@ -17,7 +17,7 @@ class System
 {
 public:
     ~System();
-    System(IntrinsicMatrix base, const int NUM_PYR);
+    System(const fusion::IntrinsicMatrix base, const int NUM_PYR);
     void process_images(const cv::Mat depth, const cv::Mat image);
 
     // get rendered ray tracing map
@@ -64,8 +64,8 @@ private:
     // System modules
     std::shared_ptr<DenseMapping> mapping;
     std::shared_ptr<DenseOdometry> odometry;
-    std::shared_ptr<FeatureGraph> features;
-    std::thread feature_thread;
+    std::shared_ptr<KeyFrameGraph> graph;
+    std::thread graphThread;
 
     // Return TRUE if a new key frame is desired
     // return FALSE otherwise

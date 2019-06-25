@@ -7,7 +7,7 @@
 namespace fusion
 {
 
-DenseMapping::DenseMapping(IntrinsicMatrix cam_params) : cam_params(cam_params)
+DenseMapping::DenseMapping(const IntrinsicMatrix &K) : cam_params(K)
 {
   device_map.create();
   zrange_x.create(cam_params.height / 8, cam_params.width / 8, CV_32FC1);

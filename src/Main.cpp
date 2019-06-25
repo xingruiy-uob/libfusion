@@ -14,7 +14,6 @@ int main(int argc, char **argv)
 
     while (!pangolin::ShouldQuit())
     {
-
         if (camera.get_image())
         {
             window.SetRGBSource(camera.image);

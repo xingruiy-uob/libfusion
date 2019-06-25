@@ -13,7 +13,8 @@ class DenseMapping
 {
 public:
   ~DenseMapping();
-  DenseMapping(IntrinsicMatrix cam_params);
+  DenseMapping(const fusion::IntrinsicMatrix &K);
+
   void update(RgbdImagePtr frame);
   void update(cv::cuda::GpuMat depth, cv::cuda::GpuMat image, const Sophus::SE3d pose);
   void raycast(cv::cuda::GpuMat &vmap, cv::cuda::GpuMat &image, const Sophus::SE3d pose);

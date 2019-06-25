@@ -4,6 +4,54 @@
 namespace fusion
 {
 
+DeviceImage::DeviceImage(const fusion::IntrinsicMatrix &K, const int NUM_PYRS)
+{
+    fusion::BuildIntrinsicPyramid(K, cam_params, NUM_PYRS);
+}
+
+DeviceImage::DeviceImage(const DeviceImage &other)
+{
+    depth_pyr = other.depth_pyr;
+    intensity_pyr = other.intensity_pyr;
+    intensity_dx_pyr = other.intensity_dx_pyr;
+    intensity_dy_pyr = other.intensity_dy_pyr;
+    vmap_pyr = other.vmap_pyr;
+    nmap_pyr = other.nmap_pyr;
+    semi_dense_image = other.semi_dense_image;
+    cam_params = other.cam_params;
+    image = other.image;
+    image_float = other.image_float;
+    depth_float = other.depth_float;
+    intensity_float = other.intensity_float;
+    rendered_image = other.rendered_image;
+    rendered_image_textured = other.rendered_image_textured;
+}
+
+DeviceImage &DeviceImage::operator=(DeviceImage other)
+{
+    if (this != &other)
+    {
+        swap(*this, other);
+    }
+}
+
+void swap(DeviceImage &first, DeviceImage &second)
+{
+    first.image.swap(second.image);
+    first.image_float.swap(second.image_float);
+    first.depth_float.swap(second.depth_float);
+    first.intensity_float.swap(second.intensity_float);
+    std::swap(first.depth_pyr, second.depth_pyr);
+    std::swap(first.intensity_pyr, second.intensity_pyr);
+    std::swap(first.intensity_dx_pyr, second.intensity_dx_pyr);
+    std::swap(first.intensity_dy_pyr, second.intensity_dy_pyr);
+    std::swap(first.vmap_pyr, second.vmap_pyr);
+    std::swap(first.nmap_pyr, second.nmap_pyr);
+    std::swap(first.semi_dense_image, second.semi_dense_image);
+    first.rendered_image.swap(second.rendered_image);
+    first.rendered_image_textured.swap(second.rendered_image_textured);
+}
+
 void DeviceImage::resize_pyramid(const int &max_level)
 {
     depth_pyr.resize(max_level);
@@ -58,12 +106,12 @@ void DeviceImage::create_nmap_pyramid(const int max_level)
 {
 }
 
-cv::cuda::GpuMat DeviceImage::get_vmap(const int &level) const
+cv::cuda::GpuMat &DeviceImage::get_vmap(const int &level)
 {
     return vmap_pyr[level];
 }
 
-cv::cuda::GpuMat DeviceImage::get_nmap(const int &level) const
+cv::cuda::GpuMat &DeviceImage::get_nmap(const int &level)
 {
     return nmap_pyr[level];
 }
@@ -95,12 +143,12 @@ cv::cuda::GpuMat DeviceImage::get_intensity_dy(const int &level) const
     return intensity_dy_pyr[level];
 }
 
-void DeviceImage::upload(const RgbdFramePtr frame, const std::vector<IntrinsicMatrix> intrinsics_pyr)
+void DeviceImage::upload(const std::shared_ptr<RgbdFrame> frame)
 {
     if (frame == reference_frame)
         return;
 
-    const int max_level = intrinsics_pyr.size();
+    const int max_level = cam_params.size();
 
     if (max_level != this->depth_pyr.size())
         resize_pyramid(max_level);
@@ -125,17 +173,17 @@ void DeviceImage::upload(const RgbdFramePtr frame, const std::vector<IntrinsicMa
     for (int i = 0; i < max_level; ++i)
     {
         computeDerivative(intensity_pyr[i], intensity_dx_pyr[i], intensity_dy_pyr[i]);
-        backProjectDepth(depth_pyr[i], vmap_pyr[i], intrinsics_pyr[i]);
+        backProjectDepth(depth_pyr[i], vmap_pyr[i], cam_params[i]);
         computeNMap(vmap_pyr[i], nmap_pyr[i]);
     }
 
     reference_frame = frame;
 }
 
-DeviceImage::DeviceImage(const int &max_level)
-{
-    resize_pyramid(max_level);
-}
+// DeviceImage::DeviceImage(const int &max_level)
+// {
+//     resize_pyramid(max_level);
+// }
 
 void DeviceImage::resize_device_map()
 {

@@ -18,17 +18,15 @@ typedef std::shared_ptr<DeviceImage> RgbdImagePtr;
 class DeviceImage
 {
 public:
-    // A deep copy is required
-    DeviceImage(const DeviceImage &) = delete;
-    DeviceImage &operator=(const DeviceImage &) = delete;
-
     DeviceImage() = default;
-    DeviceImage(const int &max_level);
+    DeviceImage(const fusion::IntrinsicMatrix &K, const int NUM_PYRS);
+    DeviceImage(const DeviceImage &);
+    DeviceImage &operator=(DeviceImage);
+    friend void swap(DeviceImage &first, DeviceImage &second);
 
     void resize_pyramid(const int &max_level);
-
     void resize_device_map();
-    void upload(const RgbdFramePtr frame, const std::vector<IntrinsicMatrix> intrinsics_pyr);
+    void upload(const std::shared_ptr<RgbdFrame> frame);
 
     RgbdFramePtr get_reference_frame() const;
     cv::cuda::GpuMat get_rendered_image();
@@ -36,8 +34,8 @@ public:
     cv::cuda::GpuMat get_depth(const int &level = 0) const;
     cv::cuda::GpuMat get_raw_depth() const;
     cv::cuda::GpuMat get_image() const;
-    cv::cuda::GpuMat get_vmap(const int &level = 0) const;
-    cv::cuda::GpuMat get_nmap(const int &level = 0) const;
+    cv::cuda::GpuMat &get_vmap(const int &level = 0);
+    cv::cuda::GpuMat &get_nmap(const int &level = 0);
     cv::cuda::GpuMat get_intensity(const int &level = 0) const;
     cv::cuda::GpuMat get_intensity_dx(const int &level = 0) const;
     cv::cuda::GpuMat get_intensity_dy(const int &level = 0) const;
@@ -48,6 +46,7 @@ public:
     void create_vmap_pyramid(const int max_level); // TODO
     void create_nmap_pyramid(const int max_level); // TODO
 
+private:
     RgbdFramePtr reference_frame;
 
     // original image in CV_8UC3
@@ -76,6 +75,8 @@ public:
     cv::cuda::GpuMat rendered_image;
     cv::cuda::GpuMat rendered_image_textured;
     std::vector<cv::cuda::GpuMat> semi_dense_image;
+
+    std::vector<fusion::IntrinsicMatrix> cam_params;
 };
 
 } // namespace fusion

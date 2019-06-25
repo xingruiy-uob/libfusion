@@ -26,6 +26,7 @@ public:
     Eigen::Vector3f pos;
     Eigen::Vector3f vec_normal;
     size_t observations;
+    cv::Mat descriptors;
   };
 
   std::vector<cv::KeyPoint> cv_key_points;

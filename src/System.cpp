@@ -6,25 +6,24 @@ namespace fusion
 
 System::~System()
 {
-    features->terminate();
-    feature_thread.join();
+    graph->terminate();
+    graphThread.join();
 }
 
-System::System(IntrinsicMatrix base, const int NUM_PYR)
+System::System(const fusion::IntrinsicMatrix base, const int NUM_PYR)
     : frame_id(0), is_initialized(false), hasNewKeyFrame(false)
 {
     mapping = std::make_shared<DenseMapping>(base);
     odometry = std::make_shared<DenseOdometry>(base, NUM_PYR);
-    features = std::make_shared<FeatureGraph>(base);
-    // threadOpt = std::thread(&GraphOptimizer::main_loop, optimizer.get());
-    feature_thread = std::thread(&FeatureGraph::main_loop, features.get());
+    graph = std::make_shared<KeyFrameGraph>(base);
+    graphThread = std::thread(&KeyFrameGraph::main_loop, graph.get());
 }
 
 void System::initialization()
 {
     is_initialized = true;
     last_tracked_frame = current_keyframe = current_frame;
-    // features->add_keyframe(current_keyframe);
+    // graph->add_keyframe(current_keyframe);
     hasNewKeyFrame = true;
 }
 
@@ -40,19 +39,16 @@ void System::process_images(const cv::Mat depth, const cv::Mat image)
         initialization();
     }
 
-    odometry->track_frame(current_frame);
+    odometry->trackFrame(current_frame);
 
-    if (!odometry->is_tracking_lost())
+    if (!odometry->trackingLost)
     {
         auto reference_image = odometry->get_reference_image();
         auto reference_frame = reference_image->get_reference_frame();
 
         mapping->update(reference_image);
-        // mapping->update(reference_image->depth_float, reference_image->get_image(), reference_frame->get_pose());
-        mapping->raycast(reference_image->vmap_pyr[0], reference_image->nmap_pyr[0], reference_frame->pose);
-
+        mapping->raycast(reference_image->get_vmap(), reference_image->get_nmap(0), reference_frame->pose);
         reference_image->resize_device_map();
-        // reference_frame->set_scene_data(reference_image->get_vmap(), reference_image->get_nmap());
 
         if (keyframe_needed())
             create_keyframe();
@@ -70,7 +66,7 @@ void System::process_images(const cv::Mat depth, const cv::Mat image)
 
         // reference_frame->set_scene_data(reference_image->get_vmap(), reference_image->get_nmap());
         // reference_frame->cv_key_points = extractor->getKeyPoints();
-        features->add_keyframe(reference_frame);
+        graph->add_keyframe(reference_frame);
         hasNewKeyFrame = false;
     }
 }
@@ -87,7 +83,7 @@ bool System::keyframe_needed() const
 void System::create_keyframe()
 {
     current_keyframe = last_tracked_frame;
-    // features->add_keyframe(current_keyframe);
+    // graph->add_keyframe(current_keyframe);
     hasNewKeyFrame = true;
 }
 
@@ -113,8 +109,8 @@ void System::restart()
     frame_id = 0;
 
     mapping->reset_mapping();
-    odometry->reset_tracking();
-    features->reset();
+    odometry->reset();
+    graph->reset();
 }
 
 void System::save_mesh_to_file(const char *str)
@@ -138,7 +134,7 @@ size_t System::fetch_mesh_with_colour(float *vertex, unsigned char *colour)
 
 void System::fetch_key_points(float *points, size_t &count, size_t max)
 {
-    features->get_points(points, count, max);
+    graph->get_points(points, count, max);
 }
 
 void System::fetch_key_points_with_normal(float *points, float *normal, size_t &max_size)
@@ -167,7 +163,7 @@ void System::readMapFromDisk(std::string file_name)
 
 std::vector<Eigen::Matrix<float, 4, 4>> System::getKeyFramePoses() const
 {
-    return features->getKeyFramePoses();
+    return graph->getKeyFramePoses();
 }
 
 } // namespace fusion
