@@ -8,7 +8,10 @@
 #include "Frame.h"
 #include "Mapping.h"
 #include "Odometry.h"
+#include "Relocalizer.h"
 #include "KeyFrameGraph.h"
+#include "FeatureExtractor.h"
+#include "DescriptorMatcher.h"
 
 namespace fusion
 {
@@ -48,6 +51,7 @@ public:
     void change_colour_mode(int colour_mode = 0);
     void change_run_mode(int run_mode = 0);
     void restart();
+    void setLost(bool lost);
 
     void writeMapToDisk(std::string file_name) const;
     void readMapFromDisk(std::string file_name);
@@ -65,6 +69,9 @@ private:
     std::shared_ptr<DenseMapping> mapping;
     std::shared_ptr<DenseOdometry> odometry;
     std::shared_ptr<KeyFrameGraph> graph;
+    std::shared_ptr<Relocalizer> relocalizer;
+    std::shared_ptr<FeatureExtractor> extractor;
+    std::shared_ptr<DescriptorMatcher> matcher;
     std::thread graphThread;
 
     // Return TRUE if a new key frame is desired
@@ -74,6 +81,7 @@ private:
     void create_keyframe();
     void initialization();
     bool hasNewKeyFrame;
+    Sophus::SE3d initialPose;
 
     cv::cuda::GpuMat device_depth_float;
     cv::cuda::GpuMat device_image_uchar;

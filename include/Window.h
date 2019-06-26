@@ -70,6 +70,7 @@ private:
     //! GUI buttons and checkboxes
     std::shared_ptr<pangolin::Var<bool>> BtnReset;
     std::shared_ptr<pangolin::Var<bool>> BtnSaveMap;
+    std::shared_ptr<pangolin::Var<bool>> BtnSetLost;
     std::shared_ptr<pangolin::Var<bool>> BtnReadMap;
     std::shared_ptr<pangolin::Var<bool>> BoxPaused;
     std::shared_ptr<pangolin::Var<bool>> BoxDisplayImage;

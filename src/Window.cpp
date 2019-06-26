@@ -147,6 +147,7 @@ void MainWindow::SetupDisplays()
 
     BtnReset = std::make_shared<pangolin::Var<bool>>("Menu.RESET", false, false);
     BtnSaveMap = std::make_shared<pangolin::Var<bool>>("Menu.Save Map", false, false);
+    BtnSetLost = std::make_shared<pangolin::Var<bool>>("Menu.Set Lost", false, false);
     BtnReadMap = std::make_shared<pangolin::Var<bool>>("Menu.Read Map", false, false);
     BoxPaused = std::make_shared<pangolin::Var<bool>>("Menu.PAUSE", true, true);
     BoxDisplayImage = std::make_shared<pangolin::Var<bool>>("Menu.Display Image", true, true);
@@ -232,6 +233,11 @@ void MainWindow::Render()
     if (pangolin::Pushed(*BtnSaveMap))
     {
         slam->writeMapToDisk("map.data");
+    }
+
+    if (pangolin::Pushed(*BtnSetLost))
+    {
+        slam->setLost(true);
     }
 
     if (pangolin::Pushed(*BtnReadMap))

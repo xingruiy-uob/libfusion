@@ -8,6 +8,7 @@
 #include <sophus/se3.hpp>
 #include <opencv2/opencv.hpp>
 #include <opencv2/cudaarithm.hpp>
+#include "struct/map_point.h"
 
 namespace fusion
 {
@@ -19,15 +20,6 @@ class RgbdFrame
 {
 public:
   RgbdFrame(const cv::Mat &depth, const cv::Mat &image, const size_t id, const double ts);
-
-  struct Point3d
-  {
-    bool visited;
-    Eigen::Vector3f pos;
-    Eigen::Vector3f vec_normal;
-    size_t observations;
-    cv::Mat descriptors;
-  };
 
   std::vector<cv::KeyPoint> cv_key_points;
   std::vector<std::shared_ptr<Point3d>> key_points;

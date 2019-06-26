@@ -16,12 +16,20 @@ System::System(const fusion::IntrinsicMatrix base, const int NUM_PYR)
     mapping = std::make_shared<DenseMapping>(base);
     odometry = std::make_shared<DenseOdometry>(base, NUM_PYR);
     graph = std::make_shared<KeyFrameGraph>(base);
+    extractor = std::make_shared<FeatureExtractor>();
+    matcher = std::make_shared<DescriptorMatcher>();
+
+    relocalizer = std::make_shared<Relocalizer>(base);
+    relocalizer->setDescriptorMatcher(matcher);
+    relocalizer->setFeatureExtractor(extractor);
+
     graphThread = std::thread(&KeyFrameGraph::main_loop, graph.get());
 }
 
 void System::initialization()
 {
     is_initialized = true;
+    current_frame->pose = initialPose;
     last_tracked_frame = current_keyframe = current_frame;
     // graph->add_keyframe(current_keyframe);
     hasNewKeyFrame = true;
@@ -55,6 +63,19 @@ void System::process_images(const cv::Mat depth, const cv::Mat image)
 
         last_tracked_frame = current_frame;
         frame_id += 1;
+    }
+    else
+    {
+        std::vector<std::shared_ptr<Point3d>> points;
+        auto descriptors = graph->getDescriptorsAll(points);
+
+        relocalizer->setTargetFrame(current_frame);
+        relocalizer->setMapPoints(points, descriptors);
+
+        std::vector<Sophus::SE3d> candidates;
+        relocalizer->computeRelocalizationCandidate(candidates);
+
+        odometry->trackingLost = false;
     }
 
     if (hasNewKeyFrame)
@@ -105,12 +126,18 @@ cv::Mat System::get_rendered_scene_textured() const
 
 void System::restart()
 {
+    // initialPose = last_tracked_frame->pose;
     is_initialized = false;
     frame_id = 0;
 
     mapping->reset_mapping();
     odometry->reset();
     graph->reset();
+}
+
+void System::setLost(bool lost)
+{
+    odometry->trackingLost = true;
 }
 
 void System::save_mesh_to_file(const char *str)

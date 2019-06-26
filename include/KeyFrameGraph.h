@@ -8,6 +8,8 @@
 #include <xfusion/core/intrinsic_matrix.h>
 #include <xutils/DataStruct/safe_queue.h>
 #include "Frame.h"
+#include "FeatureExtractor.h"
+#include "DescriptorMatcher.h"
 
 namespace fusion
 {
@@ -21,6 +23,7 @@ public:
     KeyFrameGraph(const KeyFrameGraph &) = delete;
     KeyFrameGraph &operator=(KeyFrameGraph) = delete;
 
+    cv::Mat getDescriptorsAll(std::vector<std::shared_ptr<Point3d>> &points);
     void add_keyframe(RgbdFramePtr keyframe);
     void get_points(float *pt3d, size_t &count, size_t max_size);
     std::vector<Eigen::Matrix<float, 4, 4>> getKeyFramePoses() const;
@@ -29,10 +32,10 @@ public:
     void reset();
 
 private:
-    cv::Ptr<cv::BRISK> BRISK;
-    cv::Ptr<cv::xfeatures2d::SURF> SURF;
-    cv::Ptr<cv::DescriptorMatcher> Matcher;
+    FeatureExtractor extractor;
+    DescriptorMatcher matcher;
 
+    std::mutex graphMutex;
     std::vector<RgbdFramePtr> keyframe_graph;
     RgbdFramePtr referenceFrame;
     IntrinsicMatrix cam_param;

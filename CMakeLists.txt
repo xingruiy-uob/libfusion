@@ -33,6 +33,9 @@ PRIVATE
     src/PointCloud.cpp
     src/System.cpp
     src/Window.cpp
+    src/FeatureExtractor.cpp
+    src/DescriptorMatcher.cpp
+    src/Relocalizer.cpp
 )
 
 set_target_properties(app

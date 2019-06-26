@@ -1,4 +1,5 @@
 #include "KeyFrameGraph.h"
+#include <stdlib.h>
 #include <ceres/ceres.h>
 #include <xutils/DataStruct/stop_watch.h>
 
@@ -13,9 +14,9 @@ KeyFrameGraph::~KeyFrameGraph()
 KeyFrameGraph::KeyFrameGraph(const IntrinsicMatrix K)
     : FlagShouldQuit(false), cam_param(K), FlagNeedOpt(false)
 {
-    SURF = cv::xfeatures2d::SURF::create();
-    BRISK = cv::BRISK::create();
-    Matcher = cv::DescriptorMatcher::create(cv::DescriptorMatcher::BRUTEFORCE_HAMMING);
+    // SURF = cv::xfeatures2d::SURF::create();
+    // BRISK = cv::BRISK::create();
+    // Matcher = cv::DescriptorMatcher::create(cv::DescriptorMatcher::BRUTEFORCE_HAMMING);
 }
 
 cv::Vec4f interpolate_bilinear(cv::Mat map, float x, float y)
@@ -52,6 +53,32 @@ std::vector<Eigen::Matrix<float, 4, 4>> KeyFrameGraph::getKeyFramePoses() const
     return poses;
 }
 
+cv::Mat KeyFrameGraph::getDescriptorsAll(std::vector<std::shared_ptr<Point3d>> &points)
+{
+    cv::Mat descritpors;
+    points.clear();
+    SetAllPointsUnvisited();
+
+    for (const auto &kf : keyframe_graph)
+    {
+        for (const auto &point : kf->key_points)
+        {
+            if (point != NULL)
+            {
+                if (point->observations <= 1 || point->visited)
+                    continue;
+
+                descritpors.push_back(point->descriptors);
+                points.emplace_back(point);
+
+                point->visited = true;
+            }
+        }
+    }
+
+    return descritpors;
+}
+
 void KeyFrameGraph::get_points(float *pt3d, size_t &count, size_t max_size)
 {
     count = 0;
@@ -78,6 +105,8 @@ void KeyFrameGraph::get_points(float *pt3d, size_t &count, size_t max_size)
             }
         }
     }
+
+    std::cout << "NUM KEY POINTS: " << count << std::endl;
 }
 
 void KeyFrameGraph::add_keyframe(std::shared_ptr<RgbdFrame> keyframe)
@@ -91,55 +120,22 @@ void KeyFrameGraph::extract_features(RgbdFramePtr keyframe)
     auto frame_pose = keyframe->pose.cast<float>();
     auto rotation = frame_pose.so3();
 
-    cv::Mat descriptors;
-    std::vector<cv::KeyPoint> keypoints;
-    SURF->detect(source_image, keypoints);
-    BRISK->compute(source_image, keypoints, descriptors);
+    cv::Mat raw_descriptors;
+    std::vector<cv::KeyPoint> raw_keypoints;
+    extractor.extractFeaturesSURF(
+        source_image,
+        raw_keypoints,
+        raw_descriptors);
 
-    keyframe->cv_key_points.clear();
-    keyframe->key_points.clear();
-    keyframe->descriptors.release();
-
-    if (!keyframe->vmap.empty())
-    {
-        cv::Mat vmap = keyframe->vmap;
-        cv::Mat nmap = keyframe->nmap;
-
-        auto ibegin = keypoints.begin();
-        auto iend = keypoints.end();
-        for (auto iter = ibegin; iter != iend; ++iter)
-        {
-            float x = iter->pt.x;
-            float y = iter->pt.y;
-
-            // extract vertex and normal
-            cv::Vec4f z = interpolate_bilinear(vmap, x, y);
-            cv::Vec4f n = interpolate_bilinear(nmap, x, y);
-
-            if (n(3) > 0 && z(3) > 0 && z == z && n == n)
-            {
-                std::shared_ptr<RgbdFrame::Point3d> point(new RgbdFrame::Point3d());
-                point->pos << z(0), z(1), z(2);
-                // convert point to world coordinate
-                point->observations = 1;
-                point->pos = frame_pose * point->pos;
-                point->vec_normal << n(0), n(1), n(2);
-                point->vec_normal = rotation * point->vec_normal;
-                point->descriptors = descriptors.row(std::distance(keypoints.begin(), iter));
-                keyframe->cv_key_points.push_back(*iter);
-                keyframe->key_points.emplace_back(point);
-                keyframe->descriptors.push_back(point->descriptors);
-            }
-        }
-
-        std::cout << "Keyframe: " << keyframe->id << " ; Features: " << keyframe->key_points.size() << std::endl;
-    }
-    else
-    {
-        std::cout << "control flow should not reach here!" << std::endl;
-        keyframe->cv_key_points = keypoints;
-        keyframe->key_points.resize(keypoints.size());
-    }
+    extractor.computeKeyPoints(
+        keyframe->vmap,
+        keyframe->nmap,
+        raw_keypoints,
+        raw_descriptors,
+        keyframe->cv_key_points,
+        keyframe->descriptors,
+        keyframe->key_points,
+        frame_pose);
 }
 
 // TODO : more sophisticated match filter
@@ -156,13 +152,12 @@ std::vector<bool> validate_matches(
 }
 
 static void FilterMatchesPairwise(
-    const std::vector<std::shared_ptr<RgbdFrame::Point3d>> &src_pts,
-    const std::vector<std::shared_ptr<RgbdFrame::Point3d>> &dst_pts,
+    const std::vector<std::shared_ptr<Point3d>> &src_pts,
+    const std::vector<std::shared_ptr<Point3d>> &dst_pts,
     const std::vector<std::vector<cv::DMatch>> knnMatches,
     std::vector<std::vector<cv::DMatch>> &candidate_matches,
     const int NUM_SEARCH_CHAIN_SIZE = 1)
 {
-    xutils::StopWatch sw(true);
     std::vector<cv::DMatch> rawMatch;
     candidate_matches.clear();
     for (const auto &match : knnMatches)
@@ -181,6 +176,7 @@ static void FilterMatchesPairwise(
     const int NUM_RAW_MATCHES = rawMatch.size();
     cv::Mat adjecencyMat = cv::Mat::zeros(NUM_RAW_MATCHES, NUM_RAW_MATCHES, CV_32FC1);
 
+    xutils::StopWatch sw(true);
     for (int y = 0; y < adjecencyMat.rows; ++y)
     {
         float *row = adjecencyMat.ptr<float>(y);
@@ -222,6 +218,7 @@ static void FilterMatchesPairwise(
             }
         }
     }
+    std::cout << sw << std::endl;
 
     cv::Mat reducedAM;
     cv::reduce(adjecencyMat, reducedAM, 0, cv::ReduceTypes::REDUCE_SUM);
@@ -262,13 +259,17 @@ static void FilterMatchesPairwise(
 
         candidate_matches.push_back(selectedMatches);
     }
+}
 
-    std::cout << sw << std::endl;
+static void AbsoluteOrientation(const std::vector<Eigen::Vector3f> &src,
+                                const std::vector<Eigen::Vector3f> &dst,
+                                Sophus::SE3d &pose)
+{
 }
 
 static bool ComputePoseRANSAC(
-    const std::vector<std::shared_ptr<RgbdFrame::Point3d>> &src_pts,
-    const std::vector<std::shared_ptr<RgbdFrame::Point3d>> &dst_pts,
+    const std::vector<std::shared_ptr<Point3d>> &src_pts,
+    const std::vector<std::shared_ptr<Point3d>> &dst_pts,
     const std::vector<cv::DMatch> &raw_matches,
     const std::vector<cv::DMatch> final_matches,
     const int MAX_RANSAC_ITER,
@@ -281,10 +282,16 @@ static bool ComputePoseRANSAC(
 
     int num_iter = 0;
     int num_inliers_best = 0;
+    std::vector<int> sampleIdx = {0, 0, 0};
 
     while (num_iter < MAX_RANSAC_ITER)
     {
-        bool badSample = false;
+        sampleIdx = {rand() % NUM_MATCHES, rand() % NUM_MATCHES, rand() % NUM_MATCHES};
+
+        if (sampleIdx[0] == sampleIdx[1] ||
+            sampleIdx[1] == sampleIdx[2] ||
+            sampleIdx[2] == sampleIdx[0])
+            continue;
 
         num_iter++;
     }
@@ -292,13 +299,18 @@ static bool ComputePoseRANSAC(
 
 void KeyFrameGraph::SearchLoop(RgbdFramePtr keyframe)
 {
+    std::lock_guard<std::mutex> lock(graphMutex);
+
     for (const auto &candidate : keyframe_graph)
     {
+        if (candidate == NULL)
+            continue;
+
         if (candidate == referenceFrame)
             continue;
 
         std::vector<std::vector<cv::DMatch>> matches;
-        Matcher->knnMatch(keyframe->descriptors, candidate->descriptors, matches, 2);
+        matcher.matchHammingKNN(candidate->descriptors, keyframe->descriptors, matches, 2);
 
         std::vector<std::vector<cv::DMatch>> candidate_matches;
         FilterMatchesPairwise(keyframe->key_points, candidate->key_points, matches, candidate_matches, 1);
@@ -307,15 +319,15 @@ void KeyFrameGraph::SearchLoop(RgbdFramePtr keyframe)
         {
             std::vector<cv::DMatch> final_matches;
             Sophus::SE3d pose_refcurr;
-            const auto valid = ComputePoseRANSAC(keyframe->key_points, candidate->key_points, list, final_matches, 100, pose_refcurr);
+            // const auto valid = ComputePoseRANSAC(keyframe->key_points, candidate->key_points, list, final_matches, 100, pose_refcurr);
 
-            auto &source_image = keyframe->image;
-            auto &reference_image = candidate->image;
-            cv::Mat outImg;
-            cv::drawMatches(source_image, keyframe->cv_key_points, reference_image, candidate->cv_key_points, list, outImg, cv::Scalar(0, 255, 0));
-            cv::cvtColor(outImg, outImg, cv::COLOR_RGB2BGR);
-            cv::imshow("outImg", outImg);
-            cv::waitKey(0);
+            // auto &source_image = keyframe->image;
+            // auto &reference_image = candidate->image;
+            // cv::Mat outImg;
+            // cv::drawMatches(source_image, keyframe->cv_key_points, reference_image, candidate->cv_key_points, list, outImg, cv::Scalar(0, 255, 0));
+            // cv::cvtColor(outImg, outImg, cv::COLOR_RGB2BGR);
+            // cv::imshow("outImg", outImg);
+            // cv::waitKey(0);
         }
     }
 }
@@ -388,8 +400,18 @@ void KeyFrameGraph::search_correspondence(RgbdFramePtr keyframe)
             const auto query_id = match.queryIdx;
             const auto train_id = match.trainIdx;
 
-            keyframe->key_points[query_id]->observations += referenceFrame->key_points[train_id]->observations;
-            referenceFrame->key_points[train_id] = keyframe->key_points[query_id];
+            if (keyframe->cv_key_points[query_id].response > referenceFrame->cv_key_points[train_id].response)
+            {
+                keyframe->key_points[query_id]->observations += referenceFrame->key_points[train_id]->observations;
+                referenceFrame->key_points[train_id] = keyframe->key_points[query_id];
+                referenceFrame->cv_key_points[train_id].response = keyframe->cv_key_points[query_id].response;
+            }
+            else
+            {
+                referenceFrame->key_points[train_id]->observations += keyframe->key_points[query_id]->observations;
+                keyframe->key_points[query_id] = referenceFrame->key_points[train_id];
+                keyframe->cv_key_points[query_id].response = referenceFrame->cv_key_points[train_id].response;
+            }
 
             refined_matches.push_back(std::move(match));
         }
@@ -407,6 +429,7 @@ void KeyFrameGraph::search_correspondence(RgbdFramePtr keyframe)
 
 void KeyFrameGraph::reset()
 {
+    std::lock_guard<std::mutex> lock(graphMutex);
     keyframe_graph.clear();
     raw_keyframe_queue.clear();
 }
@@ -430,7 +453,7 @@ void KeyFrameGraph::main_loop()
             extract_features(keyframe);
             search_correspondence(keyframe);
 
-            SearchLoop(keyframe);
+            // SearchLoop(keyframe);
 
             referenceFrame = keyframe;
             keyframe->vmap.release();
