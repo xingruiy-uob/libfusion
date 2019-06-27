@@ -22,7 +22,7 @@ std::thread DescriptorMatcher::matchHammingKNNAsync(const cv::Mat trainDesc, con
 void DescriptorMatcher::filterMatchesPairwise(
     const std::vector<std::shared_ptr<Point3d>> &src_pts,
     const std::vector<std::shared_ptr<Point3d>> &dst_pts,
-    const std::vector<std::vector<cv::DMatch>> knnMatches,
+    const std::vector<std::vector<cv::DMatch>> &knnMatches,
     std::vector<std::vector<cv::DMatch>> &candidates)
 {
     std::vector<cv::DMatch> rawMatch;

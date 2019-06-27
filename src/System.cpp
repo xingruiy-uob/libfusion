@@ -15,9 +15,12 @@ System::System(const fusion::IntrinsicMatrix base, const int NUM_PYR)
 {
     mapping = std::make_shared<DenseMapping>(base);
     odometry = std::make_shared<DenseOdometry>(base, NUM_PYR);
-    graph = std::make_shared<KeyFrameGraph>(base);
     extractor = std::make_shared<FeatureExtractor>();
     matcher = std::make_shared<DescriptorMatcher>();
+
+    graph = std::make_shared<KeyFrameGraph>(base);
+    graph->setFeatureExtractor(extractor);
+    graph->setDescriptorMatcher(matcher);
 
     relocalizer = std::make_shared<Relocalizer>(base);
     relocalizer->setDescriptorMatcher(matcher);

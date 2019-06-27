@@ -33,6 +33,7 @@ PRIVATE
     src/PointCloud.cpp
     src/System.cpp
     src/Window.cpp
+    src/PoseEstimator.cpp
     src/FeatureExtractor.cpp
     src/DescriptorMatcher.cpp
     src/Relocalizer.cpp

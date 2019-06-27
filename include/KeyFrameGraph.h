@@ -20,9 +20,6 @@ public:
     ~KeyFrameGraph();
     KeyFrameGraph(const IntrinsicMatrix K);
 
-    KeyFrameGraph(const KeyFrameGraph &) = delete;
-    KeyFrameGraph &operator=(KeyFrameGraph) = delete;
-
     cv::Mat getDescriptorsAll(std::vector<std::shared_ptr<Point3d>> &points);
     void add_keyframe(RgbdFramePtr keyframe);
     void get_points(float *pt3d, size_t &count, size_t max_size);
@@ -31,9 +28,12 @@ public:
     void terminate();
     void reset();
 
+    void setFeatureExtractor(std::shared_ptr<FeatureExtractor>);
+    void setDescriptorMatcher(std::shared_ptr<DescriptorMatcher>);
+
 private:
-    FeatureExtractor extractor;
-    DescriptorMatcher matcher;
+    std::shared_ptr<FeatureExtractor> extractor;
+    std::shared_ptr<DescriptorMatcher> matcher;
 
     std::mutex graphMutex;
     std::vector<RgbdFramePtr> keyframe_graph;

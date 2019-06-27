@@ -1,4 +1,5 @@
 #include "Relocalizer.h"
+#include "PoseEstimator.h"
 #include <xfusion/core/cuda_imgproc.h>
 
 namespace fusion
@@ -64,10 +65,23 @@ void Relocalizer::computeRelocalizationCandidate(std::vector<Sophus::SE3d> &cand
     std::vector<std::vector<cv::DMatch>> candidate_matches;
     matcher->filterMatchesPairwise(target_frame->key_points, map_points, matches, candidate_matches);
 
-    // cv::Mat outImg;
-    // cv::drawKeypoints(target_frame->image, target_frame->cv_key_points, outImg);
-    // cv::imshow("outImg", outImg);
-    // cv::waitKey(0);
+    for (const auto &match_list : candidate_matches)
+    {
+        std::vector<Eigen::Vector3f> src_pts, dst_pts;
+        for (const auto &match : match_list)
+        {
+            src_pts.push_back(target_frame->key_points[match.queryIdx]->pos);
+            dst_pts.push_back(map_points[match.trainIdx]->pos);
+        }
+
+        std::vector<bool> outliers;
+        Eigen::Matrix4f estimate;
+        PoseEstimator::RANSAC(src_pts, dst_pts, outliers, estimate);
+
+        const int no_inliers = std::count(outliers.begin(), outliers.end(), false);
+        std::cout << estimate << std::endl
+                  << no_inliers << std::endl;
+    }
 }
 
 } // namespace fusion
