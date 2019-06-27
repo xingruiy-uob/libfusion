@@ -19,7 +19,7 @@ std::thread DescriptorMatcher::matchHammingKNNAsync(const cv::Mat trainDesc, con
     return std::thread(&DescriptorMatcher::matchHammingKNN, this, trainDesc, queryDesc, std::ref(matches), k);
 }
 
-void DescriptorMatcher::filterMatchesPairwise(
+void DescriptorMatcher::filter_matches_pair_constraint(
     const std::vector<std::shared_ptr<Point3d>> &src_pts,
     const std::vector<std::shared_ptr<Point3d>> &dst_pts,
     const std::vector<std::vector<cv::DMatch>> &knnMatches,
@@ -123,6 +123,20 @@ void DescriptorMatcher::filterMatchesPairwise(
         }
 
         candidates.push_back(selectedMatches);
+    }
+}
+
+void DescriptorMatcher::filter_matches_ratio_test(
+    const std::vector<std::vector<cv::DMatch>> &knnMatches,
+    std::vector<cv::DMatch> &candidates)
+{
+    candidates.clear();
+    for (const auto &match : knnMatches)
+    {
+        if (match[0].distance / match[1].distance < 0.8)
+        {
+            candidates.push_back(std::move(match[0]));
+        }
     }
 }
 

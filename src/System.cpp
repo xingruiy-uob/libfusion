@@ -18,9 +18,9 @@ System::System(const fusion::IntrinsicMatrix base, const int NUM_PYR)
     extractor = std::make_shared<FeatureExtractor>();
     matcher = std::make_shared<DescriptorMatcher>();
 
-    graph = std::make_shared<KeyFrameGraph>(base);
-    graph->setFeatureExtractor(extractor);
-    graph->setDescriptorMatcher(matcher);
+    graph = std::make_shared<KeyFrameGraph>(base, NUM_PYR);
+    graph->set_feature_extractor(extractor);
+    graph->set_descriptor_matcher(matcher);
 
     relocalizer = std::make_shared<Relocalizer>(base);
     relocalizer->setDescriptorMatcher(matcher);
@@ -70,7 +70,7 @@ void System::process_images(const cv::Mat depth, const cv::Mat image)
     else
     {
         std::vector<std::shared_ptr<Point3d>> points;
-        auto descriptors = graph->getDescriptorsAll(points);
+        auto descriptors = graph->get_descriptor_all(points);
 
         relocalizer->setTargetFrame(current_frame);
         relocalizer->setMapPoints(points, descriptors);
@@ -193,7 +193,7 @@ void System::readMapFromDisk(std::string file_name)
 
 std::vector<Eigen::Matrix<float, 4, 4>> System::getKeyFramePoses() const
 {
-    return graph->getKeyFramePoses();
+    return graph->get_keyframe_poses();
 }
 
 } // namespace fusion

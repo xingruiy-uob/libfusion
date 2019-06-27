@@ -12,6 +12,9 @@ bool PoseEstimator::AbsoluteOrientation(
     std::vector<bool> outliers,
     Eigen::Matrix4f &estimate)
 {
+    //! Must initialize before using
+    //! Eigen defaults to random numbers
+    estimate = Eigen::Matrix4f::Identity();
     Eigen::Vector3f src_pts_sum = Eigen::Vector3f::Zero();
     Eigen::Vector3f dst_pts_sum = Eigen::Vector3f::Zero();
     int no_inliers = 0;
@@ -26,9 +29,11 @@ bool PoseEstimator::AbsoluteOrientation(
         }
     }
 
+    //! Compute centroid for both clouds
     src_pts_sum /= no_inliers;
     dst_pts_sum /= no_inliers;
 
+    //! Subtract centroid from all points
     for (int i = 0; i < src.size(); ++i)
     {
         if (!outliers[i])
@@ -38,8 +43,8 @@ bool PoseEstimator::AbsoluteOrientation(
         }
     }
 
+    //! Build the linear system(LS)
     Eigen::Matrix3f LS = Eigen::Matrix3f::Zero();
-
     for (int i = 0; i < src.size(); ++i)
     {
         if (!outliers[i])
@@ -48,11 +53,13 @@ bool PoseEstimator::AbsoluteOrientation(
         }
     }
 
+    //! Solve SVD #include<Eigen/SVD>
     Eigen::JacobiSVD<Eigen::Matrix3d> svd(LS.cast<double>(), Eigen::ComputeFullU | Eigen::ComputeFullV);
     const auto V = svd.matrixV();
     const auto U = svd.matrixU();
     const auto R = (V * U.transpose()).transpose().cast<float>();
 
+    //! Check if R is a valid rotation matrix
     if (R.determinant() < 0)
         return false;
 
@@ -81,7 +88,7 @@ int PoseEstimator::ValidateInliers(
     const Eigen::Matrix4f &estimate)
 {
     int no_inliers = 0;
-    float dist_thresh = 0.1f;
+    float dist_thresh = 0.05f;
     const auto &R = estimate.topLeftCorner(3, 3);
     const auto &t = estimate.topRightCorner(3, 1);
 
@@ -103,22 +110,23 @@ void PoseEstimator::RANSAC(
     const std::vector<Eigen::Vector3f> &src,
     const std::vector<Eigen::Vector3f> &dst,
     std::vector<bool> &outliers,
-    Eigen::Matrix4f &estimate)
+    Eigen::Matrix4f &estimate,
+    float &inlier_ratio, float &confidence)
 {
     const auto size = src.size();
-    float inlier_ratio = 0.f;
+    inlier_ratio = 0.f;
     int no_iter = 0;
-    float confidence = 0.f;
+    confidence = 0.f;
     int best_no_inlier = 0;
-    outliers.resize(size);
 
-    Eigen::Matrix3f R_best = Eigen::Matrix3f::Identity();
-    Eigen::Matrix3f t_best = Eigen::Matrix3f::Zero();
+    if (outliers.size() != size)
+        outliers.resize(size);
 
     while (no_iter < MAX_RANSAC_ITER)
     {
         no_iter++;
 
+        //! randomly sample 3 point pairs
         std::vector<size_t> sampleIdx = {rand() % size, rand() % size, rand() % size};
 
         if (sampleIdx[0] == sampleIdx[1] ||
@@ -126,29 +134,34 @@ void PoseEstimator::RANSAC(
             sampleIdx[2] == sampleIdx[0])
             continue;
 
+        //! Src points corresponds to the frame
         std::vector<Eigen::Vector3f> src_pts = {src[sampleIdx[0]],
                                                 src[sampleIdx[1]],
                                                 src[sampleIdx[2]]};
+
+        //! Dst points correspond to the map
         std::vector<Eigen::Vector3f> dst_pts = {dst[sampleIdx[0]],
                                                 dst[sampleIdx[1]],
                                                 dst[sampleIdx[2]]};
 
+        //! Check if the 3 points are co-linear
         float src_d = (src_pts[1] - src_pts[0]).cross(src_pts[0] - src_pts[2]).norm();
         float dst_d = (dst_pts[1] - dst_pts[0]).cross(dst_pts[0] - dst_pts[2]).norm();
         if (src_d < 1e-6 || dst_d < 1e-6)
             continue;
 
+        //! Compute pose estimate
         Eigen::Matrix4f pose;
         const auto valid = AbsoluteOrientation(src_pts, dst_pts, pose);
 
         if (valid)
         {
+            //! Check for outliers
             const auto no_inliers = ValidateInliers(src, dst, outliers, pose);
-            std::cout << no_inliers << std::endl;
 
             if (no_inliers > best_no_inlier)
             {
-                //! solve ao again for all inliers
+                //! Solve pose again for all inliers
                 const auto valid = AbsoluteOrientation(src, dst, outliers, pose);
                 if (valid)
                 {
@@ -159,13 +172,13 @@ void PoseEstimator::RANSAC(
                 }
             }
 
-            if (no_inliers >= 20 && confidence >= 0.95f)
+            if (inlier_ratio >= 0.8 && confidence >= 0.95f)
                 break;
         }
     }
 
     const auto no_inliers = ValidateInliers(src, dst, outliers, estimate);
-    std::cout << "NO_INLIERS: " << no_inliers << std::endl;
+    std::cout << "NO_INLIERS: " << no_inliers << " Confidence: " << confidence << " Ration: " << inlier_ratio << std::endl;
 }
 
 }; // namespace fusion

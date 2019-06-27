@@ -13,6 +13,7 @@ namespace fusion
 struct TrackingResult
 {
   bool sucess;
+  float icp_error;
   Sophus::SE3d update;
 };
 
@@ -28,24 +29,32 @@ class DenseTracking
 {
 public:
   DenseTracking();
-  DenseTracking(IntrinsicMatrix K, const int NUM_PYR);
+  DenseTracking(const IntrinsicMatrix K, const int NUM_PYR);
   TrackingResult compute_transform(const RgbdImagePtr reference, const RgbdImagePtr current, const TrackingContext &c);
 
-private:
-  std::vector<cv::cuda::GpuMat> vMapSrcPyr;
-  std::vector<cv::cuda::GpuMat> nMapSrcPyr;
-  std::vector<cv::cuda::GpuMat> depthSrcPyr;
-  std::vector<cv::cuda::GpuMat> imageSrcPyr;
-  std::vector<cv::cuda::GpuMat> imageDxSrcPyr;
-  std::vector<cv::cuda::GpuMat> imageDySrcPyr;
+  TrackingResult compute_transform(const TrackingContext &c);
+  void swap_intensity_pyr();
+  void set_source_vmap(cv::cuda::GpuMat vmap);
+  void set_source_image(cv::cuda::GpuMat image);
+  void set_source_depth(cv::cuda::GpuMat depth_float);
+  void set_source_intensity(cv::cuda::GpuMat intensity);
+  void set_reference_image(cv::cuda::GpuMat image);
+  void set_reference_intensity(cv::cuda::GpuMat intensity);
+  void set_reference_vmap(cv::cuda::GpuMat vmap);
 
-  std::vector<cv::cuda::GpuMat> vMapRefPyr;
-  std::vector<cv::cuda::GpuMat> nMapRefPyr;
-  std::vector<cv::cuda::GpuMat> imageRefPyr;
+private:
+  std::vector<cv::cuda::GpuMat> vmap_src_pyr;
+  std::vector<cv::cuda::GpuMat> nmap_src_pyr;
+  std::vector<cv::cuda::GpuMat> depth_src_pyr;
+  std::vector<cv::cuda::GpuMat> intensity_src_pyr;
+  std::vector<cv::cuda::GpuMat> intensity_dx_pyr;
+  std::vector<cv::cuda::GpuMat> intensity_dy_pyr;
+
+  std::vector<cv::cuda::GpuMat> vmap_ref_pyr;
+  std::vector<cv::cuda::GpuMat> nmap_ref_pyr;
+  std::vector<cv::cuda::GpuMat> intensity_ref_pyr;
 
   std::vector<IntrinsicMatrix> cam_params;
-
-  cv::cuda::GpuMat imageSrcFloat;
 
   Eigen::Matrix<float, 6, 6> icp_hessian;
   Eigen::Matrix<float, 6, 6> rgb_hessian;
@@ -61,6 +70,9 @@ private:
 
   cv::cuda::GpuMat SUM_SE3;
   cv::cuda::GpuMat OUT_SE3;
+
+  float last_icp_error;
+  float last_rgb_error;
 
   std::vector<int> max_iterations;
 };

@@ -7,6 +7,7 @@
 #include <opencv2/xfeatures2d.hpp>
 #include <xfusion/core/intrinsic_matrix.h>
 #include <xutils/DataStruct/safe_queue.h>
+#include "ICPTracker.h"
 #include "Frame.h"
 #include "FeatureExtractor.h"
 #include "DescriptorMatcher.h"
@@ -18,22 +19,23 @@ class KeyFrameGraph
 {
 public:
     ~KeyFrameGraph();
-    KeyFrameGraph(const IntrinsicMatrix K);
+    KeyFrameGraph(const IntrinsicMatrix K, const int NUM_PYR);
 
-    cv::Mat getDescriptorsAll(std::vector<std::shared_ptr<Point3d>> &points);
     void add_keyframe(RgbdFramePtr keyframe);
-    void get_points(float *pt3d, size_t &count, size_t max_size);
-    std::vector<Eigen::Matrix<float, 4, 4>> getKeyFramePoses() const;
     void main_loop();
     void terminate();
     void reset();
 
-    void setFeatureExtractor(std::shared_ptr<FeatureExtractor>);
-    void setDescriptorMatcher(std::shared_ptr<DescriptorMatcher>);
+    void set_feature_extractor(std::shared_ptr<FeatureExtractor>);
+    void set_descriptor_matcher(std::shared_ptr<DescriptorMatcher>);
+    void get_points(float *pt3d, size_t &count, size_t max_size);
+    std::vector<Eigen::Matrix<float, 4, 4>> get_keyframe_poses() const;
+    cv::Mat get_descriptor_all(std::vector<std::shared_ptr<Point3d>> &points);
 
 private:
     std::shared_ptr<FeatureExtractor> extractor;
     std::shared_ptr<DescriptorMatcher> matcher;
+    std::shared_ptr<DenseTracking> tracker;
 
     std::mutex graphMutex;
     std::vector<RgbdFramePtr> keyframe_graph;
@@ -44,9 +46,9 @@ private:
     bool FlagNeedOpt;
 
     void optimize();
-    void SetAllPointsUnvisited();
+    void set_all_points_unvisited();
     void search_correspondence(RgbdFramePtr keyframe);
-    void SearchLoop(RgbdFramePtr keyframe);
+    void search_loop(RgbdFramePtr keyframe);
     void extract_features(RgbdFramePtr keyframe);
 
     xutils::SafeQueue<RgbdFramePtr> raw_keyframe_queue;

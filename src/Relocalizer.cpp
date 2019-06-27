@@ -63,7 +63,7 @@ void Relocalizer::computeRelocalizationCandidate(std::vector<Sophus::SE3d> &cand
         matches, 2);
 
     std::vector<std::vector<cv::DMatch>> candidate_matches;
-    matcher->filterMatchesPairwise(target_frame->key_points, map_points, matches, candidate_matches);
+    matcher->filter_matches_pair_constraint(target_frame->key_points, map_points, matches, candidate_matches);
 
     for (const auto &match_list : candidate_matches)
     {
@@ -76,7 +76,8 @@ void Relocalizer::computeRelocalizationCandidate(std::vector<Sophus::SE3d> &cand
 
         std::vector<bool> outliers;
         Eigen::Matrix4f estimate;
-        PoseEstimator::RANSAC(src_pts, dst_pts, outliers, estimate);
+        float inlier_ratio, confidence;
+        PoseEstimator::RANSAC(src_pts, dst_pts, outliers, estimate, inlier_ratio, confidence);
 
         const int no_inliers = std::count(outliers.begin(), outliers.end(), false);
         std::cout << estimate << std::endl

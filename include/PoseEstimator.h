@@ -30,7 +30,9 @@ public:
         const std::vector<Eigen::Vector3f> &src,
         const std::vector<Eigen::Vector3f> &dst,
         std::vector<bool> &outliers,
-        Eigen::Matrix4f &estimate);
+        Eigen::Matrix4f &estimate,
+        float &inlier_ratio,
+        float &confidence);
 
 private:
 };

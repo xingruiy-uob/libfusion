@@ -25,11 +25,15 @@ public:
         std::vector<std::vector<cv::DMatch>> &matches,
         const int k = 2);
 
-    void filterMatchesPairwise(
+    void filter_matches_pair_constraint(
         const std::vector<std::shared_ptr<Point3d>> &src_pts,
         const std::vector<std::shared_ptr<Point3d>> &dst_pts,
         const std::vector<std::vector<cv::DMatch>> &knnMatches,
         std::vector<std::vector<cv::DMatch>> &candidates);
+
+    void filter_matches_ratio_test(
+        const std::vector<std::vector<cv::DMatch>> &knnMatches,
+        std::vector<cv::DMatch> &candidates);
 
 private:
     cv::Ptr<cv::DescriptorMatcher> hammingMatcher;

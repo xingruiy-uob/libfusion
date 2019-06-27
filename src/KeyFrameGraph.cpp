@@ -1,4 +1,5 @@
 #include "KeyFrameGraph.h"
+#include "PoseEstimator.h"
 #include <stdlib.h>
 #include <ceres/ceres.h>
 #include <xutils/DataStruct/stop_watch.h>
@@ -11,12 +12,12 @@ KeyFrameGraph::~KeyFrameGraph()
     std::cout << "feature graph released." << std::endl;
 }
 
-KeyFrameGraph::KeyFrameGraph(const IntrinsicMatrix K)
-    : FlagShouldQuit(false), cam_param(K), FlagNeedOpt(false)
+KeyFrameGraph::KeyFrameGraph(const IntrinsicMatrix K, const int NUM_PYR)
+    : FlagShouldQuit(false), cam_param(K),
+      FlagNeedOpt(false), extractor(NULL),
+      matcher(NULL)
 {
-    // SURF = cv::xfeatures2d::SURF::create();
-    // BRISK = cv::BRISK::create();
-    // Matcher = cv::DescriptorMatcher::create(cv::DescriptorMatcher::BRUTEFORCE_HAMMING);
+    tracker = std::make_shared<DenseTracking>(K, NUM_PYR);
 }
 
 cv::Vec4f interpolate_bilinear(cv::Mat map, float x, float y)
@@ -29,7 +30,7 @@ cv::Vec4f interpolate_bilinear(cv::Mat map, float x, float y)
     }
 }
 
-void KeyFrameGraph::SetAllPointsUnvisited()
+void KeyFrameGraph::set_all_points_unvisited()
 {
     for (const auto &iter : keyframe_graph)
     {
@@ -41,23 +42,23 @@ void KeyFrameGraph::SetAllPointsUnvisited()
     }
 }
 
-std::vector<Eigen::Matrix<float, 4, 4>> KeyFrameGraph::getKeyFramePoses() const
+std::vector<Eigen::Matrix<float, 4, 4>> KeyFrameGraph::get_keyframe_poses() const
 {
     std::vector<Eigen::Matrix<float, 4, 4>> poses;
     for (const auto &kf : keyframe_graph)
     {
         Eigen::Matrix<float, 4, 4> pose = kf->pose.cast<float>().matrix();
-        poses.emplace_back(std::move(pose));
+        poses.emplace_back(pose);
     }
 
     return poses;
 }
 
-cv::Mat KeyFrameGraph::getDescriptorsAll(std::vector<std::shared_ptr<Point3d>> &points)
+cv::Mat KeyFrameGraph::get_descriptor_all(std::vector<std::shared_ptr<Point3d>> &points)
 {
     cv::Mat descritpors;
     points.clear();
-    SetAllPointsUnvisited();
+    set_all_points_unvisited();
 
     for (const auto &kf : keyframe_graph)
     {
@@ -82,7 +83,7 @@ cv::Mat KeyFrameGraph::getDescriptorsAll(std::vector<std::shared_ptr<Point3d>> &
 void KeyFrameGraph::get_points(float *pt3d, size_t &count, size_t max_size)
 {
     count = 0;
-    SetAllPointsUnvisited();
+    set_all_points_unvisited();
 
     for (const auto &kf : keyframe_graph)
     {
@@ -138,56 +139,7 @@ void KeyFrameGraph::extract_features(RgbdFramePtr keyframe)
         frame_pose);
 }
 
-// TODO : more sophisticated match filter
-std::vector<bool> validate_matches(
-    const std::vector<cv::KeyPoint> &src,
-    const std::vector<cv::KeyPoint> &dst,
-    const std::vector<cv::DMatch> &matches)
-{
-    const auto SizeMatches = matches.size();
-    std::vector<bool> validation(SizeMatches);
-    std::fill(validation.begin(), validation.end(), true);
-
-    return validation;
-}
-
-static void AbsoluteOrientation(const std::vector<Eigen::Vector3f> &src,
-                                const std::vector<Eigen::Vector3f> &dst,
-                                Sophus::SE3d &pose)
-{
-}
-
-static bool ComputePoseRANSAC(
-    const std::vector<std::shared_ptr<Point3d>> &src_pts,
-    const std::vector<std::shared_ptr<Point3d>> &dst_pts,
-    const std::vector<cv::DMatch> &raw_matches,
-    const std::vector<cv::DMatch> final_matches,
-    const int MAX_RANSAC_ITER,
-    Sophus::SE3d &pose_lastcurr)
-{
-    const int NUM_MATCHES = raw_matches.size();
-    pose_lastcurr = Sophus::SE3d();
-    if (NUM_MATCHES < 3)
-        return false;
-
-    int num_iter = 0;
-    int num_inliers_best = 0;
-    std::vector<int> sampleIdx = {0, 0, 0};
-
-    while (num_iter < MAX_RANSAC_ITER)
-    {
-        sampleIdx = {rand() % NUM_MATCHES, rand() % NUM_MATCHES, rand() % NUM_MATCHES};
-
-        if (sampleIdx[0] == sampleIdx[1] ||
-            sampleIdx[1] == sampleIdx[2] ||
-            sampleIdx[2] == sampleIdx[0])
-            continue;
-
-        num_iter++;
-    }
-}
-
-void KeyFrameGraph::SearchLoop(RgbdFramePtr keyframe)
+void KeyFrameGraph::search_loop(RgbdFramePtr keyframe)
 {
     std::lock_guard<std::mutex> lock(graphMutex);
 
@@ -200,21 +152,60 @@ void KeyFrameGraph::SearchLoop(RgbdFramePtr keyframe)
             continue;
 
         std::vector<std::vector<cv::DMatch>> matches;
+        std::vector<std::vector<cv::DMatch>> candidate_matches;
         matcher->matchHammingKNN(candidate->descriptors, keyframe->descriptors, matches, 2);
 
-        std::vector<std::vector<cv::DMatch>> candidate_matches;
-        matcher->filterMatchesPairwise(keyframe->key_points, candidate->key_points, matches, candidate_matches);
+        std::vector<cv::DMatch> list;
+        matcher->filter_matches_ratio_test(matches, list);
+        candidate_matches.push_back(list);
+
+        // std::vector<std::vector<cv::DMatch>> candidate_matches;
+        // matcher->filterMatchesPairwise(keyframe->key_points, candidate->key_points, matches, candidate_matches);
+
+        tracker->set_source_vmap(cv::cuda::GpuMat(keyframe->vmap));
+        tracker->set_source_image(cv::cuda::GpuMat(keyframe->image));
 
         for (const auto &list : candidate_matches)
         {
-            std::vector<cv::DMatch> final_matches;
-            Sophus::SE3d pose_refcurr;
-            // const auto valid = ComputePoseRANSAC(keyframe->key_points, candidate->key_points, list, final_matches, 100, pose_refcurr);
+            std::vector<Eigen::Vector3f> src_pts, dst_pts;
+            for (const auto &match : list)
+            {
+                src_pts.push_back(keyframe->key_points[match.queryIdx]->pos);
+                dst_pts.push_back(candidate->key_points[match.trainIdx]->pos);
+            }
+
+            std::vector<bool> outliers;
+            Eigen::Matrix4f estimate;
+            float inlier_ratio, confidence;
+            PoseEstimator::RANSAC(src_pts, dst_pts, outliers, estimate, inlier_ratio, confidence);
+
+            if (inlier_ratio > 0.7 && confidence >= 0.95)
+            {
+                tracker->set_reference_vmap(cv::cuda::GpuMat(candidate->vmap));
+                tracker->set_reference_image(cv::cuda::GpuMat(keyframe->image));
+
+                TrackingContext context;
+                context.use_initial_guess_ = true;
+                std::cout << estimate << std::endl;
+
+                context.initial_estimate_ = Sophus::SE3f(estimate).cast<double>();
+                context.max_iterations_ = {10, 5, 0, 0, 0};
+                auto result = tracker->compute_transform(context);
+
+                std::cout << result.update.matrix3x4() << std::endl;
+            }
+
+            // std::vector<cv::DMatch> refined_matches;
+            // for (int i = 0; i < outliers.size(); ++i)
+            // {
+            //     if (!outliers[i])
+            //         refined_matches.push_back(list[i]);
+            // }
 
             // auto &source_image = keyframe->image;
             // auto &reference_image = candidate->image;
             // cv::Mat outImg;
-            // cv::drawMatches(source_image, keyframe->cv_key_points, reference_image, candidate->cv_key_points, list, outImg, cv::Scalar(0, 255, 0));
+            // cv::drawMatches(source_image, keyframe->cv_key_points, reference_image, candidate->cv_key_points, refined_matches, outImg, cv::Scalar(0, 255, 0));
             // cv::cvtColor(outImg, outImg, cv::COLOR_RGB2BGR);
             // cv::imshow("outImg", outImg);
             // cv::waitKey(0);
@@ -279,32 +270,28 @@ void KeyFrameGraph::search_correspondence(RgbdFramePtr keyframe)
         }
     }
 
-    auto validation = validate_matches(keyframe->cv_key_points, referenceFrame->cv_key_points, matches);
-
-    std::vector<cv::DMatch> refined_matches;
-    for (int i = 0; i < validation.size(); ++i)
+    // std::vector<cv::DMatch> refined_matches;
+    for (int i = 0; i < matches.size(); ++i)
     {
-        if (validation[i])
+
+        const auto &match = matches[i];
+        const auto query_id = match.queryIdx;
+        const auto train_id = match.trainIdx;
+
+        if (keyframe->cv_key_points[query_id].response > referenceFrame->cv_key_points[train_id].response)
         {
-            const auto &match = matches[i];
-            const auto query_id = match.queryIdx;
-            const auto train_id = match.trainIdx;
-
-            if (keyframe->cv_key_points[query_id].response > referenceFrame->cv_key_points[train_id].response)
-            {
-                keyframe->key_points[query_id]->observations += referenceFrame->key_points[train_id]->observations;
-                referenceFrame->key_points[train_id] = keyframe->key_points[query_id];
-                referenceFrame->cv_key_points[train_id].response = keyframe->cv_key_points[query_id].response;
-            }
-            else
-            {
-                referenceFrame->key_points[train_id]->observations += keyframe->key_points[query_id]->observations;
-                keyframe->key_points[query_id] = referenceFrame->key_points[train_id];
-                keyframe->cv_key_points[query_id].response = referenceFrame->cv_key_points[train_id].response;
-            }
-
-            refined_matches.push_back(std::move(match));
+            keyframe->key_points[query_id]->observations += referenceFrame->key_points[train_id]->observations;
+            referenceFrame->key_points[train_id] = keyframe->key_points[query_id];
+            referenceFrame->cv_key_points[train_id].response = keyframe->cv_key_points[query_id].response;
         }
+        else
+        {
+            referenceFrame->key_points[train_id]->observations += keyframe->key_points[query_id]->observations;
+            keyframe->key_points[query_id] = referenceFrame->key_points[train_id];
+            keyframe->cv_key_points[query_id].response = referenceFrame->cv_key_points[train_id].response;
+        }
+
+        // refined_matches.push_back(std::move(match));
     }
 
     // cv::Mat outImg;
@@ -317,12 +304,12 @@ void KeyFrameGraph::search_correspondence(RgbdFramePtr keyframe)
     // cv::waitKey(1);
 }
 
-void KeyFrameGraph::setFeatureExtractor(std::shared_ptr<FeatureExtractor> extractor)
+void KeyFrameGraph::set_feature_extractor(std::shared_ptr<FeatureExtractor> extractor)
 {
     this->extractor = extractor;
 }
 
-void KeyFrameGraph::setDescriptorMatcher(std::shared_ptr<DescriptorMatcher> matcher)
+void KeyFrameGraph::set_descriptor_matcher(std::shared_ptr<DescriptorMatcher> matcher)
 {
     this->matcher = matcher;
 }
@@ -353,10 +340,10 @@ void KeyFrameGraph::main_loop()
             extract_features(keyframe);
             search_correspondence(keyframe);
 
-            // SearchLoop(keyframe);
+            search_loop(keyframe);
 
             referenceFrame = keyframe;
-            keyframe->vmap.release();
+            // keyframe->vmap.release();
             keyframe->nmap.release();
             keyframe_graph.push_back(keyframe);
         }
