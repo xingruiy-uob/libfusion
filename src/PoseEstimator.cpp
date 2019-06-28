@@ -1,7 +1,9 @@
 #include "PoseEstimator.h"
 #include <Eigen/Dense>
+// #include <unsupported/Eigen/MatrixFunctions>
+#include <Eigen/Eigenvalues>
 #include <stdlib.h>
-#define MAX_RANSAC_ITER 100
+#define MAX_RANSAC_ITER 200
 
 namespace fusion
 {
@@ -19,6 +21,7 @@ bool PoseEstimator::AbsoluteOrientation(
     Eigen::Vector3f dst_pts_sum = Eigen::Vector3f::Zero();
     int no_inliers = 0;
 
+    Eigen::Matrix3f M = Eigen::Matrix3f::Zero();
     for (int i = 0; i < src.size(); ++i)
     {
         if (!outliers[i])
@@ -26,46 +29,29 @@ bool PoseEstimator::AbsoluteOrientation(
             no_inliers++;
             src_pts_sum += src[i];
             dst_pts_sum += dst[i];
+            M += src[i] * dst[i].transpose();
         }
     }
 
-    //! Compute centroid for both clouds
+    //! Compute centroids
     src_pts_sum /= no_inliers;
     dst_pts_sum /= no_inliers;
+    M += (-no_inliers) * (src_pts_sum * dst_pts_sum.transpose());
 
-    //! Subtract centroid from all points
-    for (int i = 0; i < src.size(); ++i)
-    {
-        if (!outliers[i])
-        {
-            src[i] -= src_pts_sum;
-            dst[i] -= dst_pts_sum;
-        }
-    }
-
-    //! Build the linear system(LS)
-    Eigen::Matrix3f LS = Eigen::Matrix3f::Zero();
-    for (int i = 0; i < src.size(); ++i)
-    {
-        if (!outliers[i])
-        {
-            LS += src[i] * dst[i].transpose();
-        }
-    }
-
-    //! Solve SVD #include<Eigen/SVD>
-    Eigen::JacobiSVD<Eigen::Matrix3d> svd(LS.cast<double>(), Eigen::ComputeFullU | Eigen::ComputeFullV);
-    const auto V = svd.matrixV();
-    const auto U = svd.matrixU();
-    const auto R = (V * U.transpose()).transpose().cast<float>();
+    const auto svd = M.cast<double>().bdcSvd(Eigen::ComputeFullU | Eigen::ComputeFullV);
+    const auto MatU = svd.matrixU();
+    const auto MatV = svd.matrixV();
+    const auto R = MatV * MatU.transpose();
 
     //! Check if R is a valid rotation matrix
     if (R.determinant() < 0)
+    {
         return false;
+    }
 
-    const auto t = src_pts_sum - R * dst_pts_sum;
+    const auto t = src_pts_sum - R.cast<float>() * dst_pts_sum;
 
-    estimate.topLeftCorner(3, 3) = R;
+    estimate.topLeftCorner(3, 3) = R.cast<float>();
     estimate.topRightCorner(3, 1) = t;
 
     return true;
@@ -88,7 +74,7 @@ int PoseEstimator::ValidateInliers(
     const Eigen::Matrix4f &estimate)
 {
     int no_inliers = 0;
-    float dist_thresh = 0.05f;
+    float dist_thresh = 0.1f;
     const auto &R = estimate.topLeftCorner(3, 3);
     const auto &t = estimate.topRightCorner(3, 1);
 
@@ -119,6 +105,9 @@ void PoseEstimator::RANSAC(
     confidence = 0.f;
     int best_no_inlier = 0;
 
+    //! Compute pose estimate
+    Eigen::Matrix4f pose = Eigen::Matrix4f::Identity();
+
     if (outliers.size() != size)
         outliers.resize(size);
 
@@ -145,13 +134,11 @@ void PoseEstimator::RANSAC(
                                                 dst[sampleIdx[2]]};
 
         //! Check if the 3 points are co-linear
-        float src_d = (src_pts[1] - src_pts[0]).cross(src_pts[0] - src_pts[2]).norm();
-        float dst_d = (dst_pts[1] - dst_pts[0]).cross(dst_pts[0] - dst_pts[2]).norm();
+        float src_d = (src_pts[1] - src_pts[0]).cross(src_pts[2] - src_pts[0]).norm();
+        float dst_d = (dst_pts[1] - dst_pts[0]).cross(dst_pts[2] - dst_pts[0]).norm();
         if (src_d < 1e-6 || dst_d < 1e-6)
             continue;
 
-        //! Compute pose estimate
-        Eigen::Matrix4f pose;
         const auto valid = AbsoluteOrientation(src_pts, dst_pts, pose);
 
         if (valid)
@@ -161,15 +148,10 @@ void PoseEstimator::RANSAC(
 
             if (no_inliers > best_no_inlier)
             {
-                //! Solve pose again for all inliers
-                const auto valid = AbsoluteOrientation(src, dst, outliers, pose);
-                if (valid)
-                {
-                    best_no_inlier = no_inliers;
-                    inlier_ratio = (float)no_inliers / src.size();
-                    confidence = 1 - pow((1 - pow(inlier_ratio, 3)), no_iter + 1);
-                    estimate = pose;
-                }
+                best_no_inlier = no_inliers;
+                inlier_ratio = (float)no_inliers / src.size();
+                confidence = 1 - pow((1 - pow(inlier_ratio, 3)), no_iter + 1);
+                estimate = pose;
             }
 
             if (inlier_ratio >= 0.8 && confidence >= 0.95f)
@@ -178,6 +160,13 @@ void PoseEstimator::RANSAC(
     }
 
     const auto no_inliers = ValidateInliers(src, dst, outliers, estimate);
+    const auto valid = AbsoluteOrientation(src, dst, outliers, pose);
+
+    if (!valid)
+    {
+        estimate.setIdentity();
+    }
+
     std::cout << "NO_INLIERS: " << no_inliers << " Confidence: " << confidence << " Ration: " << inlier_ratio << std::endl;
 }
 

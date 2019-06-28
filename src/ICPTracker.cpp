@@ -304,4 +304,49 @@ TrackingResult DenseTracking::compute_transform(const TrackingContext &context)
   return result;
 }
 
+cv::cuda::GpuMat DenseTracking::get_vmap_src(const int &level)
+{
+  return vmap_src_pyr[level];
+}
+
+cv::cuda::GpuMat DenseTracking::get_nmap_src(const int &level)
+{
+  return nmap_src_pyr[level];
+}
+
+cv::cuda::GpuMat DenseTracking::get_depth_src(const int &level)
+{
+  return depth_src_pyr[level];
+}
+
+cv::cuda::GpuMat DenseTracking::get_intensity_src(const int &level)
+{
+  return intensity_src_pyr[level];
+}
+
+cv::cuda::GpuMat DenseTracking::get_intensity_dx(const int &level)
+{
+  return intensity_dx_pyr[level];
+}
+
+cv::cuda::GpuMat DenseTracking::get_intensity_dy(const int &level)
+{
+  return intensity_dy_pyr[level];
+}
+
+cv::cuda::GpuMat DenseTracking::get_vmap_ref(const int &level)
+{
+  return vmap_ref_pyr[level];
+}
+
+cv::cuda::GpuMat DenseTracking::get_nmap_ref(const int &level)
+{
+  return nmap_ref_pyr[level];
+}
+
+cv::cuda::GpuMat DenseTracking::get_intensity_ref(const int &level)
+{
+  return intensity_ref_pyr[level];
+}
+
 } // namespace fusion

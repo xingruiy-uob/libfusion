@@ -23,6 +23,7 @@ public:
 
   std::vector<cv::KeyPoint> cv_key_points;
   std::vector<std::shared_ptr<Point3d>> key_points;
+  std::map<RgbdFramePtr, Eigen::Matrix4f> neighbours;
   cv::Mat descriptors;
 
   std::size_t id;

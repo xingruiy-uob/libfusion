@@ -140,4 +140,99 @@ void DescriptorMatcher::filter_matches_ratio_test(
     }
 }
 
+void DescriptorMatcher::match_pose_constraint(
+    RgbdFramePtr source_frame,
+    RgbdFramePtr reference_frame,
+    const fusion::IntrinsicMatrix &cam_param,
+    const Sophus::SE3f &pose)
+{
+    if (source_frame == NULL || reference_frame == NULL)
+        return;
+
+    const auto &fx = cam_param.fx;
+    const auto &fy = cam_param.fy;
+    const auto &cx = cam_param.cx;
+    const auto &cy = cam_param.cy;
+    const auto &cols = cam_param.width;
+    const auto &rows = cam_param.height;
+    auto poseInvRef = pose.inverse();
+
+    std::vector<cv::DMatch> matches;
+
+    for (int i = 0; i < source_frame->key_points.size(); ++i)
+    {
+        const auto &desc_src = source_frame->descriptors.row(i);
+        auto pt_in_ref = poseInvRef * source_frame->key_points[i]->pos;
+        auto x = fx * pt_in_ref(0) / pt_in_ref(2) + cx;
+        auto y = fy * pt_in_ref(1) / pt_in_ref(2) + cy;
+
+        auto th_dist = 0.1f;
+        auto min_dist = 64;
+        int best_idx = -1;
+
+        if (x >= 0 && y >= 0 && x < cols - 1 && y < rows - 1)
+        {
+            for (int j = 0; j < reference_frame->key_points.size(); ++j)
+            {
+                if (reference_frame->key_points[j] == NULL)
+                    continue;
+
+                auto dist = (reference_frame->key_points[j]->pos - source_frame->key_points[i]->pos).norm();
+
+                if (dist < th_dist)
+                {
+                    const auto &desc_ref = reference_frame->descriptors.row(j);
+                    auto desc_dist = cv::norm(desc_src, desc_ref, cv::NormTypes::NORM_HAMMING);
+                    if (desc_dist < min_dist)
+                    {
+                        min_dist = desc_dist;
+                        best_idx = j;
+                    }
+                }
+            }
+        }
+
+        if (best_idx >= 0)
+        {
+            cv::DMatch match;
+            match.queryIdx = i;
+            match.trainIdx = best_idx;
+            matches.push_back(std::move(match));
+        }
+    }
+
+    std::vector<cv::DMatch> refined_matches;
+    for (int i = 0; i < matches.size(); ++i)
+    {
+
+        const auto &match = matches[i];
+        const auto query_id = match.queryIdx;
+        const auto train_id = match.trainIdx;
+
+        if (source_frame->cv_key_points[query_id].response > reference_frame->cv_key_points[train_id].response)
+        {
+            source_frame->key_points[query_id]->observations += reference_frame->key_points[train_id]->observations;
+            reference_frame->key_points[train_id] = source_frame->key_points[query_id];
+            reference_frame->cv_key_points[train_id].response = source_frame->cv_key_points[query_id].response;
+        }
+        else
+        {
+            reference_frame->key_points[train_id]->observations += source_frame->key_points[query_id]->observations;
+            source_frame->key_points[query_id] = reference_frame->key_points[train_id];
+            source_frame->cv_key_points[query_id].response = reference_frame->cv_key_points[train_id].response;
+        }
+
+        refined_matches.push_back(std::move(match));
+    }
+
+    // cv::Mat outImg;
+    // cv::Mat src_image = source_frame->image;
+    // cv::Mat ref_image = reference_frame->image;
+    // cv::drawMatches(src_image, source_frame->cv_key_points,
+    //                 ref_image, reference_frame->cv_key_points,
+    //                 refined_matches, outImg, cv::Scalar(0, 255, 0));
+    // cv::imshow("correspInit", outImg);
+    // cv::waitKey(1);
+}
+
 } // namespace fusion

@@ -9,12 +9,20 @@ namespace fusion
 class PoseEstimator
 {
 public:
+    //! Compute relative transformation from two sets of points
+    //! outliers: indicates which points are outliers
+    //! At least 3 pairs of points need to be supplied
+    //! and none of them can be co-linear
     static bool AbsoluteOrientation(
         std::vector<Eigen::Vector3f> src,
         std::vector<Eigen::Vector3f> dst,
         std::vector<bool> outliers,
         Eigen::Matrix4f &estimate);
 
+    //! Compute relative transformation from two sets of points
+    //! all points are treated like inliers
+    //! At least 3 pairs of points need to be supplied
+    //! and none of them can be co-linear
     static bool AbsoluteOrientation(
         std::vector<Eigen::Vector3f> src,
         std::vector<Eigen::Vector3f> dst,

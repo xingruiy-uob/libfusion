@@ -42,6 +42,16 @@ public:
   void set_reference_intensity(cv::cuda::GpuMat intensity);
   void set_reference_vmap(cv::cuda::GpuMat vmap);
 
+  cv::cuda::GpuMat get_vmap_src(const int &level = 0);
+  cv::cuda::GpuMat get_nmap_src(const int &level = 0);
+  cv::cuda::GpuMat get_depth_src(const int &level = 0);
+  cv::cuda::GpuMat get_intensity_src(const int &level = 0);
+  cv::cuda::GpuMat get_intensity_dx(const int &level = 0);
+  cv::cuda::GpuMat get_intensity_dy(const int &level = 0);
+  cv::cuda::GpuMat get_vmap_ref(const int &level = 0);
+  cv::cuda::GpuMat get_nmap_ref(const int &level = 0);
+  cv::cuda::GpuMat get_intensity_ref(const int &level = 0);
+
 private:
   std::vector<cv::cuda::GpuMat> vmap_src_pyr;
   std::vector<cv::cuda::GpuMat> nmap_src_pyr;

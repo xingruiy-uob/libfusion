@@ -2,6 +2,7 @@
 #include "PoseEstimator.h"
 #include <stdlib.h>
 #include <ceres/ceres.h>
+#include <xfusion/core/cuda_imgproc.h>
 #include <xutils/DataStruct/stop_watch.h>
 
 namespace fusion
@@ -13,9 +14,8 @@ KeyFrameGraph::~KeyFrameGraph()
 }
 
 KeyFrameGraph::KeyFrameGraph(const IntrinsicMatrix K, const int NUM_PYR)
-    : FlagShouldQuit(false), cam_param(K),
-      FlagNeedOpt(false), extractor(NULL),
-      matcher(NULL)
+    : FlagShouldQuit(false), cam_param(K), FlagNeedOpt(false),
+      extractor(NULL), matcher(NULL)
 {
     tracker = std::make_shared<DenseTracking>(K, NUM_PYR);
 }
@@ -145,23 +145,23 @@ void KeyFrameGraph::search_loop(RgbdFramePtr keyframe)
 
     for (const auto &candidate : keyframe_graph)
     {
-        if (candidate == NULL)
+        if (candidate == NULL || candidate == referenceFrame)
             continue;
 
-        if (candidate == referenceFrame)
-            continue;
-
+        //! KNN match between two sets of features
         std::vector<std::vector<cv::DMatch>> matches;
         std::vector<std::vector<cv::DMatch>> candidate_matches;
         matcher->matchHammingKNN(candidate->descriptors, keyframe->descriptors, matches, 2);
 
+        //! lowe's ratio test
         std::vector<cv::DMatch> list;
         matcher->filter_matches_ratio_test(matches, list);
         candidate_matches.push_back(list);
 
-        // std::vector<std::vector<cv::DMatch>> candidate_matches;
+        //! Shuda's pair wise constraint
         // matcher->filterMatchesPairwise(keyframe->key_points, candidate->key_points, matches, candidate_matches);
 
+        std::vector<cv::DMatch> refined_matches;
         tracker->set_source_vmap(cv::cuda::GpuMat(keyframe->vmap));
         tracker->set_source_image(cv::cuda::GpuMat(keyframe->image));
 
@@ -176,39 +176,79 @@ void KeyFrameGraph::search_loop(RgbdFramePtr keyframe)
 
             std::vector<bool> outliers;
             Eigen::Matrix4f estimate;
+            int no_inliers = 0;
             float inlier_ratio, confidence;
-            PoseEstimator::RANSAC(src_pts, dst_pts, outliers, estimate, inlier_ratio, confidence);
 
+            //! Compute relative pose
+            //! Analogous to searching loop closure candidates
+            PoseEstimator::RANSAC(src_pts, dst_pts, outliers, estimate, inlier_ratio, confidence);
+            // no_inliers = std::count(outliers.begin(), outliers.end(), false);
+            // if (inlier_ratio > 0.5)
+            // {
+            //     std::cout << "NO_INLIERS: " << no_inliers << " Confidence: " << confidence << " Ratio: " << inlier_ratio << std::endl;
+            //     std::cout << estimate << std::endl;
+            //     std::cout << (keyframe->pose.inverse() * candidate->pose).matrix() << std::endl;
+            // }
+            // cv::cuda::GpuMat img(keyframe->image);
+            // cv::cuda::GpuMat dst_vmap(candidate->vmap), dst;
+            // fusion::warp_image(img, dst_vmap, Sophus::SE3f(estimate).cast<double>(), cam_param, dst);
+            // cv::Mat img2(dst);
+            // cv::imshow("img2", img2);
+            // cv::imshow("img1", candidate->image);
+            // cv::imshow("imgo", keyframe->image);
+            // cv::waitKey(0);
+
+            //! Dense verification && refinement
             if (inlier_ratio > 0.7 && confidence >= 0.95)
             {
                 tracker->set_reference_vmap(cv::cuda::GpuMat(candidate->vmap));
-                tracker->set_reference_image(cv::cuda::GpuMat(keyframe->image));
+                tracker->set_reference_image(cv::cuda::GpuMat(candidate->image));
+
+                // cv::Mat img(candidate->vmap);
+                // cv::imshow("img", img);
+                // cv::waitKey(0);
 
                 TrackingContext context;
                 context.use_initial_guess_ = true;
-                std::cout << estimate << std::endl;
-
                 context.initial_estimate_ = Sophus::SE3f(estimate).cast<double>();
-                context.max_iterations_ = {10, 5, 0, 0, 0};
+                // context.initial_estimate_ = Sophus::SE3f(estimate).cast<double>();
+                context.max_iterations_ = {10, 5, 3, 3, 3};
+
                 auto result = tracker->compute_transform(context);
+                auto pose_c2k = result.update.inverse().cast<float>();
+                // std::cout << result.update.matrix3x4() << std::endl;
+                PoseEstimator::ValidateInliers(src_pts, dst_pts, outliers, pose_c2k.matrix());
 
-                std::cout << result.update.matrix3x4() << std::endl;
+                no_inliers = std::count(outliers.begin(), outliers.end(), false);
+                inlier_ratio = ((float)no_inliers / src_pts.size());
+
+                // std::cout << "NO_INLIERS: " << no_inliers << " Confidence: " << confidence << " Ratio: " << inlier_ratio << std::endl;
+                // std::cout << estimate << std::endl;
+                // std::cout << (keyframe->pose.inverse() * candidate->pose).matrix() << std::endl;
+
+                for (int i = 0; i < outliers.size(); ++i)
+                {
+                    if (!outliers[i])
+                        refined_matches.push_back(list[i]);
+                }
+
+                // auto &source_image = keyframe->image;
+                // auto &reference_image = candidate->image;
+                // cv::Mat outImg;
+                // cv::drawMatches(source_image, keyframe->cv_key_points, reference_image, candidate->cv_key_points, refined_matches, outImg, cv::Scalar(0, 255, 0));
+                // cv::cvtColor(outImg, outImg, cv::COLOR_RGB2BGR);
+                // cv::imshow("outImg", outImg);
+                // cv::waitKey(1);
+
+                // cv::cuda::GpuMat img(keyframe->image);
+                // cv::cuda::GpuMat dst_vmap(candidate->vmap), dst;
+                // fusion::warp_image(img, dst_vmap, pose_c2k.cast<double>(), cam_param, dst);
+                // cv::Mat img2(dst);
+                // cv::imshow("img2", img2);
+                // cv::imshow("img1", candidate->image);
+                // cv::imshow("imgo", keyframe->image);
+                // cv::waitKey(0);
             }
-
-            // std::vector<cv::DMatch> refined_matches;
-            // for (int i = 0; i < outliers.size(); ++i)
-            // {
-            //     if (!outliers[i])
-            //         refined_matches.push_back(list[i]);
-            // }
-
-            // auto &source_image = keyframe->image;
-            // auto &reference_image = candidate->image;
-            // cv::Mat outImg;
-            // cv::drawMatches(source_image, keyframe->cv_key_points, reference_image, candidate->cv_key_points, refined_matches, outImg, cv::Scalar(0, 255, 0));
-            // cv::cvtColor(outImg, outImg, cv::COLOR_RGB2BGR);
-            // cv::imshow("outImg", outImg);
-            // cv::waitKey(0);
         }
     }
 }
@@ -218,90 +258,11 @@ void KeyFrameGraph::search_correspondence(RgbdFramePtr keyframe)
     if (referenceFrame == NULL)
         return;
 
-    const auto &fx = cam_param.fx;
-    const auto &fy = cam_param.fy;
-    const auto &cx = cam_param.cx;
-    const auto &cy = cam_param.cy;
-    const auto &cols = cam_param.width;
-    const auto &rows = cam_param.height;
-    auto poseInvRef = referenceFrame->pose.cast<float>().inverse();
-
-    std::vector<cv::DMatch> matches;
-
-    for (int i = 0; i < keyframe->key_points.size(); ++i)
-    {
-        const auto &desc_src = keyframe->descriptors.row(i);
-        auto pt_in_ref = poseInvRef * keyframe->key_points[i]->pos;
-        auto x = fx * pt_in_ref(0) / pt_in_ref(2) + cx;
-        auto y = fy * pt_in_ref(1) / pt_in_ref(2) + cy;
-
-        auto th_dist = 0.1f;
-        auto min_dist = 64;
-        int best_idx = -1;
-
-        if (x >= 0 && y >= 0 && x < cols - 1 && y < rows - 1)
-        {
-            for (int j = 0; j < referenceFrame->key_points.size(); ++j)
-            {
-                if (referenceFrame->key_points[j] == NULL)
-                    continue;
-
-                auto dist = (referenceFrame->key_points[j]->pos - keyframe->key_points[i]->pos).norm();
-
-                if (dist < th_dist)
-                {
-                    const auto &desc_ref = referenceFrame->descriptors.row(j);
-                    auto desc_dist = cv::norm(desc_src, desc_ref, cv::NormTypes::NORM_HAMMING);
-                    if (desc_dist < min_dist)
-                    {
-                        min_dist = desc_dist;
-                        best_idx = j;
-                    }
-                }
-            }
-        }
-
-        if (best_idx >= 0)
-        {
-            cv::DMatch match;
-            match.queryIdx = i;
-            match.trainIdx = best_idx;
-            matches.push_back(std::move(match));
-        }
-    }
-
-    // std::vector<cv::DMatch> refined_matches;
-    for (int i = 0; i < matches.size(); ++i)
-    {
-
-        const auto &match = matches[i];
-        const auto query_id = match.queryIdx;
-        const auto train_id = match.trainIdx;
-
-        if (keyframe->cv_key_points[query_id].response > referenceFrame->cv_key_points[train_id].response)
-        {
-            keyframe->key_points[query_id]->observations += referenceFrame->key_points[train_id]->observations;
-            referenceFrame->key_points[train_id] = keyframe->key_points[query_id];
-            referenceFrame->cv_key_points[train_id].response = keyframe->cv_key_points[query_id].response;
-        }
-        else
-        {
-            referenceFrame->key_points[train_id]->observations += keyframe->key_points[query_id]->observations;
-            keyframe->key_points[query_id] = referenceFrame->key_points[train_id];
-            keyframe->cv_key_points[query_id].response = referenceFrame->cv_key_points[train_id].response;
-        }
-
-        // refined_matches.push_back(std::move(match));
-    }
-
-    // cv::Mat outImg;
-    // cv::Mat src_image = keyframe->image;
-    // cv::Mat ref_image = referenceFrame->image;
-    // cv::drawMatches(src_image, keyframe->cv_key_points,
-    //                 ref_image, referenceFrame->cv_key_points,
-    //                 refined_matches, outImg, cv::Scalar(0, 255, 0));
-    // cv::imshow("correspInit", outImg);
-    // cv::waitKey(1);
+    matcher->match_pose_constraint(
+        keyframe,
+        referenceFrame,
+        cam_param,
+        referenceFrame->pose.cast<float>());
 }
 
 void KeyFrameGraph::set_feature_extractor(std::shared_ptr<FeatureExtractor> extractor)

@@ -2,6 +2,8 @@
 #define FUSION_DESCRIPTOR_MATCHER_H
 
 #include <thread>
+#include "Frame.h"
+#include <xfusion/core/intrinsic_matrix.h>
 #include <opencv2/xfeatures2d.hpp>
 #include "struct/map_point.h"
 
@@ -34,6 +36,12 @@ public:
     void filter_matches_ratio_test(
         const std::vector<std::vector<cv::DMatch>> &knnMatches,
         std::vector<cv::DMatch> &candidates);
+
+    void match_pose_constraint(
+        RgbdFramePtr source,
+        RgbdFramePtr reference,
+        const fusion::IntrinsicMatrix &cam_params,
+        const Sophus::SE3f &pose);
 
 private:
     cv::Ptr<cv::DescriptorMatcher> hammingMatcher;
