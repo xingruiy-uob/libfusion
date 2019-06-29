@@ -122,12 +122,12 @@ void KeyFrameGraph::extract_features(RgbdFramePtr keyframe)
 
     cv::Mat raw_descriptors;
     std::vector<cv::KeyPoint> raw_keypoints;
-    extractor->extractFeaturesSURF(
+    extractor->extract_features_surf(
         source_image,
         raw_keypoints,
         raw_descriptors);
 
-    extractor->computeKeyPoints(
+    extractor->compute_3d_points(
         keyframe->vmap,
         keyframe->nmap,
         raw_keypoints,
@@ -150,7 +150,7 @@ void KeyFrameGraph::search_loop(RgbdFramePtr keyframe)
         //! KNN match between two sets of features
         std::vector<std::vector<cv::DMatch>> matches;
         std::vector<std::vector<cv::DMatch>> candidate_matches;
-        matcher->matchHammingKNN(candidate->descriptors, keyframe->descriptors, matches, 2);
+        matcher->match_hamming_knn(candidate->descriptors, keyframe->descriptors, matches, 2);
 
         //! lowe's ratio test
         std::vector<cv::DMatch> list, refined_matches;
@@ -230,7 +230,7 @@ void KeyFrameGraph::search_loop(RgbdFramePtr keyframe)
                 auto result = tracker->compute_transform(context);
                 auto pose_c2k = (keyframe->pose * result.update.inverse() * candidate->pose.inverse()).cast<float>();
                 // std::cout << result.update.matrix3x4() << std::endl;
-                PoseEstimator::ValidateInliers(src_pts, dst_pts, outliers, pose_c2k.matrix());
+                PoseEstimator::evaluate_inliers(src_pts, dst_pts, outliers, pose_c2k.matrix());
 
                 no_inliers = std::count(outliers.begin(), outliers.end(), false);
                 inlier_ratio = ((float)no_inliers / src_pts.size());
@@ -281,6 +281,14 @@ void KeyFrameGraph::search_correspondence(RgbdFramePtr keyframe)
         cam_param,
         referenceFrame->pose.cast<float>());
 }
+
+// AbsoluteOrientationRansacFunctor<
+//     AbsoluteOrientationSVDFunctor,
+//     EvaluateInliersFunctor,
+//     RandomNumberGeneratorSimple,
+//     Eigen::Vector3f,
+//     Eigen::Matrix4d>
+//     ransac_functor;
 
 void KeyFrameGraph::set_feature_extractor(std::shared_ptr<FeatureExtractor> extractor)
 {
@@ -333,5 +341,88 @@ void KeyFrameGraph::main_loop()
         }
     }
 }
+
+template <typename SourceType, typename ResultType>
+struct AbsoluteOrientationSVDFunctor
+{
+    void operator()(
+        const Eigen::MatrixBase<SourceType> &src_pts,
+        const Eigen::MatrixBase<SourceType> &dst_pts,
+        Eigen::MatrixBase<ResultType> &pose_estimate)
+    {
+    }
+};
+
+template <typename SourceType, typename ResultType>
+struct EvaluateInliersFunctor
+{
+    ResultType operator()(
+        const Eigen::MatrixBase<SourceType> &src_pts,
+        const Eigen::MatrixBase<SourceType> &dst_pts,
+        const Eigen::MatrixBase<SourceType> &pose_estimate,
+        const float &inlier_threshold)
+    {
+    }
+};
+
+template <typename ReturnType = int>
+struct RandomNumberGeneratorUnique
+{
+    std::vector<ReturnType> oprator(const ReturnType &upper_bound, const int &num_required)
+    {
+        int number_generated = 0;
+        std::vector<ReturnType> return_list;
+        while (number_generated < num_required)
+        {
+            auto sample = rand() % upper_bound;
+
+            for (const auto &val : return_list)
+            {
+                if (sample == val)
+                    continue;
+            }
+
+            number_generated++;
+        }
+
+        return return_list;
+    }
+};
+
+template <template <typename SourceType, typename ResultType> class AOFunctor,
+          template <typename SourceType, typename ResultType> class EvalFunctor,
+          template <typename ReturnType> typename RandFunctor,
+          typename SourceType,
+          typename ResultType>
+struct AbsoluteOrientationRansacFunctor
+{
+    void operator()(
+        const Eigen::MatrixBase<SourceType> &src_pts,
+        const Eigen::MatrixBase<SourceType> &dst_pts,
+        Eigen::MatrixBase<ResultType> &pose_estimate,
+        std::vector<bool> &outliers,
+        const int sample_size = 3,
+        const int max_iterations = 100)
+    {
+        typedef typename SourceType::Scalar ScalarType;
+
+        AOFunctor<SourceType, ResultType> ao_functor;
+        EvalFunctor<SourceType, ResultType> evaluator;
+        RandFunctor<int> random_number_generator;
+
+        int no_iter = 0;
+
+        while (no_iter < max_iterations)
+        {
+            Eigen::Matrix<ScalarType, 3, Eigen::Dynamic> sample_src;
+            Eigen::Matrix<ScalarType, 3, Eigen::Dynamic> sample_dst;
+            ResultType raw_estimate;
+
+            const auto sample_idx = random_number_generator(src_pts.size(), sample_size);
+
+            no_iter++;
+        }
+    }
+};
 
 } // namespace fusion

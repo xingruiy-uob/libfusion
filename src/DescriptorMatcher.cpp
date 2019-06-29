@@ -9,14 +9,14 @@ DescriptorMatcher::DescriptorMatcher()
     hammingMatcher = cv::DescriptorMatcher::create(cv::DescriptorMatcher::BRUTEFORCE_HAMMING);
 }
 
-void DescriptorMatcher::matchHammingKNN(const cv::Mat trainDesc, const cv::Mat queryDesc, std::vector<std::vector<cv::DMatch>> &matches, const int k)
+void DescriptorMatcher::match_hamming_knn(const cv::Mat trainDesc, const cv::Mat queryDesc, std::vector<std::vector<cv::DMatch>> &matches, const int k)
 {
     hammingMatcher->knnMatch(queryDesc, trainDesc, matches, k);
 }
 
-std::thread DescriptorMatcher::matchHammingKNNAsync(const cv::Mat trainDesc, const cv::Mat queryDesc, std::vector<std::vector<cv::DMatch>> &matches, const int k)
+std::thread DescriptorMatcher::match_hamming_knn_async(const cv::Mat trainDesc, const cv::Mat queryDesc, std::vector<std::vector<cv::DMatch>> &matches, const int k)
 {
-    return std::thread(&DescriptorMatcher::matchHammingKNN, this, trainDesc, queryDesc, std::ref(matches), k);
+    return std::thread(&DescriptorMatcher::match_hamming_knn, this, trainDesc, queryDesc, std::ref(matches), k);
 }
 
 void DescriptorMatcher::filter_matches_pair_constraint(

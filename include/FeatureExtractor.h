@@ -16,17 +16,17 @@ class FeatureExtractor
 public:
     FeatureExtractor();
 
-    void extractFeaturesSURF(
+    void extract_features_surf(
         const cv::Mat image,
         std::vector<cv::KeyPoint> &keypoints,
         cv::Mat &descriptors);
 
-    std::thread extractFeaturesSURFAsync(
+    std::thread extract_features_surf_async(
         const cv::Mat image,
         std::vector<cv::KeyPoint> &keypoints,
         cv::Mat &descriptors);
 
-    void computeKeyPoints(
+    void compute_3d_points(
         const cv::Mat vmap, const cv::Mat nmap,
         const std::vector<cv::KeyPoint> &rawKeypoints,
         const cv::Mat &rawDescriptors,

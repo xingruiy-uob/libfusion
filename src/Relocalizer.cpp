@@ -19,18 +19,18 @@ void Relocalizer::setDescriptorMatcher(std::shared_ptr<DescriptorMatcher> mcr)
     matcher = mcr;
 }
 
-void Relocalizer::setMapPoints(std::vector<std::shared_ptr<Point3d>> mapPoints, cv::Mat &mapDescriptors)
+void Relocalizer::set_map_points(std::vector<std::shared_ptr<Point3d>> mapPoints, cv::Mat &mapDescriptors)
 {
     map_points = mapPoints;
     map_descriptors = mapDescriptors;
 }
 
-void Relocalizer::setTargetFrame(std::shared_ptr<RgbdFrame> frame)
+void Relocalizer::set_target_frame(std::shared_ptr<RgbdFrame> frame)
 {
     target_frame = frame;
 }
 
-void Relocalizer::computeRelocalizationCandidate(std::vector<Sophus::SE3d> &candidates)
+void Relocalizer::compute_pose_candidates(std::vector<Sophus::SE3d> &candidates)
 {
     target_frame->pose = Sophus::SE3d();
     std::vector<cv::KeyPoint> raw_keypoints;
@@ -41,12 +41,12 @@ void Relocalizer::computeRelocalizationCandidate(std::vector<Sophus::SE3d> &cand
     backProjectDepth(depth, vmap_gpu, cam_param);
     computeNMap(vmap_gpu, nmap_gpu);
 
-    extractor->extractFeaturesSURF(
+    extractor->extract_features_surf(
         target_frame->image,
         raw_keypoints,
         raw_descriptors);
 
-    extractor->computeKeyPoints(
+    extractor->compute_3d_points(
         cv::Mat(vmap_gpu),
         cv::Mat(nmap_gpu),
         raw_keypoints,
@@ -57,7 +57,7 @@ void Relocalizer::computeRelocalizationCandidate(std::vector<Sophus::SE3d> &cand
         target_frame->pose.cast<float>());
 
     std::vector<std::vector<cv::DMatch>> matches;
-    matcher->matchHammingKNN(
+    matcher->match_hamming_knn(
         map_descriptors,
         target_frame->descriptors,
         matches, 2);
@@ -70,8 +70,8 @@ void Relocalizer::computeRelocalizationCandidate(std::vector<Sophus::SE3d> &cand
         std::vector<Eigen::Vector3f> src_pts, dst_pts;
         for (const auto &match : match_list)
         {
-            src_pts.push_back(target_frame->key_points[match.queryIdx]->pos);
-            dst_pts.push_back(map_points[match.trainIdx]->pos);
+            src_pts.push_back(map_points[match.trainIdx]->pos);
+            dst_pts.push_back(target_frame->key_points[match.queryIdx]->pos);
         }
 
         std::vector<bool> outliers;
@@ -82,6 +82,8 @@ void Relocalizer::computeRelocalizationCandidate(std::vector<Sophus::SE3d> &cand
         const int no_inliers = std::count(outliers.begin(), outliers.end(), false);
         std::cout << estimate << std::endl
                   << no_inliers << std::endl;
+
+        candidates.emplace_back(Sophus::SE3f(estimate).cast<double>());
     }
 }
 

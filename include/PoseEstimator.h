@@ -13,7 +13,7 @@ public:
     //! outliers: indicates which points are outliers
     //! At least 3 pairs of points need to be supplied
     //! and none of them can be co-linear
-    static bool AbsoluteOrientation(
+    static bool absolute_orientation(
         std::vector<Eigen::Vector3f> src,
         std::vector<Eigen::Vector3f> dst,
         std::vector<bool> outliers,
@@ -23,12 +23,12 @@ public:
     //! all points are treated like inliers
     //! At least 3 pairs of points need to be supplied
     //! and none of them can be co-linear
-    static bool AbsoluteOrientation(
+    static bool absolute_orientation(
         std::vector<Eigen::Vector3f> src,
         std::vector<Eigen::Vector3f> dst,
         Eigen::Matrix4f &estimate);
 
-    static int ValidateInliers(
+    static int evaluate_inliers(
         const std::vector<Eigen::Vector3f> &src,
         const std::vector<Eigen::Vector3f> &dst,
         std::vector<bool> &outliers,

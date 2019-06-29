@@ -8,7 +8,7 @@
 namespace fusion
 {
 
-bool PoseEstimator::AbsoluteOrientation(
+bool PoseEstimator::absolute_orientation(
     std::vector<Eigen::Vector3f> src,
     std::vector<Eigen::Vector3f> dst,
     std::vector<bool> outliers,
@@ -63,17 +63,17 @@ bool PoseEstimator::AbsoluteOrientation(
     return true;
 }
 
-bool PoseEstimator::AbsoluteOrientation(
+bool PoseEstimator::absolute_orientation(
     std::vector<Eigen::Vector3f> src,
     std::vector<Eigen::Vector3f> dst,
     Eigen::Matrix4f &estimate)
 {
     std::vector<bool> outliers(src.size());
     std::fill(outliers.begin(), outliers.end(), false);
-    return AbsoluteOrientation(src, dst, outliers, estimate);
+    return absolute_orientation(src, dst, outliers, estimate);
 }
 
-int PoseEstimator::ValidateInliers(
+int PoseEstimator::evaluate_inliers(
     const std::vector<Eigen::Vector3f> &src,
     const std::vector<Eigen::Vector3f> &dst,
     std::vector<bool> &outliers,
@@ -161,12 +161,12 @@ void PoseEstimator::RANSAC(
         if (src_d < 1e-6 || dst_d < 1e-6)
             continue;
 
-        const auto valid = AbsoluteOrientation(src_pts, dst_pts, pose);
+        const auto valid = absolute_orientation(src_pts, dst_pts, pose);
 
         if (valid)
         {
             //! Check for outliers
-            const auto no_inliers = ValidateInliers(src, dst, outliers, pose);
+            const auto no_inliers = evaluate_inliers(src, dst, outliers, pose);
             // const auto residual_sum = std::abs(compute_residual(src, dst, estimate));
 
             if (no_inliers > best_no_inlier)
@@ -188,8 +188,8 @@ void PoseEstimator::RANSAC(
         }
     }
 
-    const auto no_inliers = ValidateInliers(src, dst, outliers, estimate);
-    const auto valid = AbsoluteOrientation(src, dst, outliers, estimate);
+    const auto no_inliers = evaluate_inliers(src, dst, outliers, estimate);
+    const auto valid = absolute_orientation(src, dst, outliers, estimate);
     // const auto residual_sum = std::abs(compute_residual(src, dst, pose));
 
     // std::cout << "Residual: " << residual_sum << std::endl;
@@ -199,7 +199,7 @@ void PoseEstimator::RANSAC(
         estimate.setIdentity();
     }
 
-    std::cout << "NO_INLIERS: " << no_inliers << " Confidence: " << confidence << " Ration: " << inlier_ratio << std::endl;
+    // std::cout << "NO_INLIERS: " << no_inliers << " Confidence: " << confidence << " Ration: " << inlier_ratio << std::endl;
 }
 
 }; // namespace fusion

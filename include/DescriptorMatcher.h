@@ -15,13 +15,13 @@ class DescriptorMatcher
 public:
     DescriptorMatcher();
 
-    void matchHammingKNN(
+    void match_hamming_knn(
         const cv::Mat trainDesc,
         const cv::Mat queryDesc,
         std::vector<std::vector<cv::DMatch>> &matches,
         const int k = 2);
 
-    std::thread matchHammingKNNAsync(
+    std::thread match_hamming_knn_async(
         const cv::Mat trainDesc,
         const cv::Mat queryDesc,
         std::vector<std::vector<cv::DMatch>> &matches,

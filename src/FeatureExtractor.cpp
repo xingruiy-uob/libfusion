@@ -10,7 +10,7 @@ FeatureExtractor::FeatureExtractor()
     cudaORB = cv::cuda::ORB::create();
 }
 
-void FeatureExtractor::extractFeaturesSURF(
+void FeatureExtractor::extract_features_surf(
     const cv::Mat image,
     std::vector<cv::KeyPoint> &keypoints,
     cv::Mat &descriptors)
@@ -19,15 +19,15 @@ void FeatureExtractor::extractFeaturesSURF(
     BRISK->compute(image, keypoints, descriptors);
 }
 
-std::thread FeatureExtractor::extractFeaturesSURFAsync(
+std::thread FeatureExtractor::extract_features_surf_async(
     const cv::Mat image,
     std::vector<cv::KeyPoint> &keypoints,
     cv::Mat &descriptors)
 {
-    return std::thread(&FeatureExtractor::extractFeaturesSURF, this, image, std::ref(keypoints), std::ref(descriptors));
+    return std::thread(&FeatureExtractor::extract_features_surf, this, image, std::ref(keypoints), std::ref(descriptors));
 }
 
-static cv::Vec4f interpolateBilinear(cv::Mat map, float x, float y)
+static cv::Vec4f interpolate_bilinear(cv::Mat map, float x, float y)
 {
     int u = (int)std::round(x);
     int v = (int)std::round(y);
@@ -37,7 +37,7 @@ static cv::Vec4f interpolateBilinear(cv::Mat map, float x, float y)
     }
 }
 
-void FeatureExtractor::computeKeyPoints(
+void FeatureExtractor::compute_3d_points(
     const cv::Mat vmap, const cv::Mat nmap,
     const std::vector<cv::KeyPoint> &rawKeypoints,
     const cv::Mat &rawDescriptors,
@@ -62,8 +62,8 @@ void FeatureExtractor::computeKeyPoints(
             const auto &y = iter->pt.y;
 
             // extract vertex and normal
-            cv::Vec4f z = interpolateBilinear(vmap, x, y);
-            cv::Vec4f n = interpolateBilinear(nmap, x, y);
+            cv::Vec4f z = interpolate_bilinear(vmap, x, y);
+            cv::Vec4f n = interpolate_bilinear(nmap, x, y);
 
             if (n(3) > 0 && z(3) > 0 && z == z && n == n)
             {

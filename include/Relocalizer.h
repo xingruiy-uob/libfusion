@@ -16,9 +16,9 @@ public:
     Relocalizer(const fusion::IntrinsicMatrix K);
     void setFeatureExtractor(std::shared_ptr<FeatureExtractor>);
     void setDescriptorMatcher(std::shared_ptr<DescriptorMatcher>);
-    void setMapPoints(std::vector<std::shared_ptr<Point3d>> mapPoints, cv::Mat &mapDescriptors);
-    void setTargetFrame(std::shared_ptr<RgbdFrame> frame);
-    void computeRelocalizationCandidate(std::vector<Sophus::SE3d> &candidates);
+    void set_map_points(std::vector<std::shared_ptr<Point3d>> mapPoints, cv::Mat &mapDescriptors);
+    void set_target_frame(std::shared_ptr<RgbdFrame> frame);
+    void compute_pose_candidates(std::vector<Sophus::SE3d> &candidates);
 
 private:
     std::shared_ptr<FeatureExtractor> extractor;

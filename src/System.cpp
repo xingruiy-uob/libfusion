@@ -72,11 +72,13 @@ void System::process_images(const cv::Mat depth, const cv::Mat image)
         std::vector<std::shared_ptr<Point3d>> points;
         auto descriptors = graph->get_descriptor_all(points);
 
-        relocalizer->setTargetFrame(current_frame);
-        relocalizer->setMapPoints(points, descriptors);
+        relocalizer->set_target_frame(current_frame);
+        relocalizer->set_map_points(points, descriptors);
 
         std::vector<Sophus::SE3d> candidates;
-        relocalizer->computeRelocalizationCandidate(candidates);
+        relocalizer->compute_pose_candidates(candidates);
+
+        //TODO : raycast verification
 
         odometry->trackingLost = false;
     }
@@ -88,8 +90,6 @@ void System::process_images(const cv::Mat depth, const cv::Mat image)
         reference_image->get_vmap().download(reference_frame->vmap);
         reference_image->get_nmap().download(reference_frame->nmap);
 
-        // reference_frame->set_scene_data(reference_image->get_vmap(), reference_image->get_nmap());
-        // reference_frame->cv_key_points = extractor->getKeyPoints();
         graph->add_keyframe(reference_frame);
         hasNewKeyFrame = false;
     }
