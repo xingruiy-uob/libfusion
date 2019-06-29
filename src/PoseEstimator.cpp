@@ -36,17 +36,23 @@ bool PoseEstimator::AbsoluteOrientation(
     //! Compute centroids
     src_pts_sum /= no_inliers;
     dst_pts_sum /= no_inliers;
-    M += (-no_inliers) * (src_pts_sum * dst_pts_sum.transpose());
+    M -= no_inliers * (src_pts_sum * dst_pts_sum.transpose());
 
-    const auto svd = M.cast<double>().bdcSvd(Eigen::ComputeFullU | Eigen::ComputeFullV);
+    const auto svd = M.cast<double>().jacobiSvd(Eigen::ComputeFullU | Eigen::ComputeFullV);
     const auto MatU = svd.matrixU();
     const auto MatV = svd.matrixV();
-    const auto R = MatV * MatU.transpose();
+    Eigen::Matrix3d R;
 
     //! Check if R is a valid rotation matrix
-    if (R.determinant() < 0)
+    if (MatU.determinant() * MatV.determinant() < 0)
     {
-        return false;
+        Eigen::Matrix3d I = Eigen::Matrix3d::Identity();
+        I(2, 2) = -1;
+        R = MatV * I * MatU.transpose();
+    }
+    else
+    {
+        R = MatV * MatU.transpose();
     }
 
     const auto t = src_pts_sum - R.cast<float>() * dst_pts_sum;
@@ -74,7 +80,7 @@ int PoseEstimator::ValidateInliers(
     const Eigen::Matrix4f &estimate)
 {
     int no_inliers = 0;
-    float dist_thresh = 0.1f;
+    float dist_thresh = 0.05f;
     const auto &R = estimate.topLeftCorner(3, 3);
     const auto &t = estimate.topRightCorner(3, 1);
 
@@ -92,6 +98,21 @@ int PoseEstimator::ValidateInliers(
     return no_inliers;
 }
 
+static float compute_residual(
+    const std::vector<Eigen::Vector3f> &src,
+    const std::vector<Eigen::Vector3f> &dst,
+    const Eigen::Matrix4f &pose_estimate)
+{
+    float residual_sum = 0;
+    const auto &R = pose_estimate.topLeftCorner(3, 3);
+    const auto &t = pose_estimate.topRightCorner(3, 1);
+
+    for (int i = 0; i < src.size(); ++i)
+    {
+        residual_sum += (src[i] - (R * dst[i] + t)).norm();
+    }
+}
+
 void PoseEstimator::RANSAC(
     const std::vector<Eigen::Vector3f> &src,
     const std::vector<Eigen::Vector3f> &dst,
@@ -104,6 +125,7 @@ void PoseEstimator::RANSAC(
     int no_iter = 0;
     confidence = 0.f;
     int best_no_inlier = 0;
+    float smallest_residual_sum = std::numeric_limits<float>::max();
 
     //! Compute pose estimate
     Eigen::Matrix4f pose = Eigen::Matrix4f::Identity();
@@ -145,6 +167,7 @@ void PoseEstimator::RANSAC(
         {
             //! Check for outliers
             const auto no_inliers = ValidateInliers(src, dst, outliers, pose);
+            // const auto residual_sum = std::abs(compute_residual(src, dst, estimate));
 
             if (no_inliers > best_no_inlier)
             {
@@ -153,14 +176,23 @@ void PoseEstimator::RANSAC(
                 confidence = 1 - pow((1 - pow(inlier_ratio, 3)), no_iter + 1);
                 estimate = pose;
             }
+            // if (residual_sum < smallest_residual_sum)
+            // {
+            //     smallest_residual_sum = residual_sum;
+            //     confidence = 1 - pow((1 - pow(inlier_ratio, 3)), no_iter + 1);
+            //     estimate = pose;
+            // }
 
-            if (inlier_ratio >= 0.8 && confidence >= 0.95f)
-                break;
+            // if (inlier_ratio >= 0.8 && confidence >= 0.95f)
+            //     break;
         }
     }
 
     const auto no_inliers = ValidateInliers(src, dst, outliers, estimate);
-    const auto valid = AbsoluteOrientation(src, dst, outliers, pose);
+    const auto valid = AbsoluteOrientation(src, dst, outliers, estimate);
+    // const auto residual_sum = std::abs(compute_residual(src, dst, pose));
+
+    // std::cout << "Residual: " << residual_sum << std::endl;
 
     if (!valid)
     {

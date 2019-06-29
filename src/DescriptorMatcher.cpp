@@ -133,9 +133,9 @@ void DescriptorMatcher::filter_matches_ratio_test(
     candidates.clear();
     for (const auto &match : knnMatches)
     {
-        if (match[0].distance / match[1].distance < 0.8)
+        if (match[0].distance / match[1].distance <= 0.75f)
         {
-            candidates.push_back(std::move(match[0]));
+            candidates.push_back(match[0]);
         }
     }
 }

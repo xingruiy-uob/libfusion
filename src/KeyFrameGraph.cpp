@@ -119,7 +119,6 @@ void KeyFrameGraph::extract_features(RgbdFramePtr keyframe)
 {
     cv::Mat source_image = keyframe->image;
     auto frame_pose = keyframe->pose.cast<float>();
-    auto rotation = frame_pose.so3();
 
     cv::Mat raw_descriptors;
     std::vector<cv::KeyPoint> raw_keypoints;
@@ -154,14 +153,13 @@ void KeyFrameGraph::search_loop(RgbdFramePtr keyframe)
         matcher->matchHammingKNN(candidate->descriptors, keyframe->descriptors, matches, 2);
 
         //! lowe's ratio test
-        std::vector<cv::DMatch> list;
+        std::vector<cv::DMatch> list, refined_matches;
         matcher->filter_matches_ratio_test(matches, list);
         candidate_matches.push_back(list);
 
         //! Shuda's pair wise constraint
-        // matcher->filterMatchesPairwise(keyframe->key_points, candidate->key_points, matches, candidate_matches);
+        // matcher->filter_matches_pair_constraint(keyframe->key_points, candidate->key_points, matches, candidate_matches);
 
-        std::vector<cv::DMatch> refined_matches;
         tracker->set_source_vmap(cv::cuda::GpuMat(keyframe->vmap));
         tracker->set_source_image(cv::cuda::GpuMat(keyframe->image));
 
@@ -180,8 +178,22 @@ void KeyFrameGraph::search_loop(RgbdFramePtr keyframe)
             float inlier_ratio, confidence;
 
             //! Compute relative pose
-            //! Analogous to searching loop closure candidates
             PoseEstimator::RANSAC(src_pts, dst_pts, outliers, estimate, inlier_ratio, confidence);
+
+            // for (int i = 0; i < outliers.size(); ++i)
+            // {
+            //     if (!outliers[i])
+            //         refined_matches.push_back(list[i]);
+            // }
+
+            // auto &source_image = keyframe->image;
+            // auto &reference_image = candidate->image;
+            // cv::Mat outImg;
+            // cv::drawMatches(source_image, keyframe->cv_key_points, reference_image, candidate->cv_key_points, refined_matches, outImg, cv::Scalar(0, 255, 0));
+            // cv::cvtColor(outImg, outImg, cv::COLOR_RGB2BGR);
+            // cv::imshow("outImg", outImg);
+            // cv::waitKey(1);
+
             // no_inliers = std::count(outliers.begin(), outliers.end(), false);
             // if (inlier_ratio > 0.5)
             // {
@@ -191,7 +203,8 @@ void KeyFrameGraph::search_loop(RgbdFramePtr keyframe)
             // }
             // cv::cuda::GpuMat img(keyframe->image);
             // cv::cuda::GpuMat dst_vmap(candidate->vmap), dst;
-            // fusion::warp_image(img, dst_vmap, Sophus::SE3f(estimate).cast<double>(), cam_param, dst);
+            // std::cout << estimate << std::endl;
+            // fusion::warp_image(img, dst_vmap, keyframe->pose.inverse() * Sophus::SE3f(estimate).cast<double>() * candidate->pose, cam_param, dst);
             // cv::Mat img2(dst);
             // cv::imshow("img2", img2);
             // cv::imshow("img1", candidate->image);
@@ -210,27 +223,31 @@ void KeyFrameGraph::search_loop(RgbdFramePtr keyframe)
 
                 TrackingContext context;
                 context.use_initial_guess_ = true;
-                context.initial_estimate_ = Sophus::SE3f(estimate).cast<double>();
+                context.initial_estimate_ = keyframe->pose.inverse() * Sophus::SE3f(estimate).cast<double>() * candidate->pose;
                 // context.initial_estimate_ = Sophus::SE3f(estimate).cast<double>();
                 context.max_iterations_ = {10, 5, 3, 3, 3};
 
                 auto result = tracker->compute_transform(context);
-                auto pose_c2k = result.update.inverse().cast<float>();
+                auto pose_c2k = (keyframe->pose * result.update.inverse() * candidate->pose.inverse()).cast<float>();
                 // std::cout << result.update.matrix3x4() << std::endl;
                 PoseEstimator::ValidateInliers(src_pts, dst_pts, outliers, pose_c2k.matrix());
 
                 no_inliers = std::count(outliers.begin(), outliers.end(), false);
                 inlier_ratio = ((float)no_inliers / src_pts.size());
 
+                if (result.icp_error < 10e-4 && inlier_ratio > 0.6)
+                {
+                    matcher->match_pose_constraint(keyframe, candidate, cam_param, pose_c2k);
+                }
                 // std::cout << "NO_INLIERS: " << no_inliers << " Confidence: " << confidence << " Ratio: " << inlier_ratio << std::endl;
                 // std::cout << estimate << std::endl;
                 // std::cout << (keyframe->pose.inverse() * candidate->pose).matrix() << std::endl;
 
-                for (int i = 0; i < outliers.size(); ++i)
-                {
-                    if (!outliers[i])
-                        refined_matches.push_back(list[i]);
-                }
+                // for (int i = 0; i < outliers.size(); ++i)
+                // {
+                //     if (!outliers[i])
+                //         refined_matches.push_back(list[i]);
+                // }
 
                 // auto &source_image = keyframe->image;
                 // auto &reference_image = candidate->image;
@@ -242,7 +259,7 @@ void KeyFrameGraph::search_loop(RgbdFramePtr keyframe)
 
                 // cv::cuda::GpuMat img(keyframe->image);
                 // cv::cuda::GpuMat dst_vmap(candidate->vmap), dst;
-                // fusion::warp_image(img, dst_vmap, pose_c2k.cast<double>(), cam_param, dst);
+                // fusion::warp_image(img, dst_vmap, result.update.inverse(), cam_param, dst);
                 // cv::Mat img2(dst);
                 // cv::imshow("img2", img2);
                 // cv::imshow("img1", candidate->image);
