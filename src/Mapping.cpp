@@ -2,6 +2,7 @@
 #include <cuda_runtime_api.h>
 #include <xfusion/mapping/map_struct.h>
 #include <xfusion/mapping/map_proc.h>
+#include <xfusion/core/device_malloc.h>
 #include <xutils/DataStruct/stop_watch.h>
 
 namespace fusion
@@ -13,8 +14,8 @@ DenseMapping::DenseMapping(const IntrinsicMatrix &K) : cam_params(K)
   zrange_x.create(cam_params.height / 8, cam_params.width / 8, CV_32FC1);
   zrange_y.create(cam_params.height / 8, cam_params.width / 8, CV_32FC1);
 
-  cudaMalloc((void **)&visible_blocks, sizeof(HashEntry) * device_map.state.num_total_hash_entries_);
-  cudaMalloc((void **)&rendering_blocks, sizeof(RenderingBlock) * 100000);
+  visible_blocks = (HashEntry *)deviceMalloc(sizeof(HashEntry) * device_map.state.num_total_hash_entries_);
+  rendering_blocks = (RenderingBlock *)deviceMalloc(sizeof(RenderingBlock) * 100000);
 
   reset_mapping();
 }
@@ -22,8 +23,8 @@ DenseMapping::DenseMapping(const IntrinsicMatrix &K) : cam_params(K)
 DenseMapping::~DenseMapping()
 {
   device_map.release();
-  cudaFree((void *)visible_blocks);
-  cudaFree((void *)rendering_blocks);
+  deviceRelease((void **)&visible_blocks);
+  deviceRelease((void **)&rendering_blocks);
 }
 
 void DenseMapping::update(RgbdImagePtr frame)

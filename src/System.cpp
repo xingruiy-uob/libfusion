@@ -80,7 +80,7 @@ void System::process_images(const cv::Mat depth, const cv::Mat image)
 
         //TODO : raycast verification
 
-        odometry->trackingLost = false;
+        // odometry->trackingLost = false;
     }
 
     if (hasNewKeyFrame)

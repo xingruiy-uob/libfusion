@@ -26,6 +26,9 @@ TrackingResult DenseTracking::compute_transform(const RgbdImagePtr reference, co
   if (c.use_initial_guess_)
     estimate = xutils::Revertable<Sophus::SE3d>(c.initial_estimate_);
 
+  bool invalid_error = false;
+  Sophus::SE3d init_estimate = estimate.get();
+
   for (int level = c.max_iterations_.size() - 1; level >= 0; --level)
   {
     cv::cuda::GpuMat curr_vmap = current->get_vmap(level);
@@ -89,6 +92,11 @@ TrackingResult DenseTracking::compute_transform(const RgbdImagePtr reference, co
       estimate = Sophus::SE3d::exp(update) * last_estimate;
 
       icp_error = sqrt(residual_icp_(0)) / residual_icp_(1);
+      if (std::isnan(icp_error))
+      {
+        invalid_error = true;
+        break;
+      }
 
       if (icp_error > last_icp_error)
       {
@@ -107,6 +115,11 @@ TrackingResult DenseTracking::compute_transform(const RgbdImagePtr reference, co
       }
 
       rgb_error = sqrt(residual_rgb_(0)) / residual_rgb_(1);
+      if (std::isnan(rgb_error))
+      {
+        invalid_error = true;
+        break;
+      }
 
       if (rgb_error > last_rgb_error)
       {
@@ -126,12 +139,18 @@ TrackingResult DenseTracking::compute_transform(const RgbdImagePtr reference, co
     }
   }
 
-  if (estimate.get().log().transpose().norm() > 0.1)
-    std::cout << estimate.get().log().transpose().norm() << std::endl;
-
   TrackingResult result;
-  result.sucess = true;
-  result.update = estimate.get().inverse();
+
+  if (invalid_error || (estimate.get().inverse() * init_estimate).log().norm() > 0.1)
+  {
+    result.sucess = false;
+  }
+  else
+  {
+    result.sucess = true;
+    result.update = estimate.get().inverse();
+  }
+
   return result;
 }
 

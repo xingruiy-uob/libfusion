@@ -39,6 +39,7 @@ void DenseOdometry::trackFrame(std::shared_ptr<RgbdFrame> frame)
     frame->pose = lastTracedFrame->pose * result.update;
     lastTracedFrame = frame;
     currDeviceMapPyramid.swap(refDeviceMapPyramid);
+    trackingLost = false;
   }
   else
   {

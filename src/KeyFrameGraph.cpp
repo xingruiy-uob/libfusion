@@ -342,13 +342,13 @@ void KeyFrameGraph::main_loop()
     }
 }
 
-template <typename SourceType, typename ResultType>
+template <typename InNumType, typename OutNumType>
 struct AbsoluteOrientationSVDFunctor
 {
     void operator()(
-        const Eigen::MatrixBase<SourceType> &src_pts,
-        const Eigen::MatrixBase<SourceType> &dst_pts,
-        Eigen::MatrixBase<ResultType> &pose_estimate)
+        const Eigen::MatrixBase<Eigen::Matrix<InNumType, 3, 1>> &src_pts,
+        const Eigen::MatrixBase<Eigen::Matrix<InNumType, 3, 1>> &dst_pts,
+        Eigen::MatrixBase<Eigen::Matrix<OutNumType, 4, 4>> &pose_estimate)
     {
     }
 };
