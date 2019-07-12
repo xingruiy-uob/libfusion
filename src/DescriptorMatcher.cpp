@@ -209,18 +209,18 @@ void DescriptorMatcher::match_pose_constraint(
         const auto query_id = match.queryIdx;
         const auto train_id = match.trainIdx;
 
-        if (source_frame->cv_key_points[query_id].response > reference_frame->cv_key_points[train_id].response)
-        {
-            source_frame->key_points[query_id]->observations += reference_frame->key_points[train_id]->observations;
-            reference_frame->key_points[train_id] = source_frame->key_points[query_id];
-            reference_frame->cv_key_points[train_id].response = source_frame->cv_key_points[query_id].response;
-        }
-        else
-        {
-            reference_frame->key_points[train_id]->observations += source_frame->key_points[query_id]->observations;
-            source_frame->key_points[query_id] = reference_frame->key_points[train_id];
-            source_frame->cv_key_points[query_id].response = reference_frame->cv_key_points[train_id].response;
-        }
+        // if (source_frame->cv_key_points[query_id].response > reference_frame->cv_key_points[train_id].response)
+        // {
+        //     source_frame->key_points[query_id]->observations += reference_frame->key_points[train_id]->observations;
+        //     reference_frame->key_points[train_id] = source_frame->key_points[query_id];
+        //     reference_frame->cv_key_points[train_id].response = source_frame->cv_key_points[query_id].response;
+        // }
+        // else
+        // {
+        //     reference_frame->key_points[train_id]->observations += source_frame->key_points[query_id]->observations;
+        //     source_frame->key_points[query_id] = reference_frame->key_points[train_id];
+        //     source_frame->cv_key_points[query_id].response = reference_frame->cv_key_points[train_id].response;
+        // }
 
         refined_matches.push_back(std::move(match));
     }
@@ -231,6 +231,7 @@ void DescriptorMatcher::match_pose_constraint(
     // cv::drawMatches(src_image, source_frame->cv_key_points,
     //                 ref_image, reference_frame->cv_key_points,
     //                 refined_matches, outImg, cv::Scalar(0, 255, 0));
+    // cv::cvtColor(outImg, outImg, cv::COLOR_BGR2RGB);
     // cv::imshow("correspInit", outImg);
     // cv::waitKey(1);
 }

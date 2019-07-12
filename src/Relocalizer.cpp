@@ -62,8 +62,11 @@ void Relocalizer::compute_pose_candidates(std::vector<Sophus::SE3d> &candidates)
         target_frame->descriptors,
         matches, 2);
 
+    std::vector<cv::DMatch> list;
     std::vector<std::vector<cv::DMatch>> candidate_matches;
-    matcher->filter_matches_pair_constraint(target_frame->key_points, map_points, matches, candidate_matches);
+    matcher->filter_matches_ratio_test(matches, list);
+    candidate_matches.push_back(list);
+    // matcher->filter_matches_pair_constraint(target_frame->key_points, map_points, matches, candidate_matches);
 
     for (const auto &match_list : candidate_matches)
     {

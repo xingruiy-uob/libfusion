@@ -104,6 +104,22 @@ void DenseMapping::raycast(
   }
 }
 
+void DenseMapping::raycast_check_visibility(
+    cv::cuda::GpuMat &vmap,
+    cv::cuda::GpuMat &image,
+    const Sophus::SE3d pose)
+{
+  fusion::cuda::count_visible_entry(
+      device_map.map,
+      device_map.size,
+      cam_params,
+      pose.inverse(),
+      visible_blocks,
+      count_visible_block);
+
+  raycast(vmap, image, pose);
+}
+
 void DenseMapping::reset_mapping()
 {
   device_map.reset();

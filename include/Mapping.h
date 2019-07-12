@@ -19,6 +19,11 @@ public:
   void update(cv::cuda::GpuMat depth, cv::cuda::GpuMat image, const Sophus::SE3d pose);
   void raycast(cv::cuda::GpuMat &vmap, cv::cuda::GpuMat &image, const Sophus::SE3d pose);
 
+  void raycast_check_visibility(
+      cv::cuda::GpuMat &vmap,
+      cv::cuda::GpuMat &image,
+      const Sophus::SE3d pose);
+
   void reset_mapping();
 
   size_t fetch_mesh_vertex_only(void *vertex);

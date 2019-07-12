@@ -66,7 +66,7 @@ cv::Mat KeyFrameGraph::get_descriptor_all(std::vector<std::shared_ptr<Point3d>> 
         {
             if (point != NULL)
             {
-                if (point->observations <= 1 || point->visited)
+                if (point->observations <= 0 || point->visited)
                     continue;
 
                 descritpors.push_back(point->descriptors);

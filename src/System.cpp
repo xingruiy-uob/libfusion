@@ -50,7 +50,8 @@ void System::process_images(const cv::Mat depth, const cv::Mat image)
         initialization();
     }
 
-    odometry->trackFrame(current_frame);
+    if (!odometry->trackingLost)
+        odometry->trackFrame(current_frame);
 
     if (!odometry->trackingLost)
     {
@@ -69,6 +70,7 @@ void System::process_images(const cv::Mat depth, const cv::Mat image)
     }
     else
     {
+        std::cout << "Tracking Lost! Trying to recover..." << std::endl;
         std::vector<std::shared_ptr<Point3d>> points;
         auto descriptors = graph->get_descriptor_all(points);
 
@@ -77,6 +79,19 @@ void System::process_images(const cv::Mat depth, const cv::Mat image)
 
         std::vector<Sophus::SE3d> candidates;
         relocalizer->compute_pose_candidates(candidates);
+
+        for (const auto &candidate : candidates)
+        {
+            auto reference_image = odometry->get_reference_image();
+            auto reference_frame = reference_image->get_reference_frame();
+            reference_frame->pose = candidate;
+            mapping->raycast_check_visibility(reference_image->get_vmap(), reference_image->get_nmap(0), reference_frame->pose);
+            reference_image->resize_device_map();
+
+            cv::Mat img(reference_image->get_vmap());
+            cv::imshow("img", img);
+            cv::waitKey(0);
+        }
 
         //TODO : raycast verification
 
