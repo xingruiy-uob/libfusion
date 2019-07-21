@@ -21,7 +21,7 @@ public:
     ~KeyFrameGraph();
     KeyFrameGraph(const IntrinsicMatrix K, const int NUM_PYR);
 
-    void add_keyframe(RgbdFramePtr keyframe);
+    void add_keyframe(std::shared_ptr<RgbdFrame> keyframe);
     void main_loop();
     void terminate();
     void reset();
@@ -38,8 +38,8 @@ private:
     std::shared_ptr<DenseTracking> tracker;
 
     std::mutex graphMutex;
-    std::vector<RgbdFramePtr> keyframe_graph;
-    RgbdFramePtr referenceFrame;
+    std::vector<std::shared_ptr<RgbdFrame>> keyframe_graph;
+    std::shared_ptr<RgbdFrame> referenceFrame;
     IntrinsicMatrix cam_param;
 
     bool FlagShouldQuit;
@@ -47,11 +47,11 @@ private:
 
     void optimize();
     void set_all_points_unvisited();
-    void search_correspondence(RgbdFramePtr keyframe);
-    void search_loop(RgbdFramePtr keyframe);
-    void extract_features(RgbdFramePtr keyframe);
+    void search_correspondence(std::shared_ptr<RgbdFrame> keyframe);
+    void search_loop(std::shared_ptr<RgbdFrame> keyframe);
+    void extract_features(std::shared_ptr<RgbdFrame> keyframe);
 
-    SafeQueue<RgbdFramePtr> raw_keyframe_queue;
+    SafeQueue<std::shared_ptr<RgbdFrame>> raw_keyframe_queue;
 };
 
 } // namespace fusion

@@ -114,7 +114,7 @@ void KeyFrameGraph::add_keyframe(std::shared_ptr<RgbdFrame> keyframe)
     raw_keyframe_queue.push(keyframe);
 }
 
-void KeyFrameGraph::extract_features(RgbdFramePtr keyframe)
+void KeyFrameGraph::extract_features(std::shared_ptr<RgbdFrame> keyframe)
 {
     cv::Mat source_image = keyframe->image;
     auto frame_pose = keyframe->pose.cast<float>();
@@ -137,7 +137,7 @@ void KeyFrameGraph::extract_features(RgbdFramePtr keyframe)
         frame_pose);
 }
 
-void KeyFrameGraph::search_loop(RgbdFramePtr keyframe)
+void KeyFrameGraph::search_loop(std::shared_ptr<RgbdFrame> keyframe)
 {
     std::lock_guard<std::mutex> lock(graphMutex);
 
@@ -269,7 +269,7 @@ void KeyFrameGraph::search_loop(RgbdFramePtr keyframe)
     }
 }
 
-void KeyFrameGraph::search_correspondence(RgbdFramePtr keyframe)
+void KeyFrameGraph::search_correspondence(std::shared_ptr<RgbdFrame> keyframe)
 {
     if (referenceFrame == NULL)
         return;

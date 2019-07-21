@@ -1,8 +1,6 @@
 #ifndef FUSION_RGBD_FRAME_H
 #define FUSION_RGBD_FRAME_H
 
-#include <map>
-#include <mutex>
 #include <memory>
 #include <Eigen/Core>
 #include <sophus/se3.hpp>
@@ -13,17 +11,16 @@
 namespace fusion
 {
 
-class RgbdFrame;
-using RgbdFramePtr = std::shared_ptr<RgbdFrame>;
-
 class RgbdFrame
 {
 public:
-  RgbdFrame(const cv::Mat &depth, const cv::Mat &image, const size_t id, const double ts);
+  RgbdFrame(const cv::Mat &depth, const cv::Mat &image, const size_t id);
+  RgbdFrame(const RgbdFrame &);
+  RgbdFrame &operator=(RgbdFrame);
+  friend void swap(RgbdFrame &, RgbdFrame &);
 
   std::vector<cv::KeyPoint> cv_key_points;
   std::vector<std::shared_ptr<Point3d>> key_points;
-  std::map<RgbdFramePtr, Eigen::Matrix4f> neighbours;
   cv::Mat descriptors;
 
   std::size_t id;

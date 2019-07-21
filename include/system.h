@@ -59,9 +59,9 @@ public:
     Eigen::Matrix4f get_camera_pose() const;
 
 private:
-    RgbdFramePtr current_frame;
-    RgbdFramePtr last_tracked_frame;
-    RgbdFramePtr current_keyframe;
+    std::shared_ptr<RgbdFrame> current_frame;
+    std::shared_ptr<RgbdFrame> last_tracked_frame;
+    std::shared_ptr<RgbdFrame> current_keyframe;
 
     size_t frame_id;
 

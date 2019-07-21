@@ -54,6 +54,8 @@ PUBLIC
 target_sources(fusion
 PRIVATE
     src/system.cpp
+    src/system_new.cpp
+
     src/data_struct/rgbd_frame.cpp
     src/data_struct/map_struct.cu
 

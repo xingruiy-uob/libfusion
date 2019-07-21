@@ -8,7 +8,7 @@
 namespace fusion
 {
 
-struct FUSION_EXPORT Voxel
+struct Voxel
 {
     FUSION_HOST_AND_DEVICE inline Voxel();
     FUSION_HOST_AND_DEVICE inline Voxel(float sdf, float weight, Vector3c rgb);

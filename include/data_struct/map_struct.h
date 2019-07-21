@@ -6,30 +6,15 @@
 #include "data_struct/voxel.h"
 #include "data_struct/hash_entry.h"
 
-#define BLOCK_SIZE 8
-#define BLOCK_SIZE3 512
-#define BLOCK_SIZE_SUB_1 7
-
 namespace fusion
 {
 
 // Map info
-class FUSION_EXPORT MapState
+class MapState
 {
 public:
-    // The total number of buckets in the map
-    // NOTE: buckets are allocated for each main entry
-    // It dose not cover the excess entries
     int num_total_buckets_;
-
-    // The total number of voxel blocks in the map
-    // also determins the size of the heap memory
-    // which is used for storing block addresses
     int num_total_voxel_blocks_;
-
-    // The total number of hash entres in the map
-    // This is a combination of main entries and
-    // the excess entries
     int num_total_hash_entries_;
 
     int num_max_mesh_triangles_;
@@ -59,14 +44,14 @@ struct MapSize
 
 FUSION_DEVICE extern MapState param;
 
-struct FUSION_EXPORT RenderingBlock
+struct RenderingBlock
 {
     Vector2s upper_left;
     Vector2s lower_right;
     Vector2f zrange;
 };
 
-struct FUSION_EXPORT MapStorage
+struct MapStorage
 {
     int *heap_mem_;
     int *excess_counter_;
@@ -77,7 +62,7 @@ struct FUSION_EXPORT MapStorage
 };
 
 template <bool Device>
-struct FUSION_EXPORT MapStruct
+struct MapStruct
 {
     FUSION_HOST MapStruct();
     FUSION_HOST MapStruct(MapState param);

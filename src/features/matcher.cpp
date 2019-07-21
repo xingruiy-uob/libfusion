@@ -141,8 +141,8 @@ void DescriptorMatcher::filter_matches_ratio_test(
 }
 
 void DescriptorMatcher::match_pose_constraint(
-    RgbdFramePtr source_frame,
-    RgbdFramePtr reference_frame,
+    std::shared_ptr<RgbdFrame> source_frame,
+    std::shared_ptr<RgbdFrame> reference_frame,
     const fusion::IntrinsicMatrix &cam_param,
     const Sophus::SE3f &pose)
 {

@@ -214,7 +214,7 @@ cv::cuda::GpuMat DeviceImage::get_image() const
     return image;
 }
 
-RgbdFramePtr DeviceImage::get_reference_frame() const
+std::shared_ptr<RgbdFrame> DeviceImage::get_reference_frame() const
 {
     return reference_frame;
 }

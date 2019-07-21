@@ -28,7 +28,7 @@ public:
     void resize_device_map();
     void upload(const std::shared_ptr<RgbdFrame> frame);
 
-    RgbdFramePtr get_reference_frame() const;
+    std::shared_ptr<RgbdFrame> get_reference_frame() const;
     cv::cuda::GpuMat get_rendered_image();
     cv::cuda::GpuMat get_rendered_scene_textured();
     cv::cuda::GpuMat get_depth(const int &level = 0) const;
@@ -47,7 +47,7 @@ public:
     void create_nmap_pyramid(const int max_level); // TODO
 
 private:
-    RgbdFramePtr reference_frame;
+    std::shared_ptr<RgbdFrame> reference_frame;
 
     // original image in CV_8UC3
     cv::cuda::GpuMat image;

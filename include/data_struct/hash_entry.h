@@ -8,7 +8,7 @@
 namespace fusion
 {
 
-struct FUSION_EXPORT HashEntry
+struct HashEntry
 {
     FUSION_HOST_AND_DEVICE inline HashEntry();
     FUSION_HOST_AND_DEVICE inline HashEntry(Vector3i pos, int ptr, int offset);

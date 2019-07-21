@@ -42,7 +42,7 @@ void System::process_images(const cv::Mat depth, const cv::Mat image)
     cv::Mat depth_float;
     depth.convertTo(depth_float, CV_32FC1, 1 / 1000.f);
 
-    current_frame = std::make_shared<RgbdFrame>(depth_float, image, frame_id, 0);
+    current_frame = std::make_shared<RgbdFrame>(depth_float, image, frame_id);
 
     if (!is_initialized)
     {

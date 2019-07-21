@@ -9,7 +9,7 @@
 namespace fusion
 {
 
-struct FUSION_EXPORT IntrinsicMatrix
+struct IntrinsicMatrix
 {
     FUSION_HOST_AND_DEVICE inline IntrinsicMatrix();
     FUSION_HOST_AND_DEVICE inline IntrinsicMatrix(int cols, int rows, float fx, float fy, float cx, float cy);

@@ -8,7 +8,7 @@ namespace fusion
 {
 
 template <class T>
-struct FUSION_EXPORT Matrix3x3
+struct Matrix3x3
 {
     Vector3<T> R0, R1, R2;
 
@@ -45,7 +45,7 @@ struct FUSION_EXPORT Matrix3x3
 };
 
 template <class T>
-struct FUSION_EXPORT Matrix3x4
+struct Matrix3x4
 {
     Vector4<T> R0, R1, R2;
 

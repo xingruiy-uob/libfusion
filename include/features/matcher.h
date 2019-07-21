@@ -38,8 +38,8 @@ public:
         std::vector<cv::DMatch> &candidates);
 
     void match_pose_constraint(
-        RgbdFramePtr source,
-        RgbdFramePtr reference,
+        std::shared_ptr<RgbdFrame> source,
+        std::shared_ptr<RgbdFrame> reference,
         const fusion::IntrinsicMatrix &cam_params,
         const Sophus::SE3f &pose);
 
