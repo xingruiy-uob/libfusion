@@ -1,4 +1,4 @@
-option(WITH_OPENNI OFF)
+option(WITH_OPENNI ON)
 
 if(${WITH_OPENNI})
   target_sources(fusion

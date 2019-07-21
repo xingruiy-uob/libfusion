@@ -13,8 +13,6 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
-# add_subdirectory(slam_lib)
-
 add_library(fusion SHARED "")
 
 find_package(OpenCV 3.4 REQUIRED)
@@ -82,41 +80,3 @@ PRIVATE
 
 add_subdirectory(example)
 include(cmake/InstallGLSL.cmake)
-
-
-# target_include_directories(app
-# PUBLIC
-#     ${PROJECT_SOURCE_DIR}/include
-# PRIVATE
-#     ${CUDA_INCLUDE_DIRS}
-# )
-
-# target_link_libraries(app
-# PRIVATE
-#     OpenGL::GL
-#     Eigen3::Eigen
-#     XUtils::XUtils
-#     XFusion::XFusion
-#     ${OpenCV_LIBRARIES}
-#     ${CUDA_LIBRARIES}
-#     ${Pangolin_LIBRARIES}
-# )
-
-# file (GLOB_RECURSE resources "shaders/*.*")
-# foreach(resource ${resources})
-#     get_filename_component(filename ${resource} NAME)
-
-#     set(output "${CMAKE_BINARY_DIR}/shaders/${filename}")
- 
-#     add_custom_command(
-#         COMMENT "Moving updated resource-file '${filename}'"
-#         OUTPUT ${output}
-#         DEPENDS ${resource}
-#         COMMAND ${CMAKE_COMMAND} -E copy_if_different
-#         ${resource}
-#         ${output}
-#     )
- 
-#     add_custom_target(${filename} ALL DEPENDS ${resource} ${output})
- 
-# endforeach()
