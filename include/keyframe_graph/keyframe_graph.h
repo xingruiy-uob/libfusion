@@ -51,7 +51,7 @@ private:
     void search_loop(RgbdFramePtr keyframe);
     void extract_features(RgbdFramePtr keyframe);
 
-    xutils::SafeQueue<RgbdFramePtr> raw_keyframe_queue;
+    SafeQueue<RgbdFramePtr> raw_keyframe_queue;
 };
 
 } // namespace fusion

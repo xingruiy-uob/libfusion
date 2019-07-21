@@ -22,8 +22,13 @@ include(cmake/FindOpenNI2.cmake)
 
 target_include_directories(fusion
 PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
+    $<INSTALL_INTERFACE:include>   
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     ${CUDA_INCLUDE_DIRS}
+PRIVATE
+    ${OpenCV_INCLUDE_DIRS}
+    ${EIGEN3_INCLUDE_DIRS}
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 
 target_compile_features(fusion
@@ -70,10 +75,10 @@ PRIVATE
 
     src/visualization/main_window.cpp
 
-    src/voxel_hashing/voxel_hashing.cpp
-    src/voxel_hashing/depth_fusion.cu
+    src/voxel_hashing/fuse_frame.cu
     src/voxel_hashing/ray_tracing.cu
-    src/voxel_hashing/scene_mesh.cu
+    src/voxel_hashing/mesh_scene.cu
+    src/voxel_hashing/voxel_hashing.cpp
 
     src/input/tum_loader.cpp
 )

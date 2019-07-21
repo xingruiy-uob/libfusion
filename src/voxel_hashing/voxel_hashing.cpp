@@ -1,7 +1,9 @@
 #include <cuda_runtime_api.h>
 #include "utils/safe_call.h"
 #include "data_struct/map_struct.h"
-#include "voxel_hashing/map_proc.h"
+#include "voxel_hashing/mesh_scene.cuh"
+#include "voxel_hashing/ray_tracing.cuh"
+#include "voxel_hashing/fuse_frame.cuh"
 #include "voxel_hashing/voxel_hashing.h"
 
 namespace fusion
@@ -123,14 +125,6 @@ void DenseMapping::raycast_check_visibility(
     cv::cuda::GpuMat &image,
     const Sophus::SE3d pose)
 {
-  fusion::cuda::count_visible_entry(
-      device_map.map,
-      device_map.size,
-      cam_params,
-      pose.inverse(),
-      visible_blocks,
-      count_visible_block);
-
   raycast(vmap, image, pose);
 }
 

@@ -1,4 +1,4 @@
-#include "voxel_hashing/map_proc.h"
+#include "voxel_hashing/fuse_frame.cuh"
 #include "math/matrix_type.h"
 #include "math/vector_type.h"
 #include "utils/safe_call.h"

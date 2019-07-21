@@ -4,7 +4,7 @@
 #include <queue>
 #include <mutex>
 
-namespace xutils
+namespace fusion
 {
 
 template <class T>
@@ -48,6 +48,6 @@ void SafeQueue<T>::clear()
         queue.pop();
 }
 
-} // namespace xutils
+} // namespace fusion
 
 #endif
