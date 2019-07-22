@@ -2,41 +2,45 @@
 
 #define ENTER_KEY 13
 
+namespace fusion
+{
+
 MainWindow::~MainWindow()
 {
-    delete keypoints;
-    pangolin::DestroyWindow(WindowName);
-    std::cout << "opengl released. " << std::endl;
+    pangolin::DestroyWindow(window_title);
+    std::cout << "GUI Released." << std::endl;
 }
 
-MainWindow::MainWindow(const char *name, size_t width, size_t height)
-    : mbFlagRestart(false), WindowName(name), mbFlagUpdateMesh(false),
-      VERTEX_COUNT(0), MAX_VERTEX_COUNT(20000000), sizeKeyPoint(0),
-      maxSizeKeyPoint(8000000)
+MainWindow::MainWindow(
+    const char *name,
+    const size_t width,
+    const size_t height)
+    : window_title(name),
+      VERTEX_COUNT(0),
+      MAX_VERTEX_COUNT(20000000)
 {
-    ResetAllFlags();
+    pangolin::CreateWindowAndBind(window_title, width, height);
 
-    pangolin::CreateWindowAndBind(WindowName, width, height);
-    keypoints = (float *)malloc(sizeof(float) * maxSizeKeyPoint);
+    setup_gl_flags();
+    setup_displays();
+    register_key_callbacks();
+    init_textures();
+    init_mesh_buffers();
+    init_glsl_programs();
 
-    SetupGLFlags();
-    SetupDisplays();
-    RegisterKeyCallback();
-    InitTextures();
-    InitMeshBuffers();
-    InitGlSlPrograms();
+    std::cout << "GUI Ready." << std::endl;
 }
 
-void MainWindow::SetupGLFlags()
+void MainWindow::setup_gl_flags()
 {
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_BLEND);
-    // glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 }
 
-void MainWindow::InitTextures()
+void MainWindow::init_textures()
 {
-    TextureRGB.Reinitialise(
+    image_tex.Reinitialise(
         640, 480,
         GL_RGB,
         true,
@@ -45,7 +49,7 @@ void MainWindow::InitTextures()
         GL_UNSIGNED_BYTE,
         NULL);
 
-    TextureDepth.Reinitialise(
+    depth_tex.Reinitialise(
         640, 480,
         GL_RGBA,
         true,
@@ -54,7 +58,7 @@ void MainWindow::InitTextures()
         GL_UNSIGNED_BYTE,
         NULL);
 
-    TextureScene.Reinitialise(
+    scene_tex.Reinitialise(
         640, 480,
         GL_RGBA,
         true,
@@ -64,79 +68,73 @@ void MainWindow::InitTextures()
         NULL);
 }
 
-void MainWindow::InitMeshBuffers()
+void MainWindow::init_mesh_buffers()
 {
     auto size = sizeof(float) * 3 * MAX_VERTEX_COUNT;
 
-    BufferVertex.Reinitialise(
+    vertex_buffer.Reinitialise(
         pangolin::GlArrayBuffer,
         size,
         cudaGLMapFlagsWriteDiscard,
         GL_STATIC_DRAW);
 
-    BufferNormal.Reinitialise(
+    normal_buffer.Reinitialise(
         pangolin::GlArrayBuffer,
         size,
         cudaGLMapFlagsWriteDiscard,
         GL_STATIC_DRAW);
 
-    BufferColour.Reinitialise(
+    colour_buffer.Reinitialise(
         pangolin::GlArrayBuffer,
         size,
         cudaGLMapFlagsWriteDiscard,
         GL_STATIC_DRAW);
 
-    MappedVertex = std::make_shared<pangolin::CudaScopedMappedPtr>(BufferVertex);
-    MappedNormal = std::make_shared<pangolin::CudaScopedMappedPtr>(BufferNormal);
-    MappedColour = std::make_shared<pangolin::CudaScopedMappedPtr>(BufferColour);
+    vertex_mapped = std::make_shared<pangolin::CudaScopedMappedPtr>(vertex_buffer);
+    normal_mapped = std::make_shared<pangolin::CudaScopedMappedPtr>(normal_buffer);
+    colour_mapped = std::make_shared<pangolin::CudaScopedMappedPtr>(colour_buffer);
 
-    glGenVertexArrays(1, &VAOShade);
-    glBindVertexArray(VAOShade);
+    glGenVertexArrays(1, &vao_shaded);
+    glBindVertexArray(vao_shaded);
 
-    BufferVertex.Bind();
+    vertex_buffer.Bind();
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
     glEnableVertexAttribArray(0);
 
-    BufferNormal.Bind();
+    normal_buffer.Bind();
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
     glEnableVertexAttribArray(1);
 
-    glGenVertexArrays(1, &VAOColour);
-    glBindVertexArray(VAOColour);
+    glGenVertexArrays(1, &vao_colour);
+    glBindVertexArray(vao_colour);
 
-    BufferVertex.Bind();
+    vertex_buffer.Bind();
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
     glEnableVertexAttribArray(0);
 
-    BufferColour.Bind();
+    colour_buffer.Bind();
     glVertexAttribPointer(2, 3, GL_UNSIGNED_BYTE, GL_TRUE, 0, 0);
     glEnableVertexAttribArray(2);
 
-    BufferColour.Unbind();
+    colour_buffer.Unbind();
     glBindVertexArray(0);
 }
 
-bool MainWindow::IsPaused()
+bool MainWindow::is_paused() const
 {
     return *BoxPaused;
 }
 
-void MainWindow::InitGlSlPrograms()
+void MainWindow::init_glsl_programs()
 {
-    ShadingProg.AddShaderFromFile(
-        pangolin::GlSlShaderType::GlSlVertexShader,
-        "./glsl_shader/phong.vert");
-
-    ShadingProg.AddShaderFromFile(
-        pangolin::GlSlShaderType::GlSlFragmentShader,
-        "./glsl_shader/direct_output.frag");
-
-    ShadingProg.Link();
+    phong_shader.AddShaderFromFile(pangolin::GlSlShaderType::GlSlVertexShader, "./glsl_shader/phong.vert");
+    phong_shader.AddShaderFromFile(pangolin::GlSlShaderType::GlSlFragmentShader, "./glsl_shader/direct_output.frag");
+    phong_shader.Link();
 }
 
-void MainWindow::SetupDisplays()
+void MainWindow::setup_displays()
 {
-    CameraView = std::make_shared<pangolin::OpenGlRenderState>(
+    camera_view = std::make_shared<pangolin::OpenGlRenderState>(
         pangolin::ProjectionMatrix(640, 480, 420, 420, 320, 240, 0.1, 1000),
         pangolin::ModelViewLookAtRDF(0, 0, 0, 0, 0, -1, 0, 1, 0));
 
@@ -158,22 +156,22 @@ void MainWindow::SetupDisplays()
     BoxDisplayKeyCameras = std::make_shared<pangolin::Var<bool>>("Menu.Display KeyFrame", false, true);
     BoxDisplayKeyPoint = std::make_shared<pangolin::Var<bool>>("Menu.Display KeyPoint", false, true);
 
-    mpViewSideBar = &pangolin::Display("Right Side Bar");
-    mpViewSideBar->SetBounds(0, 1, RightSideBarDividerLeft, 1);
-    mpViewRGB = &pangolin::Display("RGB");
-    mpViewRGB->SetBounds(0, 0.5, 0, 1);
-    mpViewDepth = &pangolin::Display("Depth");
-    mpViewDepth->SetBounds(0.5, 1, 0, 1);
-    mpViewScene = &pangolin::Display("Scene");
-    mpViewScene->SetBounds(0, 1, MenuDividerLeft, RightSideBarDividerLeft);
-    mpViewMesh = &pangolin::Display("Mesh");
-    mpViewMesh->SetBounds(0, 1, MenuDividerLeft, RightSideBarDividerLeft).SetHandler(new pangolin::Handler3D(*CameraView));
+    right_side_view = &pangolin::Display("Right Side Bar");
+    right_side_view->SetBounds(0, 1, RightSideBarDividerLeft, 1);
+    image_view = &pangolin::Display("RGB");
+    image_view->SetBounds(0, 0.5, 0, 1);
+    depth_view = &pangolin::Display("Depth");
+    depth_view->SetBounds(0.5, 1, 0, 1);
+    scene_view = &pangolin::Display("Scene");
+    scene_view->SetBounds(0, 1, MenuDividerLeft, RightSideBarDividerLeft);
+    mesh_view = &pangolin::Display("Mesh");
+    mesh_view->SetBounds(0, 1, MenuDividerLeft, RightSideBarDividerLeft).SetHandler(new pangolin::Handler3D(*camera_view));
 
-    mpViewSideBar->AddDisplay(*mpViewRGB);
-    mpViewSideBar->AddDisplay(*mpViewDepth);
+    right_side_view->AddDisplay(*image_view);
+    right_side_view->AddDisplay(*depth_view);
 }
 
-void MainWindow::RegisterKeyCallback()
+void MainWindow::register_key_callbacks()
 {
     //! Retart the system
     pangolin::RegisterKeyPressCallback('r', pangolin::SetVarFunctor<bool>("Menu.RESET", true));
@@ -191,179 +189,138 @@ void MainWindow::RegisterKeyCallback()
     pangolin::RegisterKeyPressCallback('L', pangolin::SetVarFunctor<bool>("Menu.Read Map", true));
 }
 
-void MainWindow::ResetAllFlags()
+void MainWindow::set_image_src(const cv::Mat image, const ImageType type)
 {
-    mbFlagRestart = false;
-    // mbFlagUpdateMesh = false;
+    switch (type)
+    {
+    case RGB:
+        image_tex.Upload(image.data, GL_RGB, GL_UNSIGNED_BYTE);
+        break;
+    case DEPTH:
+        depth_tex.Upload(image.data, GL_RGBA, GL_UNSIGNED_BYTE);
+        break;
+    case SCENE:
+        scene_tex.Upload(image.data, GL_RGBA, GL_UNSIGNED_BYTE);
+        break;
+    }
 }
 
-void MainWindow::SetRGBSource(cv::Mat RgbImage)
+void MainWindow::render()
 {
-    TextureRGB.Upload(RgbImage.data, GL_RGB, GL_UNSIGNED_BYTE);
-}
-
-void MainWindow::SetDepthSource(cv::Mat DepthImage)
-{
-    TextureDepth.Upload(DepthImage.data, GL_RGBA, GL_UNSIGNED_BYTE);
-}
-
-void MainWindow::SetRenderScene(cv::Mat SceneImage)
-{
-    TextureScene.Upload(SceneImage.data, GL_RGBA, GL_UNSIGNED_BYTE);
-}
-
-void MainWindow::SetFeatureImage(cv::Mat featureImage)
-{
-}
-
-void MainWindow::Render()
-{
-    ResetAllFlags();
-
+    // Clear frame buffer
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glClearColor(0.f, 0.f, 0.f, 1.f);
 
-    if (pangolin::Pushed(*BtnReset))
-    {
-        slam->restart();
-        if (IsPaused())
-            UpdateMeshWithNormal();
-    }
+    check_buttons();
+    draw_image();
+    draw_depth();
+    draw_scene();
+    draw_camera();
 
-    if (pangolin::Pushed(*BtnSaveMap))
-    {
-        slam->writeMapToDisk("map.data");
-    }
-
-    if (pangolin::Pushed(*BtnSetLost))
-    {
-        slam->setLost(true);
-    }
-
-    if (pangolin::Pushed(*BtnReadMap))
-    {
-        slam->readMapFromDisk("map.data");
-        if (IsPaused())
-            UpdateMeshWithNormal();
-    }
-
-    if (*BoxDisplayImage)
-    {
-        mpViewRGB->Activate();
-        TextureRGB.RenderToViewportFlipY();
-    }
-
-    if (*BoxDisplayDepth)
-    {
-        mpViewDepth->Activate();
-        TextureDepth.RenderToViewportFlipY();
-    }
-
-    if (!IsPaused())
-    {
-        mpViewScene->Activate();
-        TextureScene.RenderToViewportFlipY();
-    }
-    else
-    {
-        mpViewMesh->Activate(*CameraView);
-
-        if (*BoxDisplayMesh)
-        {
-            DrawMeshShaded();
-        }
-
-        Eigen::Matrix3f K;
-        K << 580, 0, 320, 0, 580, 240, 0, 0, 1;
-
-        if (*BoxDisplayCamera)
-        {
-            pangolin::glDrawFrustum(K.inverse().eval(), 640, 480, CameraPose, 0.1f);
-            pangolin::glDrawAxis(CameraPose, 0.1f);
-        }
-
-        if (*BoxDisplayKeyCameras)
-        {
-            auto keyframe_poses = slam->getKeyFramePoses();
-            std::vector<Eigen::Matrix<float, 3, 1>> camera_centers;
-            for (const auto &pose : keyframe_poses)
-            {
-                camera_centers.push_back(pose.topRightCorner(3, 1));
-                pangolin::glDrawFrustum(K.inverse().eval(), 640, 480, pose, 0.02f);
-                pangolin::glDrawAxis(pose, 0.02f);
-            }
-
-            pangolin::glDrawVertices(camera_centers, GL_LINE_STRIP);
-        }
-
-        if (*BoxDisplayKeyPoint)
-        {
-            slam->fetch_key_points(&keypoints[0], sizeKeyPoint, maxSizeKeyPoint);
-            glColor4f(0.f, 1.f, 0.f, 1.f);
-            glPointSize(5);
-            pangolin::glDrawVertices(sizeKeyPoint, &keypoints[0], GL_POINTS, 3);
-            glPointSize(1);
-            glColor4f(1.f, 1.f, 1.f, 1.f);
-        }
-    }
-
+    // Swap frame buffers
     pangolin::FinishFrame();
 }
 
-void MainWindow::UpdateMeshWithNormal()
+void MainWindow::draw_image()
 {
-    auto *vertex = GetMappedVertexBuffer();
-    auto *normal = GetMappedNormalBuffer();
-    VERTEX_COUNT = slam->fetch_mesh_with_normal(vertex, normal);
+    // Draw Rgb image to screen
+    if (*BoxDisplayImage)
+    {
+        image_view->Activate();
+        image_tex.RenderToViewportFlipY();
+    }
 }
 
-void MainWindow::DrawMeshShaded()
+void MainWindow::draw_depth()
 {
-    if (VERTEX_COUNT == 0)
+    // Draw depth to screen
+    if (*BoxDisplayDepth)
+    {
+        depth_view->Activate();
+        depth_tex.RenderToViewportFlipY();
+    }
+}
+
+void MainWindow::draw_scene()
+{
+    if (!is_paused())
+    {
+        scene_view->Activate();
+        scene_tex.RenderToViewportFlipY();
+    }
+}
+
+void MainWindow::check_buttons()
+{
+    if (pangolin::Pushed(*BtnReset))
+    {
+        slam->reset();
+    }
+}
+
+void MainWindow::draw_camera()
+{
+    if (*BoxDisplayCamera && is_paused())
+    {
+        mesh_view->Activate();
+        pangolin::glDrawFrustum(slam->get_intrinsics(), 640, 480, slam->get_current_pose(), 0.05f);
+    }
+}
+
+void MainWindow::update_vertex_and_normal()
+{
+    // auto *vertex = get_vertex_buffer_mapped();
+    // auto *normal = get_normal_buffer_mapped();
+    // VERTEX_COUNT = slam->fetch_mesh_with_normal(vertex, normal);
+}
+
+void MainWindow::draw_mesh_phong_shaded()
+{
+    if (VERTEX_COUNT == 0 || !is_paused())
         return;
 
-    ShadingProg.Bind();
-    glBindVertexArray(VAOShade);
+    phong_shader.Bind();
+    glBindVertexArray(vao_shaded);
 
-    ShadingProg.SetUniform("mvp_matrix", CameraView->GetProjectionModelViewMatrix());
+    phong_shader.SetUniform("mvp_matrix", camera_view->GetProjectionModelViewMatrix());
 
     glDrawArrays(GL_TRIANGLES, 0, VERTEX_COUNT * 3);
 
     glBindVertexArray(0);
-    ShadingProg.Unbind();
+    phong_shader.Unbind();
 }
 
-void MainWindow::SetCurrentCamera(Eigen::Matrix4f T)
+void MainWindow::draw_mesh_colour_mapped()
 {
-    CameraPose = T;
-    // pangolin::OpenGlMatrix ViewMat(CameraPose.inverse().eval());
-    // CameraView->SetModelViewMatrix(ViewMat);
 }
 
-void MainWindow::SetSystem(fusion::System *sys)
+void MainWindow::draw_mesh_normal_mapped()
+{
+}
+
+void MainWindow::set_current_camera(const Eigen::Matrix4f &T)
+{
+    curren_pose = T;
+}
+
+void MainWindow::set_system(fusion::SystemNew *const sys)
 {
     slam = sys;
 }
 
-void MainWindow::DrawMeshColoured()
+float *MainWindow::get_vertex_buffer_mapped()
 {
+    return (float *)**vertex_mapped;
 }
 
-void MainWindow::DrawMeshNormalMapped()
+float *MainWindow::get_normal_buffer_mapped()
 {
+    return (float *)**normal_mapped;
 }
 
-float *MainWindow::GetMappedVertexBuffer()
+unsigned char *MainWindow::get_colour_buffer_mapped()
 {
-    return (float *)**MappedVertex;
+    return (unsigned char *)**colour_mapped;
 }
 
-float *MainWindow::GetMappedNormalBuffer()
-{
-    return (float *)**MappedNormal;
-}
-
-unsigned char *MainWindow::GetMappedColourBuffer()
-{
-    return (unsigned char *)**MappedColour;
-}
+} // namespace fusion

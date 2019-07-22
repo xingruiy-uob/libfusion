@@ -24,8 +24,7 @@ void create_rendering_blocks(
 void raycast(
     MapStorage map_struct,
     MapState state,
-    cv::cuda::GpuMat vmap,
-    cv::cuda::GpuMat nmap,
+    cv::cuda::GpuMat &vmap,
     cv::cuda::GpuMat zrange_x,
     cv::cuda::GpuMat zrange_y,
     const Sophus::SE3d &pose,
@@ -34,9 +33,8 @@ void raycast(
 void raycast_with_colour(
     MapStorage map_struct,
     MapState state,
-    cv::cuda::GpuMat vmap,
-    cv::cuda::GpuMat nmap,
-    cv::cuda::GpuMat image,
+    cv::cuda::GpuMat &vmap,
+    cv::cuda::GpuMat &image,
     cv::cuda::GpuMat zrange_x,
     cv::cuda::GpuMat zrange_y,
     const Sophus::SE3d &pose,

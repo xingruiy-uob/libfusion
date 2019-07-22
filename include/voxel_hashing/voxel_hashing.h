@@ -15,14 +15,12 @@ public:
   ~DenseMapping();
   DenseMapping(const fusion::IntrinsicMatrix &K);
 
-  void update(RgbdImagePtr frame);
+  void update(std::shared_ptr<DeviceImage> frame);
   void update(cv::cuda::GpuMat depth, cv::cuda::GpuMat image, const Sophus::SE3d pose);
   void raycast(cv::cuda::GpuMat &vmap, cv::cuda::GpuMat &image, const Sophus::SE3d pose);
+  void raycast_check_visibility(cv::cuda::GpuMat &vmap, cv::cuda::GpuMat &image, const Sophus::SE3d pose);
 
-  void raycast_check_visibility(
-      cv::cuda::GpuMat &vmap,
-      cv::cuda::GpuMat &image,
-      const Sophus::SE3d pose);
+  void update(const cv::Mat depth_float, const cv::Mat image, const Sophus::SE3d frame_pose);
 
   void reset_mapping();
 

@@ -20,6 +20,8 @@
 #define BLOCK_SIZE3 512
 #define BLOCK_SIZE_SUB_1 7
 
+#define MAX_MESH_VERTEX 20000000
+
 #include <iostream>
 
 #endif

@@ -41,7 +41,7 @@ FUSION_HOST void build_intensity_dxdy_pyr(std::vector<cv::cuda::GpuMat> intensit
     }
 }
 
-FUSION_HOST void build_vmap_pyr(std::vector<cv::cuda::GpuMat> depth_pyr, std::vector<cv::cuda::GpuMat> vmap_pyr, const std::vector<IntrinsicMatrix> K_pyr)
+FUSION_HOST void build_vmap_pyr(std::vector<cv::cuda::GpuMat> depth_pyr, std::vector<cv::cuda::GpuMat> &vmap_pyr, const std::vector<IntrinsicMatrix> &K_pyr)
 {
     if (vmap_pyr.size() != depth_pyr.size())
         vmap_pyr.resize(depth_pyr.size());

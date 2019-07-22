@@ -57,16 +57,6 @@ std::shared_ptr<DeviceImage> DenseOdometry::get_reference_image() const
   return refDeviceMapPyramid;
 }
 
-// Eigen::Matrix4f DenseOdometry::get_current_pose_matrix() const
-// {
-//   if (currDeviceMapPyramid && currDeviceMapPyramid->get_reference_frame())
-//   {
-//     return currDeviceMapPyramid->get_reference_frame()->pose.matrix().cast<float>();
-//   }
-//   else
-//     return Eigen::Matrix4f::Identity();
-// }
-
 void DenseOdometry::reset()
 {
   lastTracedFrame = NULL;

@@ -31,6 +31,9 @@ public:
   cv::Mat depth;
   cv::Mat vmap;
   cv::Mat nmap;
+
+  //! Temporary variable
+  //! Do NOT reference this
 };
 
 } // namespace fusion

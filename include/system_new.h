@@ -13,10 +13,11 @@ class SystemNew
 {
 public:
     SystemNew(const IntrinsicMatrix K, const int NUM_PYR);
-    ~SystemNew();
 
     void spawn_work(const cv::Mat &depth, const cv::Mat &image);
     void reset();
+    Eigen::Matrix3f get_intrinsics() const;
+    Eigen::Matrix4f get_current_pose() const;
     void write_map_to_disk(const std::string) const;
     void read_map_from_disk(const std::string);
 
@@ -35,6 +36,17 @@ private:
 
     bool initialized;
     size_t current_frame_id;
+
+    //! Temporary variables
+    //! Do NOT reference this
+    cv::cuda::GpuMat vmap_cast;
+    cv::cuda::GpuMat image_cast;
+
+    Sophus::SE3d current_pose;
+
+    void populate_current_data(cv::Mat depth, cv::Mat image);
+
+    Eigen::Matrix3f K;
 };
 
 } // namespace fusion

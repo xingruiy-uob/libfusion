@@ -1,8 +1,13 @@
 #ifndef FUSION_MATH_ROTATION_H
 #define FUSION_MATH_ROTATION_H
+#define HAS_EIGEN
 
 #include "macros.h"
 #include "math/vector_type.h"
+
+#ifdef HAS_EIGEN
+#include <Eigen/Core>
+#endif
 
 namespace fusion
 {
@@ -15,7 +20,7 @@ struct Matrix3x3
     FUSION_HOST_AND_DEVICE inline Matrix3x3() : R0(0), R1(0), R2(0) {}
     FUSION_HOST_AND_DEVICE inline Matrix3x3(const Matrix3x3<T> &M) : R0(M.R0), R1(M.R1), R2(M.R2) {}
 
-#ifdef EIGEN_MACRO_H
+#ifdef HAS_EIGEN
     FUSION_HOST_AND_DEVICE inline Matrix3x3(const Eigen::Matrix<T, 3, 3> &M)
         : R0(M(0, 0), M(0, 1), M(0, 2)),
           R1(M(1, 0), M(1, 1), M(1, 2)),
@@ -51,31 +56,15 @@ struct Matrix3x4
 
     FUSION_HOST_AND_DEVICE inline Matrix3x4() : R0(0), R1(0), R2(0) {}
 
-#ifdef EIGEN_MACRO_H
-    FUSION_HOST_AND_DEVICE inline Matrix3x4(const Eigen::Matrix<float, 3, 4> &M)
+#ifdef HAS_EIGEN
+    FUSION_HOST_AND_DEVICE inline Matrix3x4(const Eigen::Matrix<T, 3, 4> &M)
         : R0(M(0, 0), M(0, 1), M(0, 2), M(0, 3)),
           R1(M(1, 0), M(1, 1), M(1, 2), M(1, 3)),
           R2(M(2, 0), M(2, 1), M(2, 2), M(2, 3))
     {
     }
 
-    FUSION_HOST_AND_DEVICE inline Matrix3x4(const Eigen::Matrix<float, 4, 4> &M)
-        : R0(M(0, 0), M(0, 1), M(0, 2), M(0, 3)),
-          R1(M(1, 0), M(1, 1), M(1, 2), M(1, 3)),
-          R2(M(2, 0), M(2, 1), M(2, 2), M(2, 3))
-    {
-    }
-#endif
-
-#ifdef SOPHUS_SE3_HPP
-    FUSION_HOST_AND_DEVICE inline Matrix3x4(const Sophus::Matrix<float, 3, 4> &M)
-        : R0(M(0, 0), M(0, 1), M(0, 2), M(0, 3)),
-          R1(M(1, 0), M(1, 1), M(1, 2), M(1, 3)),
-          R2(M(2, 0), M(2, 1), M(2, 2), M(2, 3))
-    {
-    }
-
-    FUSION_HOST_AND_DEVICE inline Matrix3x4(const Sophus::Matrix<float, 4, 4> &M)
+    FUSION_HOST_AND_DEVICE inline Matrix3x4(const Eigen::Matrix<T, 4, 4> &M)
         : R0(M(0, 0), M(0, 1), M(0, 2), M(0, 3)),
           R1(M(1, 0), M(1, 1), M(1, 2), M(1, 3)),
           R2(M(2, 0), M(2, 1), M(2, 2), M(2, 3))

@@ -43,7 +43,7 @@ DenseMapping::~DenseMapping()
   deviceRelease((void **)&rendering_blocks);
 }
 
-void DenseMapping::update(RgbdImagePtr frame)
+void DenseMapping::update(std::shared_ptr<DeviceImage> frame)
 {
   auto image = frame->get_image();
   auto depth = frame->get_raw_depth();
@@ -86,6 +86,26 @@ void DenseMapping::update(
       count_visible_block);
 }
 
+void DenseMapping::update(
+    const cv::Mat depth_float,
+    const cv::Mat image,
+    const Sophus::SE3d frame_pose)
+{
+  count_visible_block = 0;
+
+  cuda::update(
+      device_map.map,
+      device_map.state,
+      cv::cuda::GpuMat(depth_float),
+      cv::cuda::GpuMat(image),
+      frame_pose,
+      cam_params,
+      flag,
+      pos_array,
+      visible_blocks,
+      count_visible_block);
+}
+
 void DenseMapping::raycast(
     cv::cuda::GpuMat &vmap,
     cv::cuda::GpuMat &image,
@@ -110,7 +130,6 @@ void DenseMapping::raycast(
     cuda::raycast_with_colour(
         device_map.map,
         device_map.state,
-        vmap,
         vmap,
         image,
         zrange_x,

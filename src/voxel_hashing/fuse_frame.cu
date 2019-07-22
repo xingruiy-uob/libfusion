@@ -439,6 +439,8 @@ void update(
     HashEntry *visible_blocks,
     uint &visible_block_count)
 {
+    Eigen::Matrix<float, 4, 4> pose = frame_pose.inverse().matrix().cast<float>();
+
     if (cv_flag.empty())
         cv_flag.create(1, state.num_total_hash_entries_, CV_8UC1);
     if (cv_pos_array.empty())
@@ -459,7 +461,7 @@ void update(
         K.invfx,
         K.invfy,
         K.cx, K.cy,
-        frame_pose.cast<float>().matrix3x4(),
+        pose,
         flag.get());
 
     thread = dim3(MAX_THREAD);
@@ -468,7 +470,7 @@ void update(
     check_visibility_flag_kernel<<<block, thread>>>(
         map_struct,
         flag.get(),
-        frame_pose.inverse().cast<float>().matrix3x4(),
+        pose,
         cols, rows,
         K.fx, K.fy,
         K.cx, K.cy);
@@ -494,7 +496,7 @@ void update(
         visible_blocks,
         visible_block_count,
         depth, image,
-        frame_pose.inverse().cast<float>().matrix3x4(),
+        pose,
         K.fx, K.fy,
         K.cx, K.cy);
 }

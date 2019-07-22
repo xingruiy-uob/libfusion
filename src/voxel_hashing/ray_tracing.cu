@@ -277,13 +277,11 @@ void create_rendering_blocks(
     safe_call(cudaFree((void *)count_device));
 }
 
-struct MapRenderingDelegate
+struct RaytraceFunctor
 {
     int width, height;
     MapStorage map_struct;
     mutable cv::cuda::PtrStep<Vector4f> vmap;
-    mutable cv::cuda::PtrStep<Vector4f> nmap;
-    mutable cv::cuda::PtrStep<Vector3c> image;
     cv::cuda::PtrStepSz<float> zrange_x;
     cv::cuda::PtrStepSz<float> zrange_y;
     float invfx, invfy, cx, cy;
@@ -440,6 +438,124 @@ struct MapRenderingDelegate
             return Vector3c(0);
         }
     }
+};
+
+void raycast(MapStorage map_struct,
+             MapState state,
+             cv::cuda::GpuMat &vmap,
+             cv::cuda::GpuMat zrange_x,
+             cv::cuda::GpuMat zrange_y,
+             const Sophus::SE3d &pose,
+             const IntrinsicMatrix intrinsic_matrix)
+{
+    if (vmap.empty())
+        vmap.create(480, 640, CV_32FC4);
+
+    const int cols = vmap.cols;
+    const int rows = vmap.rows;
+
+    RaytraceFunctor functor;
+
+    functor.width = cols;
+    functor.height = rows;
+    functor.map_struct = map_struct;
+    functor.vmap = vmap;
+    functor.zrange_x = zrange_x;
+    functor.zrange_y = zrange_y;
+    functor.invfx = intrinsic_matrix.invfx;
+    functor.invfy = intrinsic_matrix.invfy;
+    functor.cx = intrinsic_matrix.cx;
+    functor.cy = intrinsic_matrix.cy;
+    functor.pose = pose.cast<float>().matrix3x4();
+    functor.inv_pose = pose.inverse().cast<float>().matrix3x4();
+
+    dim3 thread(4, 8);
+    dim3 block(div_up(cols, thread.x), div_up(rows, thread.y));
+
+    call_device_functor<<<block, thread>>>(functor);
+}
+
+struct RayTraceRGBFunctor
+{
+    int width, height;
+    MapStorage map_struct;
+    mutable cv::cuda::PtrStep<Vector4f> vmap;
+    mutable cv::cuda::PtrStep<Vector3c> image;
+    cv::cuda::PtrStepSz<float> zrange_x;
+    cv::cuda::PtrStepSz<float> zrange_y;
+    float invfx, invfy, cx, cy;
+    Matrix3x4f pose, inv_pose;
+
+    FUSION_DEVICE inline float read_sdf(const Vector3f &pt3d, bool &valid)
+    {
+        Voxel *voxel = NULL;
+        findVoxel(map_struct, ToVector3i(pt3d), voxel);
+        if (voxel && voxel->weight != 0)
+        {
+            valid = true;
+            return voxel->getSDF();
+        }
+        else
+        {
+            valid = false;
+            return nanf("0x7fffff");
+        }
+    }
+
+    FUSION_DEVICE inline float read_sdf_interped(const Vector3f &pt, bool &valid)
+    {
+        Vector3f xyz = pt - floor(pt);
+        float sdf[2], result[4];
+        bool valid_pt;
+
+        sdf[0] = read_sdf(pt, valid_pt);
+        sdf[1] = read_sdf(pt + Vector3f(1, 0, 0), valid);
+        valid_pt &= valid;
+        result[0] = (1.0f - xyz.x) * sdf[0] + xyz.x * sdf[1];
+
+        sdf[0] = read_sdf(pt + Vector3f(0, 1, 0), valid);
+        valid_pt &= valid;
+        sdf[1] = read_sdf(pt + Vector3f(1, 1, 0), valid);
+        valid_pt &= valid;
+        result[1] = (1.0f - xyz.x) * sdf[0] + xyz.x * sdf[1];
+        result[2] = (1.0f - xyz.y) * result[0] + xyz.y * result[1];
+
+        sdf[0] = read_sdf(pt + Vector3f(0, 0, 1), valid);
+        valid_pt &= valid;
+        sdf[1] = read_sdf(pt + Vector3f(1, 0, 1), valid);
+        valid_pt &= valid;
+        result[0] = (1.0f - xyz.x) * sdf[0] + xyz.x * sdf[1];
+
+        sdf[0] = read_sdf(pt + Vector3f(0, 1, 1), valid);
+        valid_pt &= valid;
+        sdf[1] = read_sdf(pt + Vector3f(1, 1, 1), valid);
+        valid_pt &= valid;
+        result[1] = (1.0f - xyz.x) * sdf[0] + xyz.x * sdf[1];
+        result[3] = (1.0f - xyz.y) * result[0] + xyz.y * result[1];
+        valid = valid_pt;
+        return (1.0f - xyz.z) * result[2] + xyz.z * result[3];
+    }
+
+    FUSION_DEVICE inline Vector3f unproject(const int &x, const int &y, const float &z) const
+    {
+        return Vector3f((x - cx) * invfx * z, (y - cy) * invfy * z, z);
+    }
+
+    FUSION_DEVICE inline Vector3c read_colour(Vector3f pt3d, bool &valid)
+    {
+        Voxel *voxel = NULL;
+        findVoxel(map_struct, ToVector3i(pt3d), voxel);
+        if (voxel && voxel->weight != 0)
+        {
+            valid = true;
+            return voxel->rgb;
+        }
+        else
+        {
+            valid = false;
+            return Vector3c(0);
+        }
+    }
 
     FUSION_DEVICE inline Vector3c read_colour_interpolated(Vector3f pt, bool &valid)
     {
@@ -476,7 +592,7 @@ struct MapRenderingDelegate
         return ToVector3c((1.0f - xyz.z) * result[2] + xyz.z * result[3]);
     }
 
-    FUSION_DEVICE inline void raycast_with_colour()
+    FUSION_DEVICE inline void operator()()
     {
         const int x = threadIdx.x + blockDim.x * blockIdx.x;
         const int y = threadIdx.y + blockDim.y * blockIdx.y;
@@ -565,84 +681,44 @@ struct MapRenderingDelegate
     }
 };
 
-// __global__ void __launch_bounds__(32, 16) raycast_kernel(MapRenderingDelegate delegate)
-// {
-//     delegate();
-// }
-
-// __global__ void __launch_bounds__(32, 16) raycast_with_colour_kernel(MapRenderingDelegate delegate)
-// {
-//     delegate.raycast_with_colour();
-// }
-
-void raycast(MapStorage map_struct,
-             MapState state,
-             cv::cuda::GpuMat vmap,
-             cv::cuda::GpuMat nmap,
-             cv::cuda::GpuMat zrange_x,
-             cv::cuda::GpuMat zrange_y,
-             const Sophus::SE3d &pose,
-             const IntrinsicMatrix intrinsic_matrix)
-{
-    const int cols = vmap.cols;
-    const int rows = vmap.rows;
-
-    MapRenderingDelegate delegate;
-
-    delegate.width = cols;
-    delegate.height = rows;
-    delegate.map_struct = map_struct;
-    delegate.vmap = vmap;
-    delegate.nmap = nmap;
-    delegate.zrange_x = zrange_x;
-    delegate.zrange_y = zrange_y;
-    delegate.invfx = intrinsic_matrix.invfx;
-    delegate.invfy = intrinsic_matrix.invfy;
-    delegate.cx = intrinsic_matrix.cx;
-    delegate.cy = intrinsic_matrix.cy;
-    delegate.pose = pose.cast<float>().matrix3x4();
-    delegate.inv_pose = pose.inverse().cast<float>().matrix3x4();
-
-    dim3 thread(4, 8);
-    dim3 block(div_up(cols, thread.x), div_up(rows, thread.y));
-
-    call_device_functor<<<block, thread>>>(delegate);
-}
-
 void raycast_with_colour(MapStorage map_struct,
                          MapState state,
-                         cv::cuda::GpuMat vmap,
-                         cv::cuda::GpuMat nmap,
-                         cv::cuda::GpuMat image,
+                         cv::cuda::GpuMat &vmap,
+                         cv::cuda::GpuMat &image,
                          cv::cuda::GpuMat zrange_x,
                          cv::cuda::GpuMat zrange_y,
                          const Sophus::SE3d &pose,
                          const IntrinsicMatrix intrinsic_matrix)
 {
+    if (vmap.empty())
+        vmap.create(480, 640, CV_32FC4);
+
+    if (image.empty())
+        image.create(480, 640, CV_8UC4);
+
     const int cols = vmap.cols;
     const int rows = vmap.rows;
 
-    MapRenderingDelegate delegate;
+    RayTraceRGBFunctor functor;
 
-    delegate.width = cols;
-    delegate.height = rows;
-    delegate.map_struct = map_struct;
-    delegate.vmap = vmap;
-    delegate.nmap = nmap;
-    delegate.image = image;
-    delegate.zrange_x = zrange_x;
-    delegate.zrange_y = zrange_y;
-    delegate.invfx = intrinsic_matrix.invfx;
-    delegate.invfy = intrinsic_matrix.invfy;
-    delegate.cx = intrinsic_matrix.cx;
-    delegate.cy = intrinsic_matrix.cy;
-    delegate.pose = pose.cast<float>().matrix3x4();
-    delegate.inv_pose = pose.inverse().cast<float>().matrix3x4();
+    functor.width = cols;
+    functor.height = rows;
+    functor.map_struct = map_struct;
+    functor.vmap = vmap;
+    functor.image = image;
+    functor.zrange_x = zrange_x;
+    functor.zrange_y = zrange_y;
+    functor.invfx = intrinsic_matrix.invfx;
+    functor.invfy = intrinsic_matrix.invfy;
+    functor.cx = intrinsic_matrix.cx;
+    functor.cy = intrinsic_matrix.cy;
+    functor.pose = pose.cast<float>().matrix3x4();
+    functor.inv_pose = pose.inverse().cast<float>().matrix3x4();
 
     dim3 thread(4, 8);
     dim3 block(div_up(cols, thread.x), div_up(rows, thread.y));
 
-    call_device_functor<<<block, thread>>>(delegate);
+    call_device_functor<<<block, thread>>>(functor);
 }
 
 FUSION_DEVICE inline bool is_vertex_visible(

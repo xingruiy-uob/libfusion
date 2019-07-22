@@ -1,71 +1,103 @@
-#ifndef GL_WINDOW_H
-#define GL_WINDOW_H
+#ifndef FUSION_VSL_MAIN_WINDOW_H
+#define FUSION_VSL_MAIN_WINDOW_H
 
-#include "system.h"
+#include "system_new.h"
+#include "macros.h"
 #include <pangolin/pangolin.h>
 #include <pangolin/gl/glcuda.h>
-#include <cuda_runtime_api.h>
 #include <opencv2/opencv.hpp>
+
+namespace fusion
+{
 
 class MainWindow
 {
 public:
     ~MainWindow();
-    MainWindow(const char *name = "Untitled", size_t width = 640, size_t height = 480);
+    MainWindow(
+        const char *name = "Untitled",
+        const size_t width = 640,
+        const size_t height = 480);
 
     //! Do not copy this class
     MainWindow(const MainWindow &) = delete;
     MainWindow &operator=(const MainWindow &) = delete;
 
     //! Main loop
-    void Render();
+    void render();
 
-    void ResetAllFlags();
-    void SetVertexSize(size_t Size);
-    void SetRGBSource(cv::Mat RgbImage);
-    void SetDepthSource(cv::Mat DepthImage);
-    void SetRenderScene(cv::Mat SceneImage);
-    void SetFeatureImage(cv::Mat featureImage);
-    void SetCurrentCamera(Eigen::Matrix4f T);
-    void SetSystem(fusion::System *sys);
+    enum ImageType
+    {
+        RGB,
+        DEPTH,
+        SCENE
+    };
 
-    bool IsPaused();
-    bool mbFlagRestart;
-    bool mbFlagUpdateMesh;
-
-    float *GetMappedVertexBuffer();
-    float *GetMappedNormalBuffer();
-    unsigned char *GetMappedColourBuffer();
+    //! External access
+    bool is_paused() const;
+    void set_image_src(const cv::Mat image, const ImageType type);
+    void set_current_camera(const Eigen::Matrix4f &T);
+    void set_system(fusion::SystemNew *const sys);
+    float *get_vertex_buffer_mapped();
+    float *get_normal_buffer_mapped();
+    unsigned char *get_colour_buffer_mapped();
 
     size_t VERTEX_COUNT;
     size_t MAX_VERTEX_COUNT;
 
 private:
-    //! Window Title
-    std::string WindowName;
+    std::string window_title;
 
-    void SetupDisplays();
-    void SetupGLFlags();
-    void InitTextures();
-    void InitMeshBuffers();
-    void InitGlSlPrograms();
-    void RegisterKeyCallback();
+    void setup_displays();
+    void setup_gl_flags();
+    void init_textures();
+    void init_mesh_buffers();
+    void init_glsl_programs();
+    void register_key_callbacks();
 
+    //! Acquire Mesh Functions
+    void update_vertex_and_normal();
+
+    //! Check status
+    void check_buttons();
+
+    //! Drawing Functions
+    void draw_image();
+    void draw_depth();
+    void draw_scene();
+    void draw_camera();
+    void draw_mesh_phong_shaded();
+    void draw_mesh_colour_mapped();
+    void draw_mesh_normal_mapped();
+
+    //! Current Camera Pose
+    Eigen::Matrix4f curren_pose;
+
+    //! system ref
+    fusion::SystemNew *slam;
+
+    //! key point array
+    float *keypoints;
+    size_t sizeKeyPoint;
+    size_t maxSizeKeyPoint;
+
+    //========================================
+    // Visualizations
+    //========================================
     //! Displayed Views
-    pangolin::View *mpViewSideBar;
-    pangolin::View *mpViewRGB;
-    pangolin::View *mpViewDepth;
-    pangolin::View *mpViewScene;
-    pangolin::View *mpViewMesh;
-    pangolin::View *mpViewMenu;
+    pangolin::View *right_side_view;
+    pangolin::View *image_view;
+    pangolin::View *depth_view;
+    pangolin::View *scene_view;
+    pangolin::View *mesh_view;
 
     //! Displayed textures
-    pangolin::GlTexture TextureRGB;
-    pangolin::GlTexture TextureDepth;
-    pangolin::GlTexture TextureScene;
+    pangolin::GlTexture image_tex;
+    pangolin::GlTexture depth_tex;
+    pangolin::GlTexture scene_tex;
 
     //! Main 3D View Camera
-    std::shared_ptr<pangolin::OpenGlRenderState> CameraView;
+    std::shared_ptr<pangolin::OpenGlRenderState> camera_view;
 
     //! GUI buttons and checkboxes
     std::shared_ptr<pangolin::Var<bool>> BtnReset;
@@ -81,44 +113,25 @@ private:
     std::shared_ptr<pangolin::Var<bool>> BoxDisplayKeyCameras;
     std::shared_ptr<pangolin::Var<bool>> BoxDisplayKeyPoint;
 
-    //! Acquire Mehs Functions
-    void UpdateMeshWithNormal();
-
-    //! Draw Mesh Functions
-    void DrawMeshShaded();
-    void DrawMeshColoured();
-    void DrawMeshNormalMapped();
-
     //! Mesh Vertices
-    pangolin::GlBufferCudaPtr BufferVertex;
-    pangolin::GlBufferCudaPtr BufferNormal;
-    pangolin::GlBufferCudaPtr BufferColour;
+    pangolin::GlBufferCudaPtr vertex_buffer;
+    pangolin::GlBufferCudaPtr normal_buffer;
+    pangolin::GlBufferCudaPtr colour_buffer;
 
     //! Registered CUDA Ptrs
-    std::shared_ptr<pangolin::CudaScopedMappedPtr> MappedVertex;
-    std::shared_ptr<pangolin::CudaScopedMappedPtr> MappedNormal;
-    std::shared_ptr<pangolin::CudaScopedMappedPtr> MappedColour;
+    std::shared_ptr<pangolin::CudaScopedMappedPtr> vertex_mapped;
+    std::shared_ptr<pangolin::CudaScopedMappedPtr> normal_mapped;
+    std::shared_ptr<pangolin::CudaScopedMappedPtr> colour_mapped;
 
     //! GL Shading program
-    pangolin::GlSlProgram ShadingProg;
+    pangolin::GlSlProgram phong_shader;
 
     //! Vertex Array Objects
     //! Cannot find a replacement in Pangolin
-    GLuint VAOShade, VAOColour;
-
-    //! Current Camera Pose
-    Eigen::Matrix4f CameraPose;
-
-    //! Key Frame Poses
-    std::vector<Eigen::Matrix4f> ListOfKeyCameras;
-
-    //! system ref
-    fusion::System *slam;
-
-    //! key point array
-    float *keypoints;
-    size_t sizeKeyPoint;
-    size_t maxSizeKeyPoint;
+    GLuint vao_shaded;
+    GLuint vao_colour;
 };
+
+} // namespace fusion
 
 #endif

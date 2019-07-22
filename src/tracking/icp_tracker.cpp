@@ -15,9 +15,11 @@ DenseTracking::DenseTracking()
   OUT_SE3.create(1, 29, CV_32FC1);
 }
 
-DenseTracking::DenseTracking(const IntrinsicMatrix K, const int NUM_PYR) : DenseTracking()
+DenseTracking::DenseTracking(const IntrinsicMatrix K, const int NUM_PYR)
 {
   BuildIntrinsicPyramid(K, cam_params, NUM_PYR);
+  SUM_SE3.create(96, 29, CV_32FC1);
+  OUT_SE3.create(1, 29, CV_32FC1);
 }
 
 TrackingResult DenseTracking::compute_transform(const RgbdImagePtr reference, const RgbdImagePtr current, const TrackingContext &c)
@@ -169,15 +171,25 @@ void DenseTracking::set_source_vmap(cv::cuda::GpuMat vmap)
 
 void DenseTracking::set_source_image(cv::cuda::GpuMat image)
 {
-  cv::cuda::GpuMat intensity;
-  cv::cuda::cvtColor(image, intensity, cv::COLOR_RGB2GRAY);
-  intensity.convertTo(intensity, CV_32FC1);
+  cv::cuda::GpuMat image_float, intensity;
+  image.convertTo(image_float, CV_32FC3);
+  cv::cuda::cvtColor(image_float, intensity, cv::COLOR_RGB2GRAY);
+  // intensity.convertTo(intensity, CV_32FC1);
   set_source_intensity(intensity);
+}
+
+void DenseTracking::set_reference_depth(cv::cuda::GpuMat depth_float)
+{
+  fusion::build_depth_pyr(depth_float, depth_ref_pyr, cam_params.size());
+  fusion::build_vmap_pyr(depth_ref_pyr, vmap_ref_pyr, cam_params);
+  fusion::build_nmap_pyr(vmap_ref_pyr, nmap_ref_pyr);
 }
 
 void DenseTracking::set_source_depth(cv::cuda::GpuMat depth_float)
 {
   fusion::build_depth_pyr(depth_float, depth_src_pyr, cam_params.size());
+  fusion::build_vmap_pyr(depth_src_pyr, vmap_src_pyr, cam_params);
+  fusion::build_nmap_pyr(vmap_src_pyr, nmap_src_pyr);
 }
 
 void DenseTracking::set_source_intensity(cv::cuda::GpuMat intensity)
@@ -188,9 +200,10 @@ void DenseTracking::set_source_intensity(cv::cuda::GpuMat intensity)
 
 void DenseTracking::set_reference_image(cv::cuda::GpuMat image)
 {
-  cv::cuda::GpuMat intensity;
-  cv::cuda::cvtColor(image, intensity, cv::COLOR_RGB2GRAY);
-  intensity.convertTo(intensity, CV_32FC1);
+  cv::cuda::GpuMat image_float, intensity;
+  image.convertTo(image_float, CV_32FC3);
+  cv::cuda::cvtColor(image_float, intensity, cv::COLOR_RGB2GRAY);
+  // intensity.convertTo(intensity, CV_32FC1);
   set_reference_intensity(intensity);
 }
 
@@ -203,6 +216,12 @@ void DenseTracking::set_reference_vmap(cv::cuda::GpuMat vmap)
 {
   fusion::build_vmap_pyr(vmap, vmap_ref_pyr, cam_params.size());
   fusion::build_nmap_pyr(vmap_ref_pyr, nmap_ref_pyr);
+}
+
+void display_gpumat(const char *title, cv::cuda::GpuMat &image)
+{
+  cv::Mat img(image);
+  cv::imshow(title, img);
 }
 
 TrackingResult DenseTracking::compute_transform(const TrackingContext &context)
@@ -222,6 +241,17 @@ TrackingResult DenseTracking::compute_transform(const TrackingContext &context)
     cv::cuda::GpuMat last_intensity = intensity_ref_pyr[level];
     cv::cuda::GpuMat intensity_dx = intensity_dx_pyr[level];
     cv::cuda::GpuMat intensity_dy = intensity_dy_pyr[level];
+
+    // display_gpumat("curr_vmap", curr_vmap);
+    // display_gpumat("last_vmap", last_vmap);
+    // display_gpumat("curr_nmap", curr_nmap);
+    // display_gpumat("last_nmap", last_nmap);
+    // display_gpumat("curr_intensity", curr_intensity);
+    // display_gpumat("curr_intensity", curr_intensity);
+    // display_gpumat("intensity_dx", intensity_dx);
+    // display_gpumat("intensity_dy", intensity_dy);
+    // cv::waitKey(0);
+
     IntrinsicMatrix K = cam_params[level];
     float icp_error = std::numeric_limits<float>::max();
     float rgb_error = std::numeric_limits<float>::max();

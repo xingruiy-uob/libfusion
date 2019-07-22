@@ -38,6 +38,7 @@ public:
   void set_source_image(cv::cuda::GpuMat image);
   void set_source_depth(cv::cuda::GpuMat depth_float);
   void set_source_intensity(cv::cuda::GpuMat intensity);
+  void set_reference_depth(cv::cuda::GpuMat depth_float);
   void set_reference_image(cv::cuda::GpuMat image);
   void set_reference_intensity(cv::cuda::GpuMat intensity);
   void set_reference_vmap(cv::cuda::GpuMat vmap);
@@ -60,6 +61,7 @@ private:
   std::vector<cv::cuda::GpuMat> intensity_dx_pyr;
   std::vector<cv::cuda::GpuMat> intensity_dy_pyr;
 
+  std::vector<cv::cuda::GpuMat> depth_ref_pyr;
   std::vector<cv::cuda::GpuMat> vmap_ref_pyr;
   std::vector<cv::cuda::GpuMat> nmap_ref_pyr;
   std::vector<cv::cuda::GpuMat> intensity_ref_pyr;

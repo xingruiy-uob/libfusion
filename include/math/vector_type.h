@@ -8,8 +8,6 @@
 namespace fusion
 {
 
-using uchar = unsigned char;
-
 //! 2-dimensional vector type
 template <class T>
 struct Vector2
@@ -150,17 +148,17 @@ struct Vector4
 using Vector2i = Vector2<int>;
 using Vector2s = Vector2<short>;
 using Vector2f = Vector2<float>;
-using Vector2c = Vector2<uchar>;
+using Vector2c = Vector2<unsigned char>;
 using Vector2d = Vector2<double>;
 
 using Vector3i = Vector3<int>;
 using Vector3f = Vector3<float>;
-using Vector3c = Vector3<uchar>;
+using Vector3c = Vector3<unsigned char>;
 using Vector3d = Vector3<double>;
 
 using Vector4i = Vector4<int>;
 using Vector4f = Vector4<float>;
-using Vector4c = Vector4<uchar>;
+using Vector4c = Vector4<unsigned char>;
 using Vector4d = Vector4<double>;
 
 //! Vector Maths

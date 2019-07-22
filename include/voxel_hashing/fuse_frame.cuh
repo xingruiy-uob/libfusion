@@ -36,6 +36,20 @@ void update_weighted(
     HashEntry *visible_blocks,
     uint &visible_block_count);
 
+void update_local_weighted(
+    MapStorage map_struct,
+    MapState state, const cv::cuda::GpuMat depth,
+    const cv::cuda::GpuMat normal,
+    const cv::cuda::GpuMat image,
+    const Sophus::SE3d &frame_pose,
+    const IntrinsicMatrix K,
+    cv::cuda::GpuMat &cv_flag,
+    cv::cuda::GpuMat &cv_pos_array,
+    HashEntry *visible_blocks,
+    uint &visible_block_count,
+    size_t frame_id,
+    size_t keyframe_id);
+
 } // namespace cuda
 } // namespace fusion
 

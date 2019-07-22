@@ -48,7 +48,7 @@ FUSION_DEVICE inline Vector4c renderPoint(
         255);
 }
 
-__global__ void renderSceneK(
+FUSION_KERNEL void renderSceneK(
     const cv::cuda::PtrStep<Vector4f> vmap,
     const cv::cuda::PtrStep<Vector4f> nmap,
     const Vector3f light_pos,
@@ -77,7 +77,7 @@ void renderScene(const cv::cuda::GpuMat vmap, const cv::cuda::GpuMat nmap, cv::c
     renderSceneK<<<grid, block>>>(vmap, nmap, Vector3f(5, 5, 5), image);
 }
 
-__global__ void renderSceneTexturedK(
+FUSION_KERNEL void renderSceneTexturedK(
     const cv::cuda::PtrStep<Vector4f> vmap,
     const cv::cuda::PtrStep<Vector4f> nmap,
     const cv::cuda::PtrStep<Vector3c> image,
@@ -107,7 +107,7 @@ void renderSceneTextured(const cv::cuda::GpuMat vmap, const cv::cuda::GpuMat nma
     renderSceneTexturedK<<<grid, block>>>(vmap, nmap, image, Vector3f(5, 5, 5), out);
 }
 
-__global__ void ToSemiDenseImageK(
+FUSION_KERNEL void ToSemiDenseImageK(
     const cv::cuda::PtrStepSz<float> image,
     const cv::cuda::PtrStepSz<float> intensity_dx,
     const cv::cuda::PtrStepSz<float> intensity_dy,
@@ -161,11 +161,11 @@ FUSION_DEVICE inline Vector3c interpolate_bilinear(const cv::cuda::PtrStepSz<Vec
     return ToVector3c(result);
 }
 
-__global__ void warp_image_kernel(const cv::cuda::PtrStepSz<Vector3c> src,
-                                  const cv::cuda::PtrStep<Vector4f> vmap_dst,
-                                  const Matrix3x4f pose,
-                                  const IntrinsicMatrix K,
-                                  cv::cuda::PtrStep<Vector3c> dst)
+FUSION_KERNEL void warp_image_kernel(const cv::cuda::PtrStepSz<Vector3c> src,
+                                     const cv::cuda::PtrStep<Vector4f> vmap_dst,
+                                     const Matrix3x4f pose,
+                                     const IntrinsicMatrix K,
+                                     cv::cuda::PtrStep<Vector3c> dst)
 {
     const int x = threadIdx.x + blockIdx.x * blockDim.x;
     const int y = threadIdx.y + blockIdx.y * blockDim.y;
@@ -214,7 +214,7 @@ FUSION_HOST void pyrDownVMap(const cv::cuda::GpuMat src, cv::cuda::GpuMat &dst)
     cv::cuda::resize(src, dst, cv::Size(0, 0), 0.5, 0.5);
 }
 
-__global__ void computeDerivativeK(
+FUSION_KERNEL void computeDerivativeK(
     cv::cuda::PtrStepSz<float> image,
     cv::cuda::PtrStep<float> dx,
     cv::cuda::PtrStep<float> dy)
@@ -246,7 +246,7 @@ FUSION_HOST void computeDerivative(const cv::cuda::GpuMat image, cv::cuda::GpuMa
     computeDerivativeK<<<grid, block>>>(image, dx, dy);
 }
 
-__global__ void backProjectDepthK(const cv::cuda::PtrStepSz<float> depth, cv::cuda::PtrStep<Vector4f> vmap, IntrinsicMatrix intrinsics)
+FUSION_KERNEL void backProjectDepthK(const cv::cuda::PtrStepSz<float> depth, cv::cuda::PtrStep<Vector4f> vmap, IntrinsicMatrix intrinsics)
 {
     const int x = threadIdx.x + blockDim.x * blockIdx.x;
     const int y = threadIdx.y + blockDim.y * blockIdx.y;
@@ -273,7 +273,7 @@ FUSION_HOST void backProjectDepth(const cv::cuda::GpuMat depth, cv::cuda::GpuMat
     backProjectDepthK<<<grid, block>>>(depth, vmap, K);
 }
 
-__global__ void computeNMapK(cv::cuda::PtrStepSz<Vector4f> vmap, cv::cuda::PtrStep<Vector4f> nmap)
+FUSION_KERNEL void computeNMapK(cv::cuda::PtrStepSz<Vector4f> vmap, cv::cuda::PtrStep<Vector4f> nmap)
 {
     const int x = threadIdx.x + blockDim.x * blockIdx.x;
     const int y = threadIdx.y + blockDim.y * blockIdx.y;
