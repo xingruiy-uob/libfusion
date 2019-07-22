@@ -23,6 +23,17 @@ int main(int argc, char **argv)
             if (!window.is_paused())
             {
                 slam.spawn_work(depth, image);
+
+                cv::Mat scene, current;
+                if (slam.get_rendered_scene(scene))
+                {
+                    window.set_image_src(scene, fusion::MainWindow::SCENE);
+                }
+
+                if (slam.get_rendered_depth(current))
+                {
+                    window.set_image_src(current, fusion::MainWindow::DEPTH);
+                }
             }
         }
 

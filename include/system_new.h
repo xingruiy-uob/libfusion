@@ -16,6 +16,8 @@ public:
 
     void spawn_work(const cv::Mat &depth, const cv::Mat &image);
     void reset();
+    bool get_rendered_scene(cv::Mat &scene);
+    bool get_rendered_depth(cv::Mat &depth);
     Eigen::Matrix3f get_intrinsics() const;
     Eigen::Matrix4f get_current_pose() const;
     void write_map_to_disk(const std::string) const;

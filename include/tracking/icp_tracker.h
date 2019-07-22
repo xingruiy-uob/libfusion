@@ -28,12 +28,14 @@ struct TrackingContext
 class DenseTracking
 {
 public:
-  DenseTracking();
+  // DenseTracking();
   DenseTracking(const IntrinsicMatrix K, const int NUM_PYR);
-  TrackingResult compute_transform(const RgbdImagePtr reference, const RgbdImagePtr current, const TrackingContext &c);
+  DenseTracking(const DenseTracking &) = delete;
+  // TrackingResult compute_transform(const RgbdImagePtr reference, const RgbdImagePtr current, const TrackingContext &c);
+  // void swap_intensity_pyr();
 
   TrackingResult compute_transform(const TrackingContext &c);
-  void swap_intensity_pyr();
+
   void set_source_vmap(cv::cuda::GpuMat vmap);
   void set_source_image(cv::cuda::GpuMat image);
   void set_source_depth(cv::cuda::GpuMat depth_float);

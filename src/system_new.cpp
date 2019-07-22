@@ -24,22 +24,21 @@ void SystemNew::spawn_work(const cv::Mat &depth, const cv::Mat &image)
 
     if (!initialized)
     {
-        current_pose = Sophus::SE3d();
+        current->pose = Sophus::SE3d();
         last_tracked = keyframe = current;
-        mapper->update(current->depth, current->image, Sophus::SE3d());
+        mapper->update(current->depth, current->image, current->pose);
         initialized = true;
         return;
     }
 
-    mapper->raycast(vmap_cast, image_cast, current_pose);
+    mapper->raycast(vmap_cast, image_cast, last_tracked->pose);
 
-    cv::Mat img(vmap_cast);
-    cv::imshow("img", img);
-    cv::waitKey(1);
+    // cv::Mat img(vmap_cast);
+    // cv::imshow("img", img);
+    // cv::waitKey(1);
 
-    // tracker->set_reference_vmap(vmap_cast);
-
-    tracker->set_reference_depth(cv::cuda::GpuMat(last_tracked->depth));
+    tracker->set_reference_vmap(vmap_cast);
+    // tracker->set_reference_depth(cv::cuda::GpuMat(last_tracked->depth));
     tracker->set_reference_image(cv::cuda::GpuMat(last_tracked->image));
     tracker->set_source_depth(cv::cuda::GpuMat(current->depth));
     tracker->set_source_image(cv::cuda::GpuMat(current->image));
@@ -52,8 +51,8 @@ void SystemNew::spawn_work(const cv::Mat &depth, const cv::Mat &image)
 
     if (result.sucess)
     {
-        current_pose = current_pose * result.update;
-        mapper->update(current->depth, current->image, current_pose);
+        current->pose = last_tracked->pose * result.update;
+        mapper->update(current->depth, current->image, current->pose);
 
         last_tracked = current;
 
@@ -71,6 +70,34 @@ void SystemNew::populate_current_data(cv::Mat depth, cv::Mat image)
 
 void SystemNew::reset()
 {
+}
+
+bool SystemNew::get_rendered_scene(cv::Mat &scene)
+{
+    auto vmap_ref = tracker->get_vmap_ref();
+    auto nmap_ref = tracker->get_nmap_ref();
+
+    if (vmap_ref.empty() || nmap_ref.empty())
+        return false;
+
+    cv::cuda::GpuMat scene_img;
+    fusion::renderScene(vmap_ref, nmap_ref, scene_img);
+    scene_img.download(scene);
+    return true;
+}
+
+bool SystemNew::get_rendered_depth(cv::Mat &depth)
+{
+    auto vmap_src = tracker->get_vmap_src();
+    auto nmap_src = tracker->get_nmap_src();
+
+    if (vmap_src.empty() || nmap_src.empty())
+        return false;
+
+    cv::cuda::GpuMat scene_img;
+    fusion::renderScene(vmap_src, nmap_src, scene_img);
+    scene_img.download(depth);
+    return true;
 }
 
 void SystemNew::write_map_to_disk(const std::string) const
