@@ -95,6 +95,8 @@ TrackingResult DenseTracking::compute_transform(const TrackingContext &context)
   if (context.use_initial_guess_)
     estimate = Revertable<Sophus::SE3d>(context.initial_estimate_);
 
+  // select_point(intensity_src_pyr[0], depth_src_pyr[0], intensity_dx_pyr[0], intensity_dy_pyr[0], NULL);
+
   for (int level = context.max_iterations_.size() - 1; level >= 0; --level)
   {
     cv::cuda::GpuMat curr_vmap = vmap_src_pyr[level];
@@ -235,12 +237,17 @@ TrackingResult DenseTracking::compute_transform(const TrackingContext &context)
     }
   }
 
-  if (estimate.get().log().transpose().norm() > 0.1)
-    std::cout << estimate.get().log().transpose().norm() << std::endl;
+  // if (estimate.get().log().transpose().norm() > 0.1)
+  //   std::cout << estimate.get().log().transpose().norm() << std::endl;
+
+  Sophus::SE3d pose = estimate.get();
+  Eigen::Matrix3f R = pose.rotationMatrix().cast<float>();
+  Eigen::Vector3f t = pose.translation().cast<float>();
 
   TrackingResult result;
   result.sucess = true;
   result.icp_error = last_icp_error;
+  result.point_usage = check_covisibility(vmap_ref_pyr[0], R, t, cam_params[0]);
   result.update = estimate.get().inverse();
   return result;
 }

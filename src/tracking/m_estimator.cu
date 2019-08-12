@@ -6,6 +6,7 @@
 #include "voxel_hashing/prefix_sum.h"
 #include <thrust/device_vector.h>
 #include <thrust/sort.h>
+#include <opencv2/opencv.hpp>
 
 namespace fusion
 {
@@ -365,7 +366,7 @@ struct RgbReduction2
 
             float residual = i_c - i_l;
 
-            float normalised_res = residual / stddev;
+            float normalised_res = abs(residual) / stddev;
 
             // float weight = fabs(normalised_res) <= 4.6851 ? pow(1 - pow(normalised_res / 4.6851, 2), 2) : 0;
             // weight = sqrt(weight);
@@ -487,11 +488,9 @@ void rgb_step(const cv::cuda::GpuMat &curr_intensity,
 
 struct ResidualIntensity
 {
-    float val_src;
-    float val_dst;
-    float dx, dy;
-    float x, y, z;
-    float residual;
+    Vector2f dI;
+    Vector2i uv;
+    Vector4f point;
 };
 
 struct ComputeResidual
@@ -512,8 +511,8 @@ struct ComputeResidual
         if (pt.w < 0 || isnan(pt.x))
             return false;
 
-        res.val_dst = last_image.ptr(y)[x];
-        if (!isfinite(res.val_dst))
+        float val_dst = last_image.ptr(y)[x];
+        if (!isfinite(val_dst))
             return false;
 
         Vector3f p_transformed = pose(ToVector3(pt));
@@ -521,14 +520,14 @@ struct ComputeResidual
         float v0 = p_transformed.y / p_transformed.z * fy + cy;
         if (u0 >= 2 && u0 < cols - 2 && v0 >= 2 && v0 < rows - 2)
         {
-            res.val_src = interp2(curr_image, u0, v0);
-            res.dx = interp2(dIdx, u0, v0);
-            res.dy = interp2(dIdy, u0, v0);
-
-            res.x = p_transformed.x;
-            res.y = p_transformed.y;
-            res.z = p_transformed.z;
-            return (res.dx > 1 || res.dy > 1) && isfinite(res.val_src) && isfinite(res.dx) && isfinite(res.dy);
+            float val_src = interp2(curr_image, u0, v0);
+            res.dI = Vector2f(interp2(dIdx, u0, v0), interp2(dIdy, u0, v0));
+            res.point = Vector4f(p_transformed, val_src - val_dst);
+            res.uv = Vector2i(u0, v0);
+            return res.dI.norm() > 1 &&
+                   isfinite(val_src) &&
+                   isfinite(res.dI.x) &&
+                   isfinite(res.dI.y);
         }
 
         return false;
@@ -548,14 +547,9 @@ struct ComputeResidual
         int x = k - y * cols;
 
         if (find_corresp(x, y, res))
-        {
-            res.residual = fabs(res.val_src - res.val_dst);
             return true;
-        }
         else
-        {
             return false;
-        }
     }
 
     __device__ void operator()()
@@ -564,19 +558,14 @@ struct ComputeResidual
         if (k >= cols * rows)
             return;
 
-        ResidualIntensity res = {0, 0, 0, 0, 0, 0, 0, 0};
+        ResidualIntensity res;
         if (compute_residual(k, res))
         {
             uint offset = atomicAdd(num_residuals, 1);
             residuals[offset] = res;
-            residual_abs[offset] = res.residual;
+            residual_abs[offset] = res.point.w * res.point.w;
         }
     }
-};
-
-__host__ __device__ bool operator<(const ResidualIntensity &lhs, const ResidualIntensity &rhs)
-{
-    return (lhs.residual < rhs.residual);
 };
 
 struct SolveLinearSystem
@@ -585,47 +574,69 @@ struct SolveLinearSystem
     uint num_residual;
     float std_dev;
     float fx, fy;
-    cv::cuda::PtrStepSz<float> sum;
+    float mean;
+    cv::cuda::PtrStep<unsigned char> weight_map;
+    cv::cuda::PtrStepSz<float> out;
 
-    __device__ void operator()()
+    __device__ inline void compute_jacobian(int &k, float *val)
     {
-        int k = threadIdx.x + blockDim.x * blockIdx.x;
-        if (k >= num_residual)
-            return;
-
         ResidualIntensity &res = residuals[k];
 
         Vector3f left;
-        Vector3f point(res.x, res.y, res.z);
         float row[7] = {0, 0, 0, 0, 0, 0, 0};
-        float residual = res.val_src - res.val_dst;
 
-        float z_inv = 1.0 / point.z;
-        left.x = res.dx * fx * z_inv;
-        left.y = res.dy * fy * z_inv;
-        left.z = -(left.x * point.x + left.y * point.y) * z_inv;
+        float z_inv = 1.0 / res.point.z;
+        left.x = res.dI.x * fx * z_inv;
+        left.y = res.dI.y * fy * z_inv;
+        left.z = -(left.x * res.point.x + left.y * res.point.y) * z_inv;
 
-        float res_abs = fabs(residual / std_dev);
+        float res_abs = fabs(res.point.w) / std_dev;
 
-        // float weight = fabs(normalised_res) <= 4.6851 ? pow(1 - pow(normalised_res / 4.6851, 2), 2) : 0;
+        // float weight = res_abs <= 4.6851 ? pow(1 - pow(res_abs / 4.6851, 2), 2) : 0;
         // weight = sqrt(weight);
-        // float huber_th = 1.345 * std_dev;
-        float weight = res_abs > std_dev ? std_dev / res_abs : 1;
+        float huber_th = 1.345 * std_dev;
+        float weight = res_abs > huber_th ? sqrt(huber_th / res_abs) : 1;
+        if (weight != 1)
+            weight_map.ptr(res.uv.y)[res.uv.x] = 255;
         // if (fabs(residual) > 1.4 * std_dev && stddev > 10e-6)
         // {
         //     weight = sqrtf(huber_th / fabs(residual));
         // }
 
-        row[6] = weight * (-residual);
+        row[6] = weight * (-res.point.w);
         *(Vector3f *)&row[0] = weight * left;
-        *(Vector3f *)&row[3] = weight * point.cross(left);
+        *(Vector3f *)&row[3] = weight * ToVector3(res.point).cross(left);
 
         int count = 0;
 #pragma unroll
         for (int i = 0; i < 7; ++i)
 #pragma unroll
             for (int j = i; j < 7; ++j)
-                sum.ptr(k)[count++] = row[i] * row[j];
+                val[count++] = row[i] * row[j];
+    }
+
+    __device__ inline void operator()()
+    {
+        float sum[28] = {0, 0, 0, 0, 0, 0, 0, 0,
+                         0, 0, 0, 0, 0, 0, 0, 0,
+                         0, 0, 0, 0, 0, 0, 0, 0,
+                         0, 0, 0, 0};
+
+        float val[28];
+        for (int i = blockIdx.x * blockDim.x + threadIdx.x; i < num_residual; i += blockDim.x * gridDim.x)
+        {
+            compute_jacobian(i, val);
+#pragma unroll
+            for (int j = 0; j < 28; ++j)
+                sum[j] += val[j];
+        }
+
+        BlockReduce<float, 28>(sum);
+
+        if (threadIdx.x == 0)
+#pragma unroll
+            for (int i = 0; i < 28; ++i)
+                out.ptr(blockIdx.x)[i] = sum[i];
     }
 };
 
@@ -688,13 +699,14 @@ void compute_residual(
     thrust::sort(dev_ptr, dev_ptr + num);
     float median_val = 0;
     if (num % 2 == 0)
-        median_val = (dev_ptr[num / 2 - 1] + dev_ptr[num / 2]) * 0.5f;
+        median_val = sqrt((dev_ptr[num / 2 - 1] + dev_ptr[num / 2]) * 0.5f);
     else
-        median_val = dev_ptr[(num) / 2];
+        median_val = sqrt(dev_ptr[(num) / 2]);
 
-    std::cout << "median: " << median_val << "  num_corresp: " << num << std::endl;
-    // float std_dev = 1.4826 * (1 + 5 / (num - 6)) * median_val; // for turkey's biweight
-    float std_dev = 1.345 * (1 + 5 / (num - 6)) * median_val; // for huber norm
+    // std::cout << "median: " << median_val << "  num_corresp: " << num << " ratio: " << (float)num / (cols * rows) << std::endl;
+    // float std_dev = 1.4826 * (1 + 5.f / (num - 6)) * sqrt(median_val); // for tukey's biweight
+    float std_dev = 1.345 * (1 + 5.f / ((float)num - 6.f)) * sqrt(median_val); // for huber norm
+    std::cout << "median: " << sqrt(median_val) << "stddev: " << std_dev << std::endl;
 
     block = dim3(MAX_THREAD);
     grid = dim3(div_up(num, block.x));
@@ -703,15 +715,20 @@ void compute_residual(
     cv::cuda::GpuMat out;
     sum.setTo(0);
 
+    cv::cuda::GpuMat weightMap(rows, cols, CV_8UC1);
+    weightMap.setTo(0);
+
     SolveLinearSystem solver;
     solver.num_residual = num;
     solver.std_dev = std_dev;
-    solver.sum = sum;
+    solver.mean = median_val;
+    solver.out = sum;
     solver.fx = K.fx;
     solver.fy = K.fy;
+    solver.weight_map = weightMap;
     solver.residuals = residual_intensity;
 
-    call_device_functor<<<grid, block>>>(solver);
+    call_device_functor<<<96, 224>>>(solver);
 
     cv::cuda::reduce(sum, out, 0, cv::REDUCE_SUM);
 
@@ -719,6 +736,14 @@ void compute_residual(
     create_jtjjtr<6, 7>(host_data, jtj, jtr);
     residual[0] = host_data.ptr<float>()[27];
     residual[1] = num;
+
+    if (weightMap.cols == 640)
+    {
+        cv::Mat img(weightMap);
+        cv::imshow("img", img);
+        // std::cout << img << std::endl;
+        cv::waitKey(1);
+    }
 
     // safe_call(cudaFree(residual_intensity));
     safe_call(cudaFree(num_residuals));

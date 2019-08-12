@@ -304,4 +304,103 @@ FUSION_HOST void computeNMap(const cv::cuda::GpuMat vmap, cv::cuda::GpuMat &nmap
     computeNMapK<<<grid, block>>>(vmap, nmap);
 }
 
+__global__ void select_point_with_gradient_kernel(
+    const cv::cuda::PtrStepSz<float> intensity,
+    const cv::cuda::PtrStep<float> depth,
+    const cv::cuda::PtrStep<float> dx,
+    const cv::cuda::PtrStep<float> dy,
+    cv::cuda::PtrStep<float> mask_out,
+    Vector4f *selected_points)
+{
+    const int x = threadIdx.x + blockDim.x * blockIdx.x;
+    const int y = threadIdx.y + blockDim.y * blockIdx.y;
+    if (x >= intensity.cols || y >= intensity.rows)
+        return;
+
+    if (sqrt(pow(dx.ptr(y)[x], 2) + pow(dy.ptr(y)[x], 2)) > 2)
+    {
+        mask_out.ptr(y)[x] = intensity.ptr(y)[x];
+    }
+    else
+    {
+        mask_out.ptr(y)[x] = 0;
+    }
+}
+
+void select_point(
+    const cv::cuda::GpuMat intensity,
+    const cv::cuda::GpuMat depth,
+    const cv::cuda::GpuMat dx,
+    const cv::cuda::GpuMat dy,
+    Vector4f *selected_points)
+{
+    const auto cols = intensity.cols;
+    const auto rows = intensity.rows;
+
+    dim3 block(8, 8);
+    dim3 grid(div_up(cols, block.x), div_up(rows, block.y));
+
+    cv::cuda::GpuMat mask(intensity.size(), intensity.type());
+
+    select_point_with_gradient_kernel<<<grid, block>>>(intensity, depth, dx, dy, mask, selected_points);
+
+    cv::Mat img(mask);
+    cv::imshow("img", img);
+    cv::waitKey(1);
+}
+
+__global__ void check_covisibility_kernel(
+    const cv::cuda::PtrStepSz<Vector4f> vmap,
+    Matrix3x3f KRKinv, Vector3f Kt,
+    uint *num_points)
+{
+    const int x = threadIdx.x + blockDim.x * blockIdx.x;
+    const int y = threadIdx.y + blockDim.y * blockIdx.y;
+    if (x >= vmap.cols || y >= vmap.rows)
+        return;
+
+    Vector3f vertex = ToVector3(vmap.ptr(y)[x]);
+    Vector3f transformed_point = KRKinv(vertex) + Kt;
+    if (transformed_point.x >= 0 &&
+        transformed_point.y >= 0 &&
+        transformed_point.x < vmap.cols &&
+        transformed_point.y < vmap.rows)
+    {
+        atomicAdd(num_points, 1);
+    }
+}
+
+float check_covisibility(
+    const cv::cuda::GpuMat vmap,
+    Eigen::Matrix3f R,
+    Eigen::Vector3f t,
+    IntrinsicMatrix &K)
+{
+    const int cols = vmap.cols;
+    const int rows = vmap.rows;
+
+    Eigen::Matrix3f Kmat;
+    Kmat << K.fx, 0, K.cx,
+        0, K.fy, K.cy,
+        0, 0, 1;
+    Eigen::Matrix3f KR = Kmat * R;
+    Eigen::Vector3f Kt = Kmat * t;
+
+    dim3 block(8, 8);
+    dim3 grid(div_up(cols, block.x), div_up(rows, block.y));
+
+    uint *num_points;
+
+    cudaMalloc((void **)&num_points, sizeof(uint));
+    cudaMemset(num_points, 0, sizeof(uint));
+
+    check_covisibility_kernel<<<grid, block>>>(vmap, KR, Vector3f(Kt(0), Kt(1), Kt(2)), num_points);
+
+    uint temp = 0;
+    cudaMemcpy(&temp, num_points, sizeof(uint), cudaMemcpyDeviceToHost);
+
+    cudaFree(num_points);
+    return (float)temp / (cols * rows);
+}
+
 } // namespace fusion

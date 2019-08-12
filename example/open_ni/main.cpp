@@ -25,10 +25,10 @@ int main(int argc, char **argv)
                 slam.spawn_work(depth, image);
 
                 cv::Mat scene, current;
-                // if (slam.get_rendered_scene(scene))
-                // {
-                //     window.set_image_src(scene, fusion::MainWindow::SCENE);
-                // }
+                if (slam.get_rendered_scene(scene))
+                {
+                    window.set_image_src(scene, fusion::MainWindow::SCENE);
+                }
 
                 // if (slam.get_rendered_depth(current))
                 // {
@@ -37,8 +37,8 @@ int main(int argc, char **argv)
             }
         }
 
-        // if (window.is_paused())
-        window.update_vertex_and_normal();
+        if (window.is_paused())
+            window.update_vertex_and_normal();
 
         window.render();
     }

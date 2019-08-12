@@ -32,6 +32,11 @@ struct Vector2
         return x * V.x + y * V.y;
     }
 
+    FUSION_HOST_AND_DEVICE inline float norm() const
+    {
+        return sqrt((float)(*this * *this));
+    }
+
     FUSION_HOST_AND_DEVICE inline T operator*(const Vector2<T> &other) const
     {
         return x * other.x + y * other.y;
@@ -163,10 +168,16 @@ using Vector4d = Vector4<double>;
 
 //! Vector Maths
 //! Defined basic mathematic operations
-template <class T, class U>
-FUSION_HOST_AND_DEVICE inline Vector3<T> operator*(T S, Vector3<U> V)
+// template <class T, class U>
+// FUSION_HOST_AND_DEVICE inline Vector3<T> operator*(T S, Vector3<U> V)
+// {
+//     return Vector3<T>(V.x * S, V.y * S, V.z * S);
+// }
+
+template <typename T>
+FUSION_HOST_AND_DEVICE inline Vector3f operator*(float S, Vector3<T> V)
 {
-    return Vector3<T>(V.x * S, V.y * S, V.z * S);
+    return Vector3f(V.x * S, V.y * S, V.z * S);
 }
 
 template <class T>

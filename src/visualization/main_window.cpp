@@ -214,7 +214,7 @@ void MainWindow::render()
     check_buttons();
     draw_image();
     draw_depth();
-    // draw_scene();
+    draw_scene();
     draw_camera();
     draw_mesh_phong_shaded();
 
@@ -278,7 +278,7 @@ void MainWindow::update_vertex_and_normal()
 
 void MainWindow::draw_mesh_phong_shaded()
 {
-    if (VERTEX_COUNT == 0)
+    if (VERTEX_COUNT == 0 || !is_paused())
         return;
 
     mesh_view->Activate();

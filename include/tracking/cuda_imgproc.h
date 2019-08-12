@@ -3,6 +3,7 @@
 
 #include <sophus/se3.hpp>
 #include <opencv2/cudaarithm.hpp>
+#include <math/vector_type.h>
 #include "data_struct/intrinsic_matrix.h"
 
 namespace fusion
@@ -37,6 +38,19 @@ void warp_image(
     const Sophus::SE3d pose,
     const IntrinsicMatrix K,
     cv::cuda::GpuMat &dst);
+
+void select_point(
+    const cv::cuda::GpuMat intensity,
+    const cv::cuda::GpuMat depth,
+    const cv::cuda::GpuMat dx,
+    const cv::cuda::GpuMat dy,
+    Vector4f *selected_points);
+
+float check_covisibility(
+    const cv::cuda::GpuMat vmap,
+    Eigen::Matrix3f R,
+    Eigen::Vector3f t,
+    IntrinsicMatrix &K);
 
 } // namespace fusion
 

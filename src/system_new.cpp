@@ -31,14 +31,14 @@ void SystemNew::spawn_work(const cv::Mat &depth, const cv::Mat &image)
         return;
     }
 
-    // mapper->raycast(vmap_cast, image_cast, keyframe->pose);
+    mapper->raycast(vmap_cast, image_cast, keyframe->pose);
 
     // cv::Mat img(vmap_cast);
     // cv::imshow("img", img);
     // cv::waitKey(1);
 
-    // tracker->set_reference_vmap(vmap_cast);
-    tracker->set_reference_depth(cv::cuda::GpuMat(keyframe->depth));
+    tracker->set_reference_vmap(vmap_cast);
+    // tracker->set_reference_depth(cv::cuda::GpuMat(keyframe->depth));
     tracker->set_reference_image(cv::cuda::GpuMat(keyframe->image));
     tracker->set_source_depth(cv::cuda::GpuMat(current->depth));
     tracker->set_source_image(cv::cuda::GpuMat(current->image));
@@ -49,8 +49,8 @@ void SystemNew::spawn_work(const cv::Mat &depth, const cv::Mat &image)
     context.initial_estimate_ = last_tracked->pose.inverse() * keyframe->pose;
     auto result = tracker->compute_transform(context);
 
-    cudaDeviceSynchronize();
-    cudaGetLastError();
+    // cudaDeviceSynchronize();
+    // cudaGetLastError();
 
     if (result.sucess)
     {
@@ -59,8 +59,11 @@ void SystemNew::spawn_work(const cv::Mat &depth, const cv::Mat &image)
         cudaDeviceSynchronize();
         cudaGetLastError();
 
-        // if (check_keyframe_critera())
+        // std::cout << result.point_usage << std::endl;
+        // if (result.point_usage < 0.7 || check_keyframe_critera())
         //     create_keyframe();
+        // if (check_keyframe_critera())
+        create_keyframe();
 
         last_tracked = current;
 
@@ -123,6 +126,7 @@ void SystemNew::read_map_from_disk(const std::string)
 void SystemNew::create_keyframe()
 {
     keyframe = last_tracked;
+    std::cout << "key frame created" << std::endl;
 }
 
 bool SystemNew::check_keyframe_critera() const

@@ -14,6 +14,7 @@ struct TrackingResult
 {
   bool sucess;
   float icp_error;
+  float point_usage;
   Sophus::SE3d update;
 };
 
