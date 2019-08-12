@@ -31,28 +31,36 @@ void SystemNew::spawn_work(const cv::Mat &depth, const cv::Mat &image)
         return;
     }
 
-    mapper->raycast(vmap_cast, image_cast, last_tracked->pose);
+    // mapper->raycast(vmap_cast, image_cast, keyframe->pose);
 
     // cv::Mat img(vmap_cast);
     // cv::imshow("img", img);
     // cv::waitKey(1);
 
-    tracker->set_reference_vmap(vmap_cast);
-    // tracker->set_reference_depth(cv::cuda::GpuMat(last_tracked->depth));
-    tracker->set_reference_image(cv::cuda::GpuMat(last_tracked->image));
+    // tracker->set_reference_vmap(vmap_cast);
+    tracker->set_reference_depth(cv::cuda::GpuMat(keyframe->depth));
+    tracker->set_reference_image(cv::cuda::GpuMat(keyframe->image));
     tracker->set_source_depth(cv::cuda::GpuMat(current->depth));
     tracker->set_source_image(cv::cuda::GpuMat(current->image));
 
     TrackingContext context;
     context.max_iterations_ = {10, 5, 3, 3, 3};
     context.use_initial_guess_ = true;
-    context.initial_estimate_ = Sophus::SE3d();
+    context.initial_estimate_ = last_tracked->pose.inverse() * keyframe->pose;
     auto result = tracker->compute_transform(context);
+
+    cudaDeviceSynchronize();
+    cudaGetLastError();
 
     if (result.sucess)
     {
-        current->pose = last_tracked->pose * result.update;
+        current->pose = keyframe->pose * result.update;
         mapper->update(current->depth, current->image, current->pose);
+        cudaDeviceSynchronize();
+        cudaGetLastError();
+
+        // if (check_keyframe_critera())
+        //     create_keyframe();
 
         last_tracked = current;
 
@@ -70,6 +78,10 @@ void SystemNew::populate_current_data(cv::Mat depth, cv::Mat image)
 
 void SystemNew::reset()
 {
+    mapper->reset_mapping();
+    initialized = false;
+    cudaDeviceSynchronize();
+    cudaGetLastError();
 }
 
 bool SystemNew::get_rendered_scene(cv::Mat &scene)
@@ -110,10 +122,16 @@ void SystemNew::read_map_from_disk(const std::string)
 
 void SystemNew::create_keyframe()
 {
+    keyframe = last_tracked;
 }
 
 bool SystemNew::check_keyframe_critera() const
 {
+    auto pose = current->pose;
+    auto ref_pose = keyframe->pose;
+    if ((pose.inverse() * ref_pose).translation().norm() > 0.1f)
+        return true;
+    return false;
 }
 
 Eigen::Matrix3f SystemNew::get_intrinsics() const
@@ -124,6 +142,11 @@ Eigen::Matrix3f SystemNew::get_intrinsics() const
 Eigen::Matrix4f SystemNew::get_current_pose() const
 {
     return current_pose.cast<float>().matrix();
+}
+
+size_t SystemNew::fetch_mesh_with_normal(float *vertex, float *normal)
+{
+    return mapper->fetch_mesh_with_normal(vertex, normal);
 }
 
 } // namespace fusion

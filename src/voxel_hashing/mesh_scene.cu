@@ -316,6 +316,7 @@ void create_mesh_with_normal(
 {
     uint *cuda_block_count;
     uint *cuda_triangle_count;
+
     safe_call(cudaMalloc(&cuda_block_count, sizeof(uint)));
     safe_call(cudaMalloc(&cuda_triangle_count, sizeof(uint)));
     safe_call(cudaMemset(cuda_block_count, 0, sizeof(uint)));

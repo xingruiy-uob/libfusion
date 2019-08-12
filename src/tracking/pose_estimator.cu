@@ -295,7 +295,7 @@ void icp_reduce(
     icp.fy = K.fy;
     icp.cx = K.cx;
     icp.cy = K.cy;
-
+    
     icp_reduce_kernel<<<96, 224>>>(icp);
     cv::cuda::reduce(sum, out, 0, cv::REDUCE_SUM);
 

@@ -298,6 +298,8 @@ __global__ void update_map_with_colour_kernel(MapStorage map_struct,
         return;
 
     HashEntry &current = visible_blocks[blockIdx.x];
+    if (current.ptr_ < 0)
+        return;
 
     Vector3i voxel_pos = blockPosToVoxelPos(current.pos_);
     float dist_thresh = param.truncation_dist();

@@ -214,8 +214,9 @@ void MainWindow::render()
     check_buttons();
     draw_image();
     draw_depth();
-    draw_scene();
+    // draw_scene();
     draw_camera();
+    draw_mesh_phong_shaded();
 
     // Swap frame buffers
     pangolin::FinishFrame();
@@ -255,6 +256,7 @@ void MainWindow::check_buttons()
     if (pangolin::Pushed(*BtnReset))
     {
         slam->reset();
+        VERTEX_COUNT = 0;
     }
 }
 
@@ -269,15 +271,17 @@ void MainWindow::draw_camera()
 
 void MainWindow::update_vertex_and_normal()
 {
-    // auto *vertex = get_vertex_buffer_mapped();
-    // auto *normal = get_normal_buffer_mapped();
-    // VERTEX_COUNT = slam->fetch_mesh_with_normal(vertex, normal);
+    auto *vertex = get_vertex_buffer_mapped();
+    auto *normal = get_normal_buffer_mapped();
+    VERTEX_COUNT = slam->fetch_mesh_with_normal(vertex, normal);
 }
 
 void MainWindow::draw_mesh_phong_shaded()
 {
-    if (VERTEX_COUNT == 0 || !is_paused())
+    if (VERTEX_COUNT == 0)
         return;
+
+    mesh_view->Activate();
 
     phong_shader.Bind();
     glBindVertexArray(vao_shaded);

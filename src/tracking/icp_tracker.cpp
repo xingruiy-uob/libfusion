@@ -129,64 +129,91 @@ TrackingResult DenseTracking::compute_transform(const TrackingContext &context)
       last_icp_error = icp_error;
       last_rgb_error = rgb_error;
 
-      icp_reduce(
-          curr_vmap,
-          curr_nmap,
-          last_vmap,
-          last_nmap,
-          SUM_SE3,
-          OUT_SE3,
-          last_estimate,
-          K,
-          icp_hessian.data(),
-          icp_residual.data(),
-          residual_icp_.data());
+      // icp_reduce(
+      //     curr_vmap,
+      //     curr_nmap,
+      //     last_vmap,
+      //     last_nmap,
+      //     SUM_SE3,
+      //     OUT_SE3,
+      //     last_estimate,
+      //     K,
+      //     icp_hessian.data(),
+      //     icp_residual.data(),
+      //     residual_icp_.data());
 
-      float stdev_estimated;
+      // float stdev_estimated;
 
-      rgb_step(
+      compute_residual(
           curr_intensity,
           last_intensity,
           last_vmap,
-          curr_vmap,
           intensity_dx,
           intensity_dy,
-          SUM_SE3,
-          OUT_SE3,
-          stddev_estimated,
           last_estimate,
           K,
           rgb_hessian.data(),
           rgb_residual.data(),
           residual_rgb_.data());
 
-      stddev_estimated = sqrt(residual_rgb_[0] / (residual_rgb_[1] - 6));
+      // std::cout << stddev_estimated << std::endl;
 
-      auto A = 1e6 * icp_hessian + rgb_hessian;
-      auto b = 1e6 * icp_residual + rgb_residual;
+      // rgb_step(
+      //     curr_intensity,
+      //     last_intensity,
+      //     last_vmap,
+      //     curr_vmap,
+      //     intensity_dx,
+      //     intensity_dy,
+      //     SUM_SE3,
+      //     OUT_SE3,
+      //     stddev_estimated,
+      //     last_estimate,
+      //     K,
+      //     rgb_hessian.data(),
+      //     rgb_residual.data(),
+      //     residual_rgb_.data());
+
+      // stddev_estimated = sqrt(residual_rgb_[0] / (residual_rgb_[1] - 6));
+
+      // auto A = 1e6 * icp_hessian + rgb_hessian;
+      // auto b = 1e6 * icp_residual + rgb_residual;
+      auto A = rgb_hessian;
+      auto b = rgb_residual;
       // auto A = icp_hessian;
       // auto b = icp_residual;
 
       update = A.cast<double>().ldlt().solve(b.cast<double>());
+
+      Eigen::Vector3d update_so3;
+
+      // if (level < 2)
+      // {
+      //   update_so3 << update(3), update(4), update(5);
+      //   estimate = Sophus::SE3d(Sophus::SO3d::exp(update_so3) * last_estimate.so3(), last_estimate.translation());
+      // }
+      // else
+      // {
       estimate = Sophus::SE3d::exp(update) * last_estimate;
+      // }
 
-      icp_error = sqrt(residual_icp_(0)) / residual_icp_(1);
+      // icp_error = sqrt(residual_icp_(0)) / residual_icp_(1);
 
-      if (icp_error > last_icp_error)
-      {
-        if (icp_count >= 2)
-        {
-          estimate.revert();
-          break;
-        }
+      // if (icp_error > last_icp_error)
+      // {
+      //   if (icp_count >= 2)
+      //   {
+      //     estimate.revert();
+      //     break;
+      //   }
 
-        icp_count++;
-        icp_error = last_icp_error;
-      }
-      else
-      {
-        icp_count = 0;
-      }
+      //   icp_count++;
+      //   icp_error = last_icp_error;
+      // }
+      // else
+      // {
+      //   icp_count = 0;
+      // }
 
       rgb_error = sqrt(residual_rgb_(0)) / residual_rgb_(1);
 

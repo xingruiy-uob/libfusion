@@ -14,7 +14,7 @@ FUSION_DEVICE inline int exclusive_scan(T element, T *const sum)
     __shared__ T block_offset;
 
     if (threadIdx.x == 0)
-        memset(buffer, 0, sizeof(T) * 16 * 16);
+        memset(buffer, 0, sizeof(T) * thread_block);
 
     __syncthreads();
 

@@ -42,6 +42,9 @@ public:
     float *get_normal_buffer_mapped();
     unsigned char *get_colour_buffer_mapped();
 
+    //! Acquire Mesh Functions
+    void update_vertex_and_normal();
+
     size_t VERTEX_COUNT;
     size_t MAX_VERTEX_COUNT;
 
@@ -54,9 +57,6 @@ private:
     void init_mesh_buffers();
     void init_glsl_programs();
     void register_key_callbacks();
-
-    //! Acquire Mesh Functions
-    void update_vertex_and_normal();
 
     //! Check status
     void check_buttons();

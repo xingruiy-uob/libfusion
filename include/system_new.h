@@ -22,6 +22,7 @@ public:
     Eigen::Matrix4f get_current_pose() const;
     void write_map_to_disk(const std::string) const;
     void read_map_from_disk(const std::string);
+    size_t fetch_mesh_with_normal(float *vertex, float *normal);
 
 private:
     SystemNew(const SystemNew &) = delete;

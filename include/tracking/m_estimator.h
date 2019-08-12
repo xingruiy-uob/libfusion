@@ -23,6 +23,17 @@ void rgb_step(
     float *jtj, float *jtr,
     float *residual);
 
+void compute_residual(
+    const cv::cuda::GpuMat &curr_intensity,
+    const cv::cuda::GpuMat &last_intensity,
+    const cv::cuda::GpuMat &last_vmap,
+    const cv::cuda::GpuMat &intensity_dx,
+    const cv::cuda::GpuMat &intensity_dy,
+    const Sophus::SE3d &pose,
+    const IntrinsicMatrix K,
+    float *jtj, float *jtr,
+    float *residual);
+
 } // namespace fusion
 
 #endif
