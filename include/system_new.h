@@ -50,6 +50,7 @@ private:
     void populate_current_data(cv::Mat depth, cv::Mat image);
 
     Eigen::Matrix3f K;
+    bool has_new_keyframe;
 };
 
 } // namespace fusion

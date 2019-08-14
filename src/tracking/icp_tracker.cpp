@@ -22,11 +22,15 @@ DenseTracking::DenseTracking(const IntrinsicMatrix K, const int NUM_PYR)
   intensity_src_pyr.resize(NUM_PYR);
   intensity_dx_pyr.resize(NUM_PYR);
   intensity_dy_pyr.resize(NUM_PYR);
+  depth_dx_pyr.resize(NUM_PYR);
+  depth_dy_pyr.resize(NUM_PYR);
 
   depth_ref_pyr.resize(NUM_PYR);
   vmap_ref_pyr.resize(NUM_PYR);
   nmap_ref_pyr.resize(NUM_PYR);
   intensity_ref_pyr.resize(NUM_PYR);
+  last_hessian.setZero();
+  last_update.setZero();
 }
 
 void DenseTracking::set_source_vmap(cv::cuda::GpuMat vmap)
@@ -55,6 +59,7 @@ void DenseTracking::set_source_depth(cv::cuda::GpuMat depth_float)
   fusion::build_depth_pyr(depth_float, depth_src_pyr, cam_params.size());
   fusion::build_vmap_pyr(depth_src_pyr, vmap_src_pyr, cam_params);
   fusion::build_nmap_pyr(vmap_src_pyr, nmap_src_pyr);
+  fusion::build_intensity_dxdy_pyr(depth_src_pyr, depth_dx_pyr, depth_dy_pyr);
 }
 
 void DenseTracking::set_source_intensity(cv::cuda::GpuMat intensity)
@@ -146,6 +151,18 @@ TrackingResult DenseTracking::compute_transform(const TrackingContext &context)
 
       // float stdev_estimated;
 
+      // compute_residual(
+      //     depth_src_pyr[level],
+      //     depth_ref_pyr[level],
+      //     last_vmap,
+      //     depth_dx_pyr[level],
+      //     depth_dy_pyr[level],
+      //     last_estimate,
+      //     K,
+      //     icp_hessian.data(),
+      //     icp_residual.data(),
+      //     residual_icp_.data());
+
       compute_residual(
           curr_intensity,
           last_intensity,
@@ -178,16 +195,16 @@ TrackingResult DenseTracking::compute_transform(const TrackingContext &context)
 
       // stddev_estimated = sqrt(residual_rgb_[0] / (residual_rgb_[1] - 6));
 
-      // auto A = 1e6 * icp_hessian + rgb_hessian;
-      // auto b = 1e6 * icp_residual + rgb_residual;
-      auto A = rgb_hessian;
-      auto b = rgb_residual;
+      // auto joint_hessian = 1e6 * icp_hessian + rgb_hessian;
+      // auto joint_residual = 1e6 * icp_residual + rgb_residual;
+      joint_hessian = rgb_hessian;
+      joint_residual = rgb_residual;
       // auto A = icp_hessian;
       // auto b = icp_residual;
 
-      update = A.cast<double>().ldlt().solve(b.cast<double>());
+      update = joint_hessian.cast<double>().ldlt().solve(joint_residual.cast<double>());
 
-      Eigen::Vector3d update_so3;
+      // Eigen::Vector3d update_so3;
 
       // if (level < 2)
       // {
@@ -249,6 +266,10 @@ TrackingResult DenseTracking::compute_transform(const TrackingContext &context)
   result.icp_error = last_icp_error;
   result.point_usage = check_covisibility(vmap_ref_pyr[0], R, t, cam_params[0]);
   result.update = estimate.get().inverse();
+
+  last_hessian = joint_hessian.normalized();
+  last_update = estimate.get().log();
+
   return result;
 }
 

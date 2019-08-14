@@ -10,10 +10,10 @@ TUMLoader::TUMLoader(const std::string &root_path)
     load_association();
 }
 
-void TUMLoader::get_next_images(cv::Mat &depth, cv::Mat &image)
+bool TUMLoader::get_next_images(cv::Mat &depth, cv::Mat &image)
 {
-    if (image_id >= images_loaded)
-        return;
+    if (!has_images())
+        return false;
 
     std::string fullpath_image = root_path + image_filenames[image_id];
     std::string fullpath_depth = root_path + depth_filenames[image_id];
@@ -22,6 +22,8 @@ void TUMLoader::get_next_images(cv::Mat &depth, cv::Mat &image)
     depth = cv::imread(fullpath_depth, cv::IMREAD_UNCHANGED);
 
     image_id += 1;
+
+    return true;
 }
 
 bool TUMLoader::has_images() noexcept
@@ -43,7 +45,7 @@ bool TUMLoader::load_association()
     std::string filename_depth;
     std::string filename_image;
 
-    while (file >> ts >> filename_depth >> ts >> filename_image)
+    while (file >> ts >> filename_image >> ts >> filename_depth)
     {
         image_filenames.push_back(filename_image);
         depth_filenames.push_back(filename_depth);

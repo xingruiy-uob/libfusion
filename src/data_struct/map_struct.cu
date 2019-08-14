@@ -19,9 +19,9 @@ MapStruct<Device>::MapStruct()
     state.num_total_buckets_ = 200000;
     state.num_total_hash_entries_ = 250000;
     state.num_total_voxel_blocks_ = 200000;
-    state.zmax_raycast = 2.f;
+    state.zmax_raycast = 3.f;
     state.zmin_raycast = 0.3f;
-    state.zmax_update = 2.f;
+    state.zmax_update = 3.f;
     state.zmin_update = 0.3f;
     state.voxel_size = 0.004f;
     state.num_max_rendering_blocks_ = 100000;

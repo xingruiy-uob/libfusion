@@ -17,7 +17,7 @@ MainWindow::MainWindow(
     const size_t height)
     : window_title(name),
       VERTEX_COUNT(0),
-      MAX_VERTEX_COUNT(20000000)
+      MAX_VERTEX_COUNT(50000000)
 {
     pangolin::CreateWindowAndBind(window_title, width, height);
 
@@ -214,7 +214,7 @@ void MainWindow::render()
     check_buttons();
     draw_image();
     draw_depth();
-    draw_scene();
+    // draw_scene();
     draw_camera();
     draw_mesh_phong_shaded();
 
@@ -262,7 +262,7 @@ void MainWindow::check_buttons()
 
 void MainWindow::draw_camera()
 {
-    if (*BoxDisplayCamera && is_paused())
+    if (*BoxDisplayCamera)
     {
         mesh_view->Activate();
         pangolin::glDrawFrustum(slam->get_intrinsics(), 640, 480, slam->get_current_pose(), 0.05f);
@@ -278,7 +278,7 @@ void MainWindow::update_vertex_and_normal()
 
 void MainWindow::draw_mesh_phong_shaded()
 {
-    if (VERTEX_COUNT == 0 || !is_paused())
+    if (VERTEX_COUNT == 0)
         return;
 
     mesh_view->Activate();

@@ -11,7 +11,7 @@ class TUMLoader
 {
 public:
     TUMLoader(const std::string &root_path);
-    void get_next_images(cv::Mat &depth, cv::Mat &image);
+    bool get_next_images(cv::Mat &depth, cv::Mat &image);
     bool has_images() noexcept;
 
 private:

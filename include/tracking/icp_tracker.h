@@ -63,6 +63,8 @@ private:
   std::vector<cv::cuda::GpuMat> intensity_src_pyr;
   std::vector<cv::cuda::GpuMat> intensity_dx_pyr;
   std::vector<cv::cuda::GpuMat> intensity_dy_pyr;
+  std::vector<cv::cuda::GpuMat> depth_dx_pyr;
+  std::vector<cv::cuda::GpuMat> depth_dy_pyr;
 
   std::vector<cv::cuda::GpuMat> depth_ref_pyr;
   std::vector<cv::cuda::GpuMat> vmap_ref_pyr;
@@ -74,6 +76,8 @@ private:
   Eigen::Matrix<float, 6, 6> icp_hessian;
   Eigen::Matrix<float, 6, 6> rgb_hessian;
   Eigen::Matrix<float, 6, 6> joint_hessian;
+  Eigen::Matrix<float, 6, 6> last_hessian;
+  Eigen::Matrix<double, 6, 1> last_update;
 
   Eigen::Matrix<float, 6, 1> icp_residual;
   Eigen::Matrix<float, 6, 1> rgb_residual;

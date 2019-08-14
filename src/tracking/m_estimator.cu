@@ -711,7 +711,7 @@ void compute_residual(
     block = dim3(MAX_THREAD);
     grid = dim3(div_up(num, block.x));
 
-    cv::cuda::GpuMat sum(num, 28, CV_32FC1);
+    cv::cuda::GpuMat sum(96, 28, CV_32FC1);
     cv::cuda::GpuMat out;
     sum.setTo(0);
 

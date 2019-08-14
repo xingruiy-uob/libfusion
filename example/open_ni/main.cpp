@@ -37,8 +37,8 @@ int main(int argc, char **argv)
             }
         }
 
-        if (window.is_paused())
-            window.update_vertex_and_normal();
+        // if (window.is_paused())
+        window.update_vertex_and_normal();
 
         window.render();
     }
