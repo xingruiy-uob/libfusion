@@ -21,14 +21,9 @@ struct Matrix3x3
     FUSION_HOST_AND_DEVICE inline Matrix3x3(const Matrix3x3<T> &M) : R0(M.R0), R1(M.R1), R2(M.R2) {}
 
 #ifdef HAS_EIGEN
-    FUSION_HOST_AND_DEVICE inline Matrix3x3(const Eigen::Matrix<T, 3, 3> &M)
-        : R0(M(0, 0), M(0, 1), M(0, 2)),
-          R1(M(1, 0), M(1, 1), M(1, 2)),
-          R2(M(2, 0), M(2, 1), M(2, 2))
-    {
-    }
 
-    FUSION_HOST_AND_DEVICE inline Matrix3x3(const Eigen::Matrix<T, 4, 4> &M)
+    template <typename Derived>
+    FUSION_HOST_AND_DEVICE inline Matrix3x3(const Eigen::MatrixBase<Derived> &M)
         : R0(M(0, 0), M(0, 1), M(0, 2)),
           R1(M(1, 0), M(1, 1), M(1, 2)),
           R2(M(2, 0), M(2, 1), M(2, 2))
@@ -57,19 +52,21 @@ struct Matrix3x4
     FUSION_HOST_AND_DEVICE inline Matrix3x4() : R0(0), R1(0), R2(0) {}
 
 #ifdef HAS_EIGEN
-    FUSION_HOST_AND_DEVICE inline Matrix3x4(const Eigen::Matrix<T, 3, 4> &M)
+    template <typename Derived>
+    FUSION_HOST_AND_DEVICE inline Matrix3x4(const Eigen::MatrixBase<Derived> &M)
         : R0(M(0, 0), M(0, 1), M(0, 2), M(0, 3)),
           R1(M(1, 0), M(1, 1), M(1, 2), M(1, 3)),
           R2(M(2, 0), M(2, 1), M(2, 2), M(2, 3))
     {
     }
 
-    FUSION_HOST_AND_DEVICE inline Matrix3x4(const Eigen::Matrix<T, 4, 4> &M)
-        : R0(M(0, 0), M(0, 1), M(0, 2), M(0, 3)),
-          R1(M(1, 0), M(1, 1), M(1, 2), M(1, 3)),
-          R2(M(2, 0), M(2, 1), M(2, 2), M(2, 3))
-    {
-    }
+    // template <typename Derived>
+    // FUSION_HOST_AND_DEVICE inline Matrix3x4(const Eigen::MatrixBase<Derived> &M)
+    //     : R0(M(0, 0), M(0, 1), M(0, 2), M(0, 3)),
+    //       R1(M(1, 0), M(1, 1), M(1, 2), M(1, 3)),
+    //       R2(M(2, 0), M(2, 1), M(2, 2), M(2, 3))
+    // {
+    // }
 #endif
 
     FUSION_HOST_AND_DEVICE inline Vector3<T> rotate(const Vector3<T> &V) const

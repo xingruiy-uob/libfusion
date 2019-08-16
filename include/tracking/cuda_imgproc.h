@@ -52,6 +52,14 @@ float check_covisibility(
     Eigen::Vector3f t,
     IntrinsicMatrix &K);
 
+void compute_residual(
+    const cv::cuda::GpuMat ref_image,
+    const cv::cuda::GpuMat ref_vmap,
+    const cv::cuda::GpuMat src_image,
+    const IntrinsicMatrix &K,
+    const Eigen::Matrix4d T_ref2src,
+    cv::cuda::GpuMat &out_image);
+
 } // namespace fusion
 
 #endif

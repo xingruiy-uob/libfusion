@@ -9,6 +9,52 @@
 namespace fusion
 {
 
+template <typename Derived>
+Eigen::Matrix3d rodrigues_decompress(const Eigen::MatrixBase<Derived> &xi)
+{
+  double a = xi(0);
+  double b = xi(1);
+  double c = xi(2);
+  double theta = xi.norm();
+
+  if (std::isnan(theta) || theta < std::numeric_limits<double>::epsilon())
+    return Eigen::Matrix3d::Identity();
+
+  Eigen::Matrix3d A, B;
+
+  /*
+  $$ A = \hat{\xi} $$
+  */
+  A << 0, -c, b,
+      c, 0, -a,
+      -b, a, 0;
+
+  /*
+  $$ B = A^2 $$
+  */
+  B << -c * c - b * b, a * b, a * c,
+      a * b, -c * c - a * a, b * c,
+      a * c, b * c, -b * b - a * a;
+
+  /*
+  $$ R = I_3 + \frac{sin(\theta)}{\theta}A + \frac{1-cos(\theta)}{\theta^2}B $$
+  */
+  Eigen::Matrix3d R = Eigen::Matrix3d::Identity() + sin(theta) / theta * A + (1 - cos(theta)) / pow(theta, 2) * B;
+
+  return R;
+}
+
+template <typename Derived>
+Eigen::Affine3d se3_exp_map(const Eigen::MatrixBase<Derived> &xi)
+{
+  const auto R = rodrigues_decompress(xi.bottomRows(3));
+  const Eigen::Vector3d t = xi.topRows(3);
+  auto se3 = Eigen::Affine3d::Identity();
+  se3.rotate(R);
+  se3.translate(t);
+  return se3;
+}
+
 DenseTracking::DenseTracking(const IntrinsicMatrix K, const int NUM_PYR)
 {
   BuildIntrinsicPyramid(K, cam_params, NUM_PYR);
@@ -93,6 +139,18 @@ void display_gpumat(const char *title, cv::cuda::GpuMat &image)
   cv::imshow(title, img);
 }
 
+void to_colour_map(cv::Mat in, int colour_map, cv::Mat &out)
+{
+  if (in.type() == CV_32FC1)
+  {
+    double min_val, max_val;
+    cv::minMaxIdx(in, &min_val, &max_val);
+    in.convertTo(out, CV_8UC1, 1 / (max_val - min_val), -min_val / (max_val - min_val));
+  }
+
+  cv::applyColorMap(out, out, colour_map);
+}
+
 TrackingResult DenseTracking::compute_transform(const TrackingContext &context)
 {
   Revertable<Sophus::SE3d> estimate = Revertable<Sophus::SE3d>(Sophus::SE3d());
@@ -136,18 +194,18 @@ TrackingResult DenseTracking::compute_transform(const TrackingContext &context)
       last_icp_error = icp_error;
       last_rgb_error = rgb_error;
 
-      // icp_reduce(
-      //     curr_vmap,
-      //     curr_nmap,
-      //     last_vmap,
-      //     last_nmap,
-      //     SUM_SE3,
-      //     OUT_SE3,
-      //     last_estimate,
-      //     K,
-      //     icp_hessian.data(),
-      //     icp_residual.data(),
-      //     residual_icp_.data());
+      icp_reduce(
+          curr_vmap,
+          curr_nmap,
+          last_vmap,
+          last_nmap,
+          SUM_SE3,
+          OUT_SE3,
+          last_estimate,
+          K,
+          icp_hessian.data(),
+          icp_residual.data(),
+          residual_icp_.data());
 
       // float stdev_estimated;
 
@@ -163,17 +221,17 @@ TrackingResult DenseTracking::compute_transform(const TrackingContext &context)
       //     icp_residual.data(),
       //     residual_icp_.data());
 
-      compute_residual(
-          curr_intensity,
-          last_intensity,
-          last_vmap,
-          intensity_dx,
-          intensity_dy,
-          last_estimate,
-          K,
-          rgb_hessian.data(),
-          rgb_residual.data(),
-          residual_rgb_.data());
+      // compute_residual(
+      //     curr_intensity,
+      //     last_intensity,
+      //     last_vmap,
+      //     intensity_dx,
+      //     intensity_dy,
+      //     last_estimate,
+      //     K,
+      //     rgb_hessian.data(),
+      //     rgb_residual.data(),
+      //     residual_rgb_.data());
 
       // std::cout << stddev_estimated << std::endl;
 
@@ -197,10 +255,10 @@ TrackingResult DenseTracking::compute_transform(const TrackingContext &context)
 
       // auto joint_hessian = 1e6 * icp_hessian + rgb_hessian;
       // auto joint_residual = 1e6 * icp_residual + rgb_residual;
-      joint_hessian = rgb_hessian;
-      joint_residual = rgb_residual;
-      // auto A = icp_hessian;
-      // auto b = icp_residual;
+      // joint_hessian = rgb_hessian;
+      // joint_residual = rgb_residual;
+      auto joint_hessian = icp_hessian;
+      auto joint_residual = icp_residual;
 
       update = joint_hessian.cast<double>().ldlt().solve(joint_residual.cast<double>());
 
@@ -213,7 +271,11 @@ TrackingResult DenseTracking::compute_transform(const TrackingContext &context)
       // }
       // else
       // {
-      estimate = Sophus::SE3d::exp(update) * last_estimate;
+      // estimate = Sophus::SE3d::exp(update) * last_estimate;
+
+      const auto se3_update = se3_exp_map(update);
+      const auto updated_est = se3_update * last_estimate.matrix();
+      estimate = Sophus::SE3d(updated_est);
       // }
 
       // icp_error = sqrt(residual_icp_(0)) / residual_icp_(1);
@@ -234,23 +296,23 @@ TrackingResult DenseTracking::compute_transform(const TrackingContext &context)
       //   icp_count = 0;
       // }
 
-      rgb_error = sqrt(residual_rgb_(0)) / residual_rgb_(1);
+      // rgb_error = sqrt(residual_rgb_(0)) / residual_rgb_(1);
 
-      if (rgb_error > last_rgb_error)
-      {
-        if (rgb_count >= 2)
-        {
-          estimate.revert();
-          break;
-        }
+      // if (rgb_error > last_rgb_error)
+      // {
+      //   if (rgb_count >= 2)
+      //   {
+      //     estimate.revert();
+      //     break;
+      //   }
 
-        rgb_count++;
-        rgb_error = last_rgb_error;
-      }
-      else
-      {
-        rgb_count = 0;
-      }
+      //   rgb_count++;
+      //   rgb_error = last_rgb_error;
+      // }
+      // else
+      // {
+      //   rgb_count = 0;
+      // }
     }
   }
 
@@ -269,6 +331,14 @@ TrackingResult DenseTracking::compute_transform(const TrackingContext &context)
 
   last_hessian = joint_hessian.normalized();
   last_update = estimate.get().log();
+
+  // cv::cuda::GpuMat out_image;
+  // compute_residual(intensity_ref_pyr[0], vmap_ref_pyr[0], intensity_src_pyr[0], cam_params[0], estimate.get().matrix(), out_image);
+  // cv::Mat out(out_image);
+  // cv::Mat out2;
+  // to_colour_map(out, cv::COLORMAP_JET, out2);
+  // cv::imshow("out2", out2);
+  // cv::waitKey(1);
 
   return result;
 }

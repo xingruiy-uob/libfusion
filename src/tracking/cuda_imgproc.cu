@@ -403,4 +403,67 @@ float check_covisibility(
     return (float)temp / (cols * rows);
 }
 
+__device__ inline float interpolate(const cv::cuda::PtrStep<float> &map, float x, float y)
+{
+    float u = std::floor(x), v = std::floor(y);
+    float coeff_x = x - u, coeff_y = y - v;
+
+    float v00 = map.ptr((int)u)[(int)v];
+    float v10 = map.ptr((int)u)[(int)v + 1];
+    float v01 = map.ptr((int)u + 1)[(int)v];
+    float v11 = map.ptr((int)u + 1)[(int)v + 1];
+
+    return (v00 * (1 - coeff_x) * v10 * coeff_x) * (1 - coeff_y) + (v01 * (1 - coeff_x) + v11 * coeff_x) * coeff_y;
+}
+
+__global__ void compute_residual_kernel(
+    const cv::cuda::PtrStep<float> ref_image,
+    const cv::cuda::PtrStep<Vector4f> ref_vmap,
+    const cv::cuda::PtrStep<float> src_image,
+    Matrix3x3f KR_ref2src, Vector3f Kt_ref2src,
+    cv::cuda::PtrStepSz<float> out_image)
+{
+    const int x = threadIdx.x + blockDim.x * blockIdx.x;
+    const int y = threadIdx.y + blockDim.y * blockIdx.y;
+    if (x >= out_image.cols || y >= out_image.rows)
+        return;
+
+    out_image.ptr(y)[x] = 255;
+
+    Vector3f point = ToVector3(ref_vmap.ptr(y)[x]);
+    Vector3f project = KR_ref2src(point) + Kt_ref2src;
+    if (project.x >= 1 && project.y >= 1 &&
+        project.x < out_image.cols - 1 &&
+        project.y < out_image.rows - 1)
+    {
+        float val_interp = interpolate(src_image, project.x, project.y);
+        out_image.ptr(y)[x] = abs(val_interp - ref_image.ptr(y)[x]);
+    }
+}
+
+void compute_residual(
+    const cv::cuda::GpuMat ref_image,
+    const cv::cuda::GpuMat ref_vmap,
+    const cv::cuda::GpuMat src_image,
+    const IntrinsicMatrix &K,
+    const Eigen::Matrix4d T_ref2src,
+    cv::cuda::GpuMat &out_image)
+{
+    if (out_image.empty())
+        out_image.create(ref_image.size(), ref_image.type());
+
+    dim3 block(8, 8);
+    dim3 grid(div_up(out_image.cols, block.x), div_up(out_image.rows, block.y));
+
+    Eigen::Matrix3d Kmat;
+    Kmat << K.fx, 0, K.cx,
+        0, K.fy, K.cy,
+        0, 0, 1;
+
+    Eigen::Matrix3d KR = Kmat * T_ref2src.topLeftCorner(3, 3);
+    Eigen::Vector3d Kt = Kmat * T_ref2src.topRightCorner(3, 1);
+
+    compute_residual_kernel<<<grid, block>>>(ref_image, ref_vmap, src_image, KR, Kt, out_image);
+}
+
 } // namespace fusion

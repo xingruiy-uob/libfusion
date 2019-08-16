@@ -32,16 +32,16 @@ void SystemNew::spawn_work(const cv::Mat &depth, const cv::Mat &image)
         return;
     }
 
-    // mapper->raycast(vmap_cast, image_cast, keyframe->pose);
+    mapper->raycast(vmap_cast, image_cast, keyframe->pose);
 
     // cv::Mat img(vmap_cast);
     // cv::imshow("img", img);
     // cv::waitKey(1);
 
-    // tracker->set_reference_vmap(vmap_cast);
+    tracker->set_reference_vmap(vmap_cast);
     if (has_new_keyframe)
     {
-        tracker->set_reference_depth(cv::cuda::GpuMat(keyframe->depth));
+        // tracker->set_reference_depth(cv::cuda::GpuMat(keyframe->depth));
         tracker->set_reference_image(cv::cuda::GpuMat(keyframe->image));
     }
     tracker->set_source_depth(cv::cuda::GpuMat(current->depth));
@@ -77,7 +77,7 @@ void SystemNew::spawn_work(const cv::Mat &depth, const cv::Mat &image)
 void SystemNew::populate_current_data(cv::Mat depth, cv::Mat image)
 {
     cv::Mat depth_meters;
-    depth.convertTo(depth_meters, CV_32FC1, 1 / 5000.f);
+    depth.convertTo(depth_meters, CV_32FC1, 1 / 1000.f);
 
     current = std::make_shared<RgbdFrame>(depth_meters, image, current_frame_id);
 }

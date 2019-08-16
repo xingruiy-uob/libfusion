@@ -2,7 +2,7 @@
 #define FUSION_MATH_TYPES_H
 
 #include <cmath>
-#include <sophus/se3.hpp>
+#include <Eigen/Dense>
 #include "macros.h"
 
 namespace fusion
@@ -59,6 +59,11 @@ struct Vector3
     FUSION_HOST_AND_DEVICE inline Vector3(T x, T y, T z) : x(x), y(y), z(z) {}
     FUSION_HOST_AND_DEVICE inline Vector3(T x, T y) : x(x), y(y), z(1) {}
     FUSION_HOST_AND_DEVICE inline Vector3(T val) : x(val), y(val), z(val) {}
+    
+    template <typename Derived>
+    FUSION_HOST_AND_DEVICE inline Vector3(const Eigen::MatrixBase<Derived> &V) : x(V(0)), y(V(1)), z(V(2))
+    {
+    }
 
     FUSION_HOST_AND_DEVICE inline bool operator==(const Vector3<T> &other) const
     {
