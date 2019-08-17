@@ -19,6 +19,11 @@ int main(int argc, char **argv)
             window.SetRGBSource(image);
             if (!window.IsPaused())
             {
+                if (window.EnableMapping())
+                    slam.mapping_enabled = true;
+                else
+                    slam.mapping_enabled = false;
+
                 slam.process_images(depth, image);
 
                 // window.SetDepthSource(slam.get_shaded_depth());

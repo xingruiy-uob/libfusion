@@ -61,6 +61,8 @@ FUSION_HOST_AND_DEVICE inline float Voxel::getWeight() const
 FUSION_HOST_AND_DEVICE inline void Voxel::setWeight(float val)
 {
     weight = val;
+    if (weight > 255)
+        weight = 255;
 }
 
 } // namespace fusion

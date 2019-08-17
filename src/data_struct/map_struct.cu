@@ -19,11 +19,11 @@ MapStruct<Device>::MapStruct()
     state.num_total_buckets_ = 200000;
     state.num_total_hash_entries_ = 250000;
     state.num_total_voxel_blocks_ = 200000;
-    state.zmax_raycast = 2.f;
+    state.zmax_raycast = 1.5f;
     state.zmin_raycast = 0.3f;
-    state.zmax_update = 2.f;
+    state.zmax_update = 1.5f;
     state.zmin_update = 0.3f;
-    state.voxel_size = 0.004f;
+    state.voxel_size = 0.01f;
     state.num_max_rendering_blocks_ = 100000;
     state.num_max_mesh_triangles_ = 20000000;
 
@@ -119,7 +119,7 @@ FUSION_HOST_AND_DEVICE int MapState::num_excess_entries() const
 
 FUSION_HOST_AND_DEVICE float MapState::truncation_dist() const
 {
-    return 3.0f * voxel_size;
+    return 5.0f * voxel_size;
 }
 
 FUSION_HOST_AND_DEVICE float MapState::raycast_step_scale() const

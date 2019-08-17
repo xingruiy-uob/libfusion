@@ -32,7 +32,7 @@ public:
     bool IsPaused();
     bool mbFlagRestart;
     bool mbFlagUpdateMesh;
-
+    bool EnableMapping();
     float *GetMappedVertexBuffer();
     float *GetMappedNormalBuffer();
     unsigned char *GetMappedColourBuffer();
@@ -80,6 +80,7 @@ private:
     std::shared_ptr<pangolin::Var<bool>> BoxDisplayCamera;
     std::shared_ptr<pangolin::Var<bool>> BoxDisplayKeyCameras;
     std::shared_ptr<pangolin::Var<bool>> BoxDisplayKeyPoint;
+    std::shared_ptr<pangolin::Var<bool>> BoxEnableMapping;
 
     //! Acquire Mehs Functions
     void UpdateMeshWithNormal();

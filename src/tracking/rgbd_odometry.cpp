@@ -34,17 +34,17 @@ void DenseOdometry::trackFrame(std::shared_ptr<RgbdFrame> frame)
 
   result = tracker->compute_transform(refDeviceMapPyramid, currDeviceMapPyramid, context);
 
-  if (result.sucess)
-  {
-    frame->pose = lastTracedFrame->pose * result.update;
-    lastTracedFrame = frame;
-    currDeviceMapPyramid.swap(refDeviceMapPyramid);
-    trackingLost = false;
-  }
-  else
-  {
-    trackingLost = true;
-  }
+  // if (result.sucess)
+  // {
+  frame->pose = lastTracedFrame->pose * result.update;
+  lastTracedFrame = frame;
+  currDeviceMapPyramid.swap(refDeviceMapPyramid);
+  trackingLost = false;
+  // }
+  // else
+  // {
+  //   trackingLost = true;
+  // }
 }
 
 std::shared_ptr<DeviceImage> DenseOdometry::get_current_image() const

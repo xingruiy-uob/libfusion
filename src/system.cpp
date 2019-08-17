@@ -10,22 +10,22 @@ System::~System()
 }
 
 System::System(const fusion::IntrinsicMatrix base, const int NUM_PYR)
-    : frame_id(0), is_initialized(false), hasNewKeyFrame(false)
+    : frame_id(0), is_initialized(false), hasNewKeyFrame(false), mapping_enabled(true)
 {
     mapping = std::make_shared<DenseMapping>(base);
     odometry = std::make_shared<DenseOdometry>(base, NUM_PYR);
     extractor = std::make_shared<FeatureExtractor>();
     matcher = std::make_shared<DescriptorMatcher>();
 
-    graph = std::make_shared<KeyFrameGraph>(base, NUM_PYR);
-    graph->set_feature_extractor(extractor);
-    graph->set_descriptor_matcher(matcher);
+    // graph = std::make_shared<KeyFrameGraph>(base, NUM_PYR);
+    // graph->set_feature_extractor(extractor);
+    // graph->set_descriptor_matcher(matcher);
 
-    relocalizer = std::make_shared<Relocalizer>(base);
-    relocalizer->setDescriptorMatcher(matcher);
-    relocalizer->setFeatureExtractor(extractor);
+    // relocalizer = std::make_shared<Relocalizer>(base);
+    // relocalizer->setDescriptorMatcher(matcher);
+    // relocalizer->setFeatureExtractor(extractor);
 
-    graphThread = std::thread(&KeyFrameGraph::main_loop, graph.get());
+    // graphThread = std::thread(&KeyFrameGraph::main_loop, graph.get());
 }
 
 void System::initialization()
@@ -52,50 +52,54 @@ void System::process_images(const cv::Mat depth, const cv::Mat image)
     if (!odometry->trackingLost)
         odometry->trackFrame(current_frame);
 
-    if (!odometry->trackingLost)
-    {
-        auto reference_image = odometry->get_reference_image();
-        auto reference_frame = reference_image->get_reference_frame();
+    // if (!odometry->trackingLost)
+    // {
+    auto reference_image = odometry->get_reference_image();
+    auto reference_frame = reference_image->get_reference_frame();
 
+    if (mapping_enabled)
+    {
         mapping->update(reference_image);
-        mapping->raycast(reference_image->get_vmap(), reference_image->get_nmap(0), reference_frame->pose);
-        reference_image->resize_device_map();
-
-        if (keyframe_needed())
-            create_keyframe();
-
-        last_tracked_frame = current_frame;
-        frame_id += 1;
     }
-    else
-    {
-        std::cout << "Tracking Lost! Trying to recover..." << std::endl;
-        std::vector<std::shared_ptr<Point3d>> points;
-        auto descriptors = graph->get_descriptor_all(points);
 
-        relocalizer->set_target_frame(current_frame);
-        relocalizer->set_map_points(points, descriptors);
+    mapping->raycast(reference_image->get_vmap(), reference_image->get_nmap(0), reference_frame->pose);
+    reference_image->resize_device_map();
 
-        std::vector<Sophus::SE3d> candidates;
-        relocalizer->compute_pose_candidates(candidates);
+    if (keyframe_needed())
+        create_keyframe();
 
-        for (const auto &candidate : candidates)
-        {
-            auto reference_image = odometry->get_reference_image();
-            auto reference_frame = reference_image->get_reference_frame();
-            reference_frame->pose = candidate;
-            mapping->raycast_check_visibility(reference_image->get_vmap(), reference_image->get_nmap(0), reference_frame->pose);
-            reference_image->resize_device_map();
+    last_tracked_frame = current_frame;
+    frame_id += 1;
+    // }
+    // else
+    // {
+    // std::cout << "Tracking Lost! Trying to recover..." << std::endl;
+    // std::vector<std::shared_ptr<Point3d>> points;
+    // auto descriptors = graph->get_descriptor_all(points);
 
-            cv::Mat img(reference_image->get_vmap());
-            cv::imshow("img", img);
-            cv::waitKey(0);
-        }
+    // relocalizer->set_target_frame(current_frame);
+    // relocalizer->set_map_points(points, descriptors);
 
-        //TODO : raycast verification
+    // std::vector<Sophus::SE3d> candidates;
+    // relocalizer->compute_pose_candidates(candidates);
 
-        // odometry->trackingLost = false;
-    }
+    // for (const auto &candidate : candidates)
+    // {
+    //     auto reference_image = odometry->get_reference_image();
+    //     auto reference_frame = reference_image->get_reference_frame();
+    //     reference_frame->pose = candidate;
+    //     mapping->raycast_check_visibility(reference_image->get_vmap(), reference_image->get_nmap(0), reference_frame->pose);
+    //     reference_image->resize_device_map();
+
+    //     cv::Mat img(reference_image->get_vmap());
+    //     cv::imshow("img", img);
+    //     cv::waitKey(0);
+    // }
+
+    //TODO : raycast verification
+
+    // odometry->trackingLost = false;
+    // }
 
     if (hasNewKeyFrame)
     {
@@ -104,7 +108,7 @@ void System::process_images(const cv::Mat depth, const cv::Mat image)
         reference_image->get_vmap().download(reference_frame->vmap);
         reference_image->get_nmap().download(reference_frame->nmap);
 
-        graph->add_keyframe(reference_frame);
+        // graph->add_keyframe(reference_frame);
         hasNewKeyFrame = false;
     }
 }
@@ -143,13 +147,13 @@ cv::Mat System::get_rendered_scene_textured() const
 
 void System::restart()
 {
-    // initialPose = last_tracked_frame->pose;
+    initialPose = last_tracked_frame->pose;
     is_initialized = false;
     frame_id = 0;
 
     mapping->reset_mapping();
     odometry->reset();
-    graph->reset();
+    // graph->reset();
 }
 
 void System::setLost(bool lost)

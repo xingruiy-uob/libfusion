@@ -58,6 +58,8 @@ public:
 
     Eigen::Matrix4f get_camera_pose() const;
 
+    bool mapping_enabled;
+
 private:
     RgbdFramePtr current_frame;
     RgbdFramePtr last_tracked_frame;

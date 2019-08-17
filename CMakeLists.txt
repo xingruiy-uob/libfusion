@@ -76,6 +76,7 @@ PRIVATE
     src/voxel_hashing/scene_mesh.cu
 
     src/input/tum_loader.cpp
+    src/input/oni_camera.cpp
 )
 
 add_subdirectory(example)

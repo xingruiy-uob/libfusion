@@ -157,6 +157,7 @@ void MainWindow::SetupDisplays()
     BoxDisplayCamera = std::make_shared<pangolin::Var<bool>>("Menu.Display Camera", false, true);
     BoxDisplayKeyCameras = std::make_shared<pangolin::Var<bool>>("Menu.Display KeyFrame", false, true);
     BoxDisplayKeyPoint = std::make_shared<pangolin::Var<bool>>("Menu.Display KeyPoint", false, true);
+    BoxEnableMapping = std::make_shared<pangolin::Var<bool>>("Menu.Enable Mapping", true, true);
 
     mpViewSideBar = &pangolin::Display("Right Side Bar");
     mpViewSideBar->SetBounds(0, 1, RightSideBarDividerLeft, 1);
@@ -189,12 +190,20 @@ void MainWindow::RegisterKeyCallback()
     //! Load Maps
     pangolin::RegisterKeyPressCallback('l', pangolin::SetVarFunctor<bool>("Menu.Read Map", true));
     pangolin::RegisterKeyPressCallback('L', pangolin::SetVarFunctor<bool>("Menu.Read Map", true));
+
+    pangolin::RegisterKeyPressCallback('m', pangolin::ToggleVarFunctor("Menu.Enable Mapping"));
+    pangolin::RegisterKeyPressCallback('M', pangolin::ToggleVarFunctor("Menu.Enable Mapping"));
 }
 
 void MainWindow::ResetAllFlags()
 {
     mbFlagRestart = false;
     // mbFlagUpdateMesh = false;
+}
+
+bool MainWindow::EnableMapping()
+{
+    return *BoxEnableMapping;
 }
 
 void MainWindow::SetRGBSource(cv::Mat RgbImage)
